@@ -16,6 +16,13 @@ export default function PointCard({ point, active, onSelect, onRequireAuth, inde
     toast.success(isFav ? "Retiré des favoris" : "Ajouté aux favoris");
   };
 
+  const handleRoute = (e) => {
+    e.stopPropagation();
+    const dest = `${point.lat},${point.lng}`;
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
   return (
     <div
       role="button"
@@ -99,12 +106,22 @@ export default function PointCard({ point, active, onSelect, onRequireAuth, inde
             )}
           </div>
 
-          {point.distance != null && (
-            <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-black/5 px-2 py-1 text-[11px] text-gray-600">
+          <div className="mt-2 flex items-center gap-2">
+            {point.distance != null && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-black/5 px-2 py-1 text-[11px] text-gray-600">
+                <Navigation2 className="h-3 w-3" />
+                {point.distance} km
+              </span>
+            )}
+            <button
+              onClick={handleRoute}
+              data-testid={`route-btn-${point.id}`}
+              className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-[#14161C] px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#2a2d36] transition-[background-color]"
+            >
               <Navigation2 className="h-3 w-3" />
-              {point.distance} km
-            </span>
-          )}
+              Itinéraire
+            </button>
+          </div>
         </div>
       </div>
     </div>
