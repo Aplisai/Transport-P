@@ -278,18 +278,19 @@ export default function MapApp() {
         />
       </div>
 
-      {/* Geolocation FAB */}
+      {/* Geolocation button */}
       <button
         onClick={geolocate}
-        aria-label="Me géolocaliser"
+        aria-label="Ma position"
         data-testid="geolocate-btn"
-        className="absolute right-4 top-4 z-[1000] flex h-12 w-12 items-center justify-center rounded-full bg-white/95 backdrop-blur-xl border border-black/10 text-[#14161C] shadow-[0_8px_24px_rgba(0,0,0,0.15)] hover:bg-white transition-[background-color] lg:right-6 lg:top-6"
+        className="absolute right-4 top-4 z-[1000] flex items-center gap-2 rounded-full bg-white/95 backdrop-blur-xl border border-black/10 px-4 py-3 text-sm font-semibold text-[#14161C] shadow-[0_8px_24px_rgba(0,0,0,0.15)] hover:bg-white transition-[background-color] lg:right-6 lg:top-6"
       >
         {locating ? (
           <Loader2 className="h-5 w-5 animate-spin" />
         ) : (
           <Crosshair className="h-5 w-5" />
         )}
+        <span>Ma position</span>
       </button>
 
       {/* Desktop panel */}
