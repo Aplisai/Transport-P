@@ -70,7 +70,11 @@ export default function MapApp() {
 
   const geolocate = () => {
     if (!navigator.geolocation) {
-      toast.error("Géolocalisation non supportée");
+      toast.error("Géolocalisation non supportée par ce navigateur");
+      return;
+    }
+    if (window.isSecureContext === false) {
+      toast.error("La géolocalisation nécessite une connexion sécurisée (HTTPS)");
       return;
     }
     setLocating(true);
@@ -89,11 +93,18 @@ export default function MapApp() {
         setFlyTarget({ ...loc, zoom: 13 });
         toast.success("Position détectée — points relais triés par distance");
       },
-      () => {
+      (err) => {
         setLocating(false);
-        toast.error("Impossible de récupérer votre position");
+        let msg = "Impossible de récupérer votre position";
+        if (err.code === err.PERMISSION_DENIED)
+          msg = "Accès à la position refusé. Autorisez la géolocalisation dans votre navigateur.";
+        else if (err.code === err.POSITION_UNAVAILABLE)
+          msg = "Position indisponible pour le moment. Réessayez.";
+        else if (err.code === err.TIMEOUT)
+          msg = "Délai dépassé. Vérifiez votre connexion et réessayez.";
+        toast.error(msg);
       },
-      { enableHighAccuracy: true, timeout: 8000 }
+      { enableHighAccuracy: false, timeout: 20000, maximumAge: 60000 }
     );
   };
 
