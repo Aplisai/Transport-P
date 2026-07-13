@@ -1,12 +1,15 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useRef } from "react";
 import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import L from "leaflet";
+import "leaflet.markercluster";
+import "leaflet.markercluster/dist/MarkerCluster.css";
+import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 
 const PIN_SVG =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>';
 
 function carrierIcon(color, active) {
-  const size = active ? 40 : 30;
+  const size = active ? 40 : 28;
   return L.divIcon({
     className: "",
     html: `<div class="rp-marker" style="width:${size}px;height:${size}px;background:${color};${
@@ -34,9 +37,52 @@ function FlyController({ target }) {
   return null;
 }
 
-export default function MapView({ points, selectedId, userLocation, flyTarget, onSelect }) {
-  const icons = useMemo(() => ({}), []);
+function ClusterLayer({ points, selectedId, onSelect }) {
+  const map = useMap();
+  const groupRef = useRef(null);
 
+  useEffect(() => {
+    const group = L.markerClusterGroup({
+      chunkedLoading: true,
+      maxClusterRadius: 55,
+      spiderfyOnMaxZoom: true,
+      showCoverageOnHover: false,
+      iconCreateFunction: (cluster) => {
+        const count = cluster.getChildCount();
+        const size = count < 20 ? 34 : count < 100 ? 42 : 52;
+        return L.divIcon({
+          className: "",
+          html: `<div class="rp-cluster">${count}</div>`,
+          iconSize: [size, size],
+        });
+      },
+    });
+    groupRef.current = group;
+    map.addLayer(group);
+    return () => {
+      map.removeLayer(group);
+      groupRef.current = null;
+    };
+  }, [map]);
+
+  useEffect(() => {
+    const group = groupRef.current;
+    if (!group) return;
+    group.clearLayers();
+    const markers = points.map((p) => {
+      const m = L.marker([p.lat, p.lng], {
+        icon: carrierIcon(p.color, p.id === selectedId),
+      });
+      m.on("click", () => onSelect(p));
+      return m;
+    });
+    group.addLayers(markers);
+  }, [points, selectedId, onSelect]);
+
+  return null;
+}
+
+export default function MapView({ points, selectedId, userLocation, flyTarget, onSelect }) {
   return (
     <MapContainer
       center={[46.6, 2.4]}
@@ -54,25 +100,13 @@ export default function MapView({ points, selectedId, userLocation, flyTarget, o
     >
       <TileLayer
         url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-        attribution='&copy; OpenStreetMap &copy; CARTO'
+        attribution="&copy; OpenStreetMap &copy; CARTO"
       />
       <FlyController target={flyTarget} />
-
       {userLocation && (
         <Marker position={[userLocation.lat, userLocation.lng]} icon={userIcon} />
       )}
-
-      {points.map((p) => {
-        const active = p.id === selectedId;
-        return (
-          <Marker
-            key={p.id}
-            position={[p.lat, p.lng]}
-            icon={carrierIcon(p.color, active)}
-            eventHandlers={{ click: () => onSelect(p) }}
-          />
-        );
-      })}
+      <ClusterLayer points={points} selectedId={selectedId} onSelect={onSelect} />
     </MapContainer>
   );
 }

@@ -110,6 +110,7 @@ export default function MapApp() {
 
   const visiblePoints =
     tab === "favorites" ? points.filter((p) => favorites.includes(p.id)) : points;
+  const listPoints = visiblePoints.slice(0, 300);
 
   const Panel = (
     <div className="flex h-full flex-col bg-white">
@@ -245,7 +246,7 @@ export default function MapApp() {
               : "Aucun point relais trouvé."}
           </div>
         )}
-        {visiblePoints.map((p, i) => (
+        {listPoints.map((p, i) => (
           <PointCard
             key={p.id}
             point={p}
@@ -255,6 +256,11 @@ export default function MapApp() {
             onRequireAuth={requireAuth}
           />
         ))}
+        {visiblePoints.length > listPoints.length && (
+          <p className="py-3 text-center text-xs text-gray-400" data-testid="list-truncation-note">
+            {listPoints.length} premiers affichés — affinez avec la recherche ou les filtres
+          </p>
+        )}
       </div>
     </div>
   );

@@ -146,7 +146,7 @@ async def get_points(
     q: Optional[str] = None,
     lat: Optional[float] = None,
     lng: Optional[float] = None,
-    limit: int = 500,
+    limit: int = 10000,
 ):
     selected = set(carriers.split(",")) if carriers else None
     results = []
