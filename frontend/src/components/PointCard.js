@@ -1,4 +1,4 @@
-import { Heart, MapPin, Clock, Phone, Navigation2 } from "lucide-react";
+import { Heart, MapPin, Clock, Phone, Navigation2, Box, Store } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 
@@ -40,13 +40,33 @@ export default function PointCard({ point, active, onSelect, onRequireAuth, inde
               <p className="truncate font-head text-sm font-semibold text-[#14161C]">
                 {point.name}
               </p>
-              <p
-                className="text-xs font-semibold"
-                style={{ color: point.color }}
-                data-testid={`point-carrier-${point.id}`}
-              >
-                {point.carrier_name}
-              </p>
+              <div className="flex items-center gap-1.5">
+                <p
+                  className="text-xs font-semibold"
+                  style={{ color: point.color }}
+                  data-testid={`point-carrier-${point.id}`}
+                >
+                  {point.carrier_name}
+                </p>
+                <span
+                  data-testid={`point-type-${point.id}`}
+                  className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                    point.type === "locker"
+                      ? "bg-[#14161C] text-white"
+                      : "bg-black/[0.06] text-gray-600"
+                  }`}
+                >
+                  {point.type === "locker" ? (
+                    <>
+                      <Box className="h-2.5 w-2.5" /> Locker
+                    </>
+                  ) : (
+                    <>
+                      <Store className="h-2.5 w-2.5" /> Relais
+                    </>
+                  )}
+                </span>
+              </div>
             </div>
             <button
               onClick={handleFav}

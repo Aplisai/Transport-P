@@ -9,6 +9,8 @@ import {
   List,
   X,
   Loader2,
+  Store,
+  Box,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
@@ -31,6 +33,7 @@ export default function MapApp() {
   const [tab, setTab] = useState("all"); // all | favorites
   const [sheetOpen, setSheetOpen] = useState(false);
   const [locating, setLocating] = useState(false);
+  const [ptype, setPtype] = useState("all"); // all | relais | locker
   const debounceRef = useRef(null);
 
   useEffect(() => {
@@ -42,6 +45,7 @@ export default function MapApp() {
     const params = {};
     if (active.size) params.carriers = [...active].join(",");
     if (query.trim()) params.q = query.trim();
+    if (ptype !== "all") params.ptype = ptype;
     if (userLoc) {
       params.lat = userLoc.lat;
       params.lng = userLoc.lng;
@@ -52,7 +56,7 @@ export default function MapApp() {
     } finally {
       setLoading(false);
     }
-  }, [active, query, userLoc]);
+  }, [active, query, userLoc, ptype]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -109,16 +113,16 @@ export default function MapApp() {
     );
   };
 
-  const selectPoint = (p) => {
+  const selectPoint = useCallback((p) => {
     setSelected(p);
     setFlyTarget({ lat: p.lat, lng: p.lng, zoom: 15 });
     setSheetOpen(true);
-  };
+  }, []);
 
-  const requireAuth = () => {
+  const requireAuth = useCallback(() => {
     toast.info("Connectez-vous pour enregistrer vos favoris");
     setShowAuth(true);
-  };
+  }, []);
 
   const nearestByCarrier = userLoc
     ? carriers
@@ -231,6 +235,36 @@ export default function MapApp() {
             <Heart className="h-3.5 w-3.5" /> Favoris
             {favorites.length > 0 && ` (${favorites.length})`}
           </button>
+        </div>
+      </div>
+
+      {/* Type filter */}
+      <div className="border-b border-black/10 px-4 py-3">
+        <p className="mb-2 text-[11px] uppercase tracking-wider text-gray-400">
+          Type de point
+        </p>
+        <div className="flex gap-1 rounded-full bg-black/5 p-1">
+          {[
+            { id: "all", label: "Tous", icon: List },
+            { id: "relais", label: "Points relais", icon: Store },
+            { id: "locker", label: "Lockers", icon: Box },
+          ].map((t) => {
+            const Icon = t.icon;
+            return (
+              <button
+                key={t.id}
+                data-testid={`type-filter-${t.id}`}
+                onClick={() => setPtype(t.id)}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-1.5 text-xs font-medium transition-[background-color,color] ${
+                  ptype === t.id
+                    ? "bg-[#14161C] text-white"
+                    : "text-gray-500 hover:text-[#14161C]"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" /> {t.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 

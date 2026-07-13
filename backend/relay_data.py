@@ -104,6 +104,27 @@ HOURS = [
     {"lun-ven": "09:30-18:30", "sam": "09:30-17:00", "dim": "Fermé"},
 ]
 
+# Lockers = consignes automatiques (accessibles souvent 24h/24)
+LOCKER_LABELS = {
+    "mondial_relay": "Locker",
+    "chronopost": "Pickup Station",
+    "la_poste": "Consigne Pickup",
+    "dpd": "DPD Pickup Station",
+    "ups": "UPS Access Point Locker",
+    "relais_colis": "Consigne Relais Colis",
+    "colis_prive": "Locker Colis Privé",
+}
+LOCKER_SPOTS = [
+    "Parking Centre Commercial", "Gare SNCF", "Station-service Total",
+    "Parking Carrefour", "Parking Leclerc", "Station Intermarché",
+    "Parking Auchan", "Gare Routière", "Parking Super U", "Station BP",
+    "Parking Lidl", "Centre Commercial Grand Place", "Parking Casino",
+]
+LOCKER_HOURS = [
+    {"lun-ven": "24h/24", "sam": "24h/24", "dim": "24h/24"},
+    {"lun-ven": "06:00-23:00", "sam": "06:00-23:00", "dim": "07:00-22:00"},
+]
+
 
 def generate_points():
     random.seed(42)
@@ -111,7 +132,7 @@ def generate_points():
     pid = 1
     carriers = list(CARRIERS.keys())
     for city, lat, lng, cp, weight in CITIES:
-        # Chaque transporteur possède plusieurs points, proportionnel à la taille
+        # Points relais en boutique
         for carrier in carriers:
             n = max(1, random.randint(weight // 3, weight // 2 + 2))
             for _ in range(n):
@@ -122,6 +143,7 @@ def generate_points():
                 street = random.choice(STREET_NAMES)
                 points.append({
                     "id": f"pt-{pid:05d}",
+                    "type": "relais",
                     "carrier": carrier,
                     "carrier_name": CARRIERS[carrier]["name"],
                     "color": CARRIERS[carrier]["color"],
@@ -133,6 +155,29 @@ def generate_points():
                     "lng": round(lng + dlng, 6),
                     "hours": random.choice(HOURS),
                     "phone": f"0{random.randint(1,5)} {random.randint(10,99)} {random.randint(10,99)} {random.randint(10,99)} {random.randint(10,99)}",
+                })
+                pid += 1
+        # Lockers / consignes automatiques (moins nombreux)
+        for carrier in carriers:
+            n = max(1, random.randint(1, max(1, weight // 3)))
+            for _ in range(n):
+                dlat = random.uniform(-0.035, 0.035)
+                dlng = random.uniform(-0.045, 0.045)
+                spot = random.choice(LOCKER_SPOTS)
+                points.append({
+                    "id": f"pt-{pid:05d}",
+                    "type": "locker",
+                    "carrier": carrier,
+                    "carrier_name": CARRIERS[carrier]["name"],
+                    "color": CARRIERS[carrier]["color"],
+                    "name": f"{LOCKER_LABELS[carrier]} - {spot}",
+                    "address": spot,
+                    "postal_code": cp,
+                    "city": city,
+                    "lat": round(lat + dlat, 6),
+                    "lng": round(lng + dlng, 6),
+                    "hours": random.choice(LOCKER_HOURS),
+                    "phone": "",
                 })
                 pid += 1
     return points

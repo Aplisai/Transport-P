@@ -13,6 +13,7 @@ import bcrypt
 from bson import ObjectId
 from fastapi import FastAPI, APIRouter, Request, Response, HTTPException, Depends
 from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr, Field, BeforeValidator, ConfigDict
 
@@ -144,6 +145,7 @@ async def get_carriers():
 async def get_points(
     carriers: Optional[str] = None,
     q: Optional[str] = None,
+    ptype: Optional[str] = None,
     lat: Optional[float] = None,
     lng: Optional[float] = None,
     limit: int = 10000,
@@ -152,6 +154,8 @@ async def get_points(
     results = []
     for p in POINTS:
         if selected and p["carrier"] not in selected:
+            continue
+        if ptype and ptype != "all" and p.get("type", "relais") != ptype:
             continue
         if q:
             ql = q.lower()
@@ -214,6 +218,7 @@ async def startup():
                                   {"$set": {"password_hash": hash_password(admin_pw)}})
 
 app.include_router(api_router)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[os.environ.get("FRONTEND_URL", "http://localhost:3000")],

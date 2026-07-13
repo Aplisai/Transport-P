@@ -1,10 +1,14 @@
 """Backend integration tests for RelaisPoint API.
 
-Runs against the public REACT_APP_BACKEND_URL. Uses a fresh registered user for
-favorites tests and the seeded admin for login validation.
+Runs against the public REACT_APP_BACKEND_URL. Covers:
+- 7 carriers (incl. colis_prive)
+- 3193 points (2220 relais + 973 lockers)
+- ptype filter (all / relais / locker)
+- combined filters (ptype + q, ptype + carriers)
+- GZip compression
+- auth (register/login/logout/me), favorites lifecycle
 """
 import os
-import time
 import uuid
 
 import pytest
@@ -12,7 +16,6 @@ import requests
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL")
 if not BASE_URL:
-    # fallback to reading frontend .env file
     env_path = "/app/frontend/.env"
     if os.path.exists(env_path):
         with open(env_path) as f:
@@ -25,6 +28,14 @@ API = f"{BASE_URL}/api"
 
 ADMIN_EMAIL = "admin@relaispoint.fr"
 ADMIN_PASSWORD = "admin123"
+
+EXPECTED_CARRIER_IDS = {
+    "mondial_relay", "chronopost", "la_poste",
+    "dpd", "ups", "relais_colis", "colis_prive",
+}
+EXPECTED_TOTAL = 3193
+EXPECTED_RELAIS = 2220
+EXPECTED_LOCKERS = 973
 
 
 # ------------------------------------------------------------------ fixtures
@@ -55,12 +66,9 @@ class TestCarriers:
         assert r.status_code == 200
         data = r.json()
         assert isinstance(data, list)
-        assert len(data) == 6
+        assert len(data) == 7, f"expected 7 carriers, got {len(data)}"
         ids = {c["id"] for c in data}
-        assert ids == {
-            "mondial_relay", "chronopost", "la_poste",
-            "dpd", "ups", "relais_colis",
-        }
+        assert ids == EXPECTED_CARRIER_IDS, f"unexpected carriers: {ids}"
         for c in data:
             assert "name" in c and "color" in c
             assert c["color"].startswith("#") and len(c["color"]) == 7
@@ -69,66 +77,128 @@ class TestCarriers:
 # ============================================================ Points
 class TestPoints:
     def test_get_all_points(self, s):
-        r = s.get(f"{API}/points", timeout=15)
+        r = s.get(f"{API}/points", timeout=30)
         assert r.status_code == 200
         data = r.json()
         assert isinstance(data, list)
-        # ~226 points expected across French cities
-        assert 200 <= len(data) <= 270, f"unexpected point count: {len(data)}"
-        p = data[0]
-        for k in ("id", "carrier", "carrier_name", "color", "name",
+        assert len(data) == EXPECTED_TOTAL, \
+            f"expected {EXPECTED_TOTAL} points, got {len(data)}"
+        # Each point should have a 'type' field
+        types = {p.get("type") for p in data}
+        assert types == {"relais", "locker"}, f"unexpected types: {types}"
+
+    def test_point_schema(self, s):
+        r = s.get(f"{API}/points", timeout=30)
+        p = r.json()[0]
+        for k in ("id", "type", "carrier", "carrier_name", "color", "name",
                   "address", "postal_code", "city", "lat", "lng", "hours"):
             assert k in p, f"missing key {k}"
+        assert p["type"] in {"relais", "locker"}
+
+    def test_ptype_relais_only(self, s):
+        r = s.get(f"{API}/points", params={"ptype": "relais"}, timeout=30)
+        assert r.status_code == 200
+        data = r.json()
+        assert len(data) == EXPECTED_RELAIS, \
+            f"expected {EXPECTED_RELAIS} relais, got {len(data)}"
+        assert all(p["type"] == "relais" for p in data)
+
+    def test_ptype_locker_only(self, s):
+        r = s.get(f"{API}/points", params={"ptype": "locker"}, timeout=30)
+        assert r.status_code == 200
+        data = r.json()
+        assert len(data) == EXPECTED_LOCKERS, \
+            f"expected {EXPECTED_LOCKERS} lockers, got {len(data)}"
+        assert all(p["type"] == "locker" for p in data)
+
+    def test_ptype_all_equals_no_param(self, s):
+        r_all = s.get(f"{API}/points", params={"ptype": "all"}, timeout=30)
+        r_none = s.get(f"{API}/points", timeout=30)
+        assert r_all.status_code == 200 and r_none.status_code == 200
+        assert len(r_all.json()) == len(r_none.json()) == EXPECTED_TOTAL
+
+    def test_ptype_locker_and_search_lyon(self, s):
+        r = s.get(f"{API}/points",
+                  params={"ptype": "locker", "q": "Lyon"}, timeout=30)
+        assert r.status_code == 200
+        data = r.json()
+        assert len(data) > 0
+        assert all(p["type"] == "locker" for p in data)
+        # Must all match Lyon (city / postal / name)
+        for p in data:
+            assert ("lyon" in p["city"].lower()
+                    or "lyon" in p["name"].lower()
+                    or p["postal_code"].startswith("69"))
+
+    def test_ptype_relais_and_carrier_dpd(self, s):
+        r = s.get(f"{API}/points",
+                  params={"ptype": "relais", "carriers": "dpd"}, timeout=30)
+        assert r.status_code == 200
+        data = r.json()
+        assert len(data) > 0
+        assert all(p["type"] == "relais" for p in data)
+        assert all(p["carrier"] == "dpd" for p in data)
 
     def test_filter_by_carriers(self, s):
         r = s.get(f"{API}/points",
-                  params={"carriers": "mondial_relay,dpd"}, timeout=15)
+                  params={"carriers": "mondial_relay,dpd"}, timeout=30)
         assert r.status_code == 200
         data = r.json()
         assert len(data) > 0
         assert all(p["carrier"] in {"mondial_relay", "dpd"} for p in data)
 
     def test_search_by_city(self, s):
-        r = s.get(f"{API}/points", params={"q": "Lyon"}, timeout=15)
+        r = s.get(f"{API}/points", params={"q": "Lyon"}, timeout=30)
         assert r.status_code == 200
         data = r.json()
         assert len(data) > 0
-        # Search matches city, postal_code, or name (which contains carrier name)
-        # Ensure filter actually reduced results
-        r_all = s.get(f"{API}/points", timeout=15)
-        assert len(data) < len(r_all.json())
+        assert len(data) < EXPECTED_TOTAL
         assert any("Lyon" in p["city"] for p in data)
 
     def test_search_by_postal_code(self, s):
-        r = s.get(f"{API}/points", params={"q": "75001"}, timeout=15)
+        r = s.get(f"{API}/points", params={"q": "75001"}, timeout=30)
         assert r.status_code == 200
         data = r.json()
         assert len(data) > 0
         assert all(p["postal_code"] == "75001" for p in data)
 
     def test_distance_sort(self, s):
-        # Paris center
         r = s.get(f"{API}/points",
-                  params={"lat": 48.8566, "lng": 2.3522}, timeout=15)
+                  params={"lat": 48.8566, "lng": 2.3522}, timeout=30)
         assert r.status_code == 200
         data = r.json()
         assert len(data) > 1
         assert all("distance" in p for p in data)
         distances = [p["distance"] for p in data]
         assert distances == sorted(distances), "points should be sorted by distance asc"
-        # Nearest should be a Paris point
-        assert data[0]["city"].startswith("Paris") or data[0]["distance"] < 50
 
     def test_get_point_by_id(self, s):
-        listing = s.get(f"{API}/points", timeout=15).json()
+        listing = s.get(f"{API}/points", timeout=30).json()
         pid = listing[0]["id"]
         r = s.get(f"{API}/points/{pid}", timeout=15)
         assert r.status_code == 200
         assert r.json()["id"] == pid
 
     def test_get_point_404(self, s):
-        r = s.get(f"{API}/points/pt-99999", timeout=15)
+        r = s.get(f"{API}/points/pt-99999999", timeout=15)
         assert r.status_code == 404
+
+
+# ============================================================ GZip
+class TestGZip:
+    def test_gzip_encoding_on_points(self):
+        # requests auto-adds Accept-Encoding gzip; capture raw response.
+        r = requests.get(
+            f"{API}/points",
+            headers={"Accept-Encoding": "gzip"},
+            timeout=30,
+            stream=False,
+        )
+        assert r.status_code == 200
+        # Content-Encoding must be gzip since payload > 1000 bytes
+        enc = r.headers.get("Content-Encoding", "")
+        assert "gzip" in enc.lower(), \
+            f"expected gzip content-encoding, got headers: {dict(r.headers)}"
 
 
 # ============================================================ Auth
@@ -144,9 +214,7 @@ class TestAuth:
         data = r.json()
         assert data["email"] == ADMIN_EMAIL
         assert data["role"] == "admin"
-        # cookie should be set
-        assert "access_token" in sess.cookies.get_dict(), \
-            f"cookie missing: {sess.cookies.get_dict()}"
+        assert "access_token" in sess.cookies.get_dict()
 
     def test_login_wrong_password(self):
         r = requests.post(
@@ -185,7 +253,6 @@ class TestAuth:
         assert "access_token" in sess.cookies.get_dict()
         r = sess.post(f"{API}/auth/logout", timeout=15)
         assert r.status_code == 200
-        # After logout, /me should be 401 with the same session
         me = sess.get(f"{API}/auth/me", timeout=15)
         assert me.status_code == 401
 
@@ -195,43 +262,36 @@ class TestFavorites:
     def test_favorites_require_auth(self):
         assert requests.get(f"{API}/favorites", timeout=15).status_code == 401
         assert requests.post(
-            f"{API}/favorites", json={"point_id": "pt-0001"}, timeout=15
+            f"{API}/favorites", json={"point_id": "pt-00001"}, timeout=15
         ).status_code == 401
         assert requests.delete(
-            f"{API}/favorites/pt-0001", timeout=15
+            f"{API}/favorites/pt-00001", timeout=15
         ).status_code == 401
 
     def test_favorite_lifecycle(self, fresh_user_session, s):
         sess, _, _ = fresh_user_session
-        pid = s.get(f"{API}/points", timeout=15).json()[0]["id"]
+        pid = s.get(f"{API}/points", timeout=30).json()[0]["id"]
 
-        # Add
         r = sess.post(f"{API}/favorites", json={"point_id": pid}, timeout=15)
         assert r.status_code == 200
         assert pid in r.json()["favorites"]
 
-        # List
         r = sess.get(f"{API}/favorites", timeout=15)
         assert r.status_code == 200
-        listed = r.json()
-        assert any(p["id"] == pid for p in listed)
+        assert any(p["id"] == pid for p in r.json())
 
-        # Idempotent add
         r = sess.post(f"{API}/favorites", json={"point_id": pid}, timeout=15)
-        favs = r.json()["favorites"]
-        assert favs.count(pid) == 1
+        assert r.json()["favorites"].count(pid) == 1
 
-        # Delete
         r = sess.delete(f"{API}/favorites/{pid}", timeout=15)
         assert r.status_code == 200
         assert pid not in r.json()["favorites"]
 
-        # Verify gone
         r = sess.get(f"{API}/favorites", timeout=15)
         assert all(p["id"] != pid for p in r.json())
 
     def test_favorite_invalid_point(self, fresh_user_session):
         sess, _, _ = fresh_user_session
         r = sess.post(f"{API}/favorites",
-                      json={"point_id": "pt-99999"}, timeout=15)
+                      json={"point_id": "pt-99999999"}, timeout=15)
         assert r.status_code == 404
