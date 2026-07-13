@@ -5,7 +5,7 @@ import MapApp from "@/pages/MapApp";
 
 function App() {
   return (
-    <div className="App dark">
+    <div className="App">
       <AuthProvider>
         <MapApp />
         <Toaster position="top-center" theme="dark" richColors />

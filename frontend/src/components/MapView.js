@@ -41,12 +41,19 @@ export default function MapView({ points, selectedId, userLocation, flyTarget, o
     <MapContainer
       center={[46.6, 2.4]}
       zoom={6}
+      minZoom={5}
+      maxZoom={18}
+      maxBounds={[
+        [41.0, -5.8],
+        [51.5, 9.8],
+      ]}
+      maxBoundsViscosity={1.0}
       zoomControl={true}
       className="h-full w-full"
       style={{ height: "100%", width: "100%" }}
     >
       <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
         attribution='&copy; OpenStreetMap &copy; CARTO'
       />
       <FlyController target={flyTarget} />

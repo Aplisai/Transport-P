@@ -77,9 +77,16 @@ export default function MapApp() {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        const inFrance =
+          loc.lat >= 41.0 && loc.lat <= 51.5 && loc.lng >= -5.8 && loc.lng <= 9.8;
+        setLocating(false);
+        if (!inFrance) {
+          toast.error("Position hors de France — seule la France est prise en charge");
+          setFlyTarget({ lat: 46.6, lng: 2.4, zoom: 6 });
+          return;
+        }
         setUserLoc(loc);
         setFlyTarget({ ...loc, zoom: 13 });
-        setLocating(false);
         toast.success("Position détectée — points relais triés par distance");
       },
       () => {
@@ -105,25 +112,25 @@ export default function MapApp() {
     tab === "favorites" ? points.filter((p) => favorites.includes(p.id)) : points;
 
   const Panel = (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col bg-white">
       {/* Header */}
-      <div className="border-b border-white/10 p-4">
+      <div className="border-b border-black/10 p-4">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="rounded-lg bg-white p-1.5 text-black">
+            <div className="rounded-lg bg-[#14161C] p-1.5 text-white">
               <Package className="h-4 w-4" />
             </div>
             <div>
-              <h1 className="font-head text-lg font-semibold leading-none tracking-tight">
+              <h1 className="font-head text-lg font-semibold leading-none tracking-tight text-[#14161C]">
                 Relay Dip
               </h1>
-              <p className="text-[11px] text-white/40">Points relais de France</p>
+              <p className="text-[11px] text-gray-400">Points relais de France</p>
             </div>
           </div>
           {user ? (
             <div className="flex items-center gap-2">
               <span
-                className="hidden max-w-[90px] truncate text-xs text-white/60 sm:inline"
+                className="hidden max-w-[90px] truncate text-xs text-gray-500 sm:inline"
                 data-testid="user-name"
               >
                 {user.name}
@@ -135,7 +142,7 @@ export default function MapApp() {
                 }}
                 aria-label="Déconnexion"
                 data-testid="logout-btn"
-                className="rounded-full bg-white/5 p-2 hover:bg-white/10 transition-[background-color]"
+                className="rounded-full bg-black/5 p-2 hover:bg-black/10 transition-[background-color]"
               >
                 <LogOut className="h-4 w-4" />
               </button>
@@ -144,7 +151,7 @@ export default function MapApp() {
             <button
               onClick={() => setShowAuth(true)}
               data-testid="open-auth-btn"
-              className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-black hover:bg-gray-200 transition-[background-color]"
+              className="flex items-center gap-1.5 rounded-full bg-[#14161C] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#2a2d36] transition-[background-color]"
             >
               <User className="h-3.5 w-3.5" />
               Se connecter
@@ -154,23 +161,25 @@ export default function MapApp() {
 
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
             data-testid="search-input"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Ville ou code postal…"
-            className="w-full rounded-full bg-white/5 border border-white/10 py-2.5 pl-9 pr-4 text-sm outline-none focus:border-white/30 focus:ring-2 focus:ring-white/20 transition-[border-color]"
+            className="w-full rounded-full bg-black/[0.03] border border-black/10 py-2.5 pl-9 pr-4 text-sm text-[#14161C] outline-none focus:border-black/30 focus:ring-2 focus:ring-black/10 transition-[border-color]"
           />
         </div>
 
         {/* Tabs */}
-        <div className="mt-3 flex gap-1 rounded-full bg-black/40 p-1">
+        <div className="mt-3 flex gap-1 rounded-full bg-black/5 p-1">
           <button
             data-testid="tab-all"
             onClick={() => setTab("all")}
             className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-1.5 text-xs font-medium transition-[background-color,color] ${
-              tab === "all" ? "bg-white text-black" : "text-white/60 hover:text-white"
+              tab === "all"
+                ? "bg-[#14161C] text-white"
+                : "text-gray-500 hover:text-[#14161C]"
             }`}
           >
             <List className="h-3.5 w-3.5" /> Tous
@@ -179,7 +188,9 @@ export default function MapApp() {
             data-testid="tab-favorites"
             onClick={() => (user ? setTab("favorites") : requireAuth())}
             className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-1.5 text-xs font-medium transition-[background-color,color] ${
-              tab === "favorites" ? "bg-white text-black" : "text-white/60 hover:text-white"
+              tab === "favorites"
+                ? "bg-[#14161C] text-white"
+                : "text-gray-500 hover:text-[#14161C]"
             }`}
           >
             <Heart className="h-3.5 w-3.5" /> Favoris
@@ -189,8 +200,8 @@ export default function MapApp() {
       </div>
 
       {/* Filter chips */}
-      <div className="border-b border-white/10 px-4 py-3">
-        <p className="mb-2 text-[11px] uppercase tracking-wider text-white/40">
+      <div className="border-b border-black/10 px-4 py-3">
+        <p className="mb-2 text-[11px] uppercase tracking-wider text-gray-400">
           Transporteurs
         </p>
         <div className="flex flex-wrap gap-2">
@@ -205,7 +216,7 @@ export default function MapApp() {
                 className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-[background-color,border-color,color] ${
                   on
                     ? "font-semibold"
-                    : "border-white/20 bg-black/40 text-white/70 hover:border-white/50"
+                    : "border-black/15 bg-white text-gray-600 hover:border-black/40"
                 }`}
               >
                 <span
@@ -220,15 +231,15 @@ export default function MapApp() {
       </div>
 
       {/* List */}
-      <div className="rp-scroll flex-1 space-y-2 overflow-y-auto p-4">
-        <div className="mb-1 flex items-center justify-between text-xs text-white/40">
+      <div className="rp-scroll flex-1 space-y-2 overflow-y-auto bg-[#F5F6F8] p-4">
+        <div className="mb-1 flex items-center justify-between text-xs text-gray-400">
           <span data-testid="results-count">
             {visiblePoints.length} point{visiblePoints.length > 1 ? "s" : ""} relais
           </span>
           {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
         </div>
         {visiblePoints.length === 0 && !loading && (
-          <div className="py-10 text-center text-sm text-white/40" data-testid="empty-state">
+          <div className="py-10 text-center text-sm text-gray-400" data-testid="empty-state">
             {tab === "favorites"
               ? "Aucun favori enregistré pour le moment."
               : "Aucun point relais trouvé."}
@@ -249,7 +260,7 @@ export default function MapApp() {
   );
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-[#0B0C10]">
+    <div className="relative h-screen w-screen overflow-hidden bg-[#EEF1F5]">
       {/* Map */}
       <div className="absolute inset-0">
         <MapView
@@ -266,7 +277,7 @@ export default function MapApp() {
         onClick={geolocate}
         aria-label="Me géolocaliser"
         data-testid="geolocate-btn"
-        className="absolute right-4 top-4 z-[1000] flex h-12 w-12 items-center justify-center rounded-full bg-black/70 backdrop-blur-xl border border-white/10 text-white shadow-[0_8px_32px_rgba(0,0,0,0.4)] hover:bg-black/90 transition-[background-color] lg:right-6 lg:top-6"
+        className="absolute right-4 top-4 z-[1000] flex h-12 w-12 items-center justify-center rounded-full bg-white/95 backdrop-blur-xl border border-black/10 text-[#14161C] shadow-[0_8px_24px_rgba(0,0,0,0.15)] hover:bg-white transition-[background-color] lg:right-6 lg:top-6"
       >
         {locating ? (
           <Loader2 className="h-5 w-5 animate-spin" />
@@ -276,7 +287,7 @@ export default function MapApp() {
       </button>
 
       {/* Desktop panel */}
-      <aside className="absolute left-0 top-0 z-[1000] hidden h-full w-[400px] border-r border-white/10 bg-[#14161C]/95 backdrop-blur-xl lg:block">
+      <aside className="absolute left-0 top-0 z-[1000] hidden h-full w-[400px] border-r border-black/10 bg-white shadow-[8px_0_32px_rgba(0,0,0,0.06)] lg:block">
         {Panel}
       </aside>
 
@@ -284,24 +295,24 @@ export default function MapApp() {
       <button
         onClick={() => setSheetOpen((s) => !s)}
         data-testid="sheet-toggle"
-        className="absolute bottom-5 left-1/2 z-[1100] -translate-x-1/2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-black shadow-[0_8px_32px_rgba(0,0,0,0.5)] lg:hidden"
+        className="absolute bottom-5 left-1/2 z-[1100] -translate-x-1/2 rounded-full bg-[#14161C] px-5 py-3 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(0,0,0,0.25)] lg:hidden"
       >
         {sheetOpen ? "Voir la carte" : `Liste (${visiblePoints.length})`}
       </button>
 
       {/* Mobile sheet */}
       <div
-        className={`absolute inset-x-0 bottom-0 z-[1050] max-h-[82vh] rounded-t-2xl border-t border-white/10 bg-[#14161C] transition-transform duration-300 lg:hidden ${
+        className={`absolute inset-x-0 bottom-0 z-[1050] max-h-[82vh] rounded-t-2xl border-t border-black/10 bg-white shadow-[0_-8px_32px_rgba(0,0,0,0.12)] transition-transform duration-300 lg:hidden ${
           sheetOpen ? "translate-y-0" : "translate-y-full"
         }`}
         data-testid="mobile-sheet"
       >
         <div className="flex items-center justify-between px-4 pt-3">
-          <div className="mx-auto h-1 w-10 rounded-full bg-white/20" />
+          <div className="mx-auto h-1 w-10 rounded-full bg-black/15" />
           <button
             onClick={() => setSheetOpen(false)}
             aria-label="Fermer"
-            className="absolute right-3 top-3 rounded-full bg-white/5 p-1.5"
+            className="absolute right-3 top-3 rounded-full bg-black/5 p-1.5"
           >
             <X className="h-4 w-4" />
           </button>

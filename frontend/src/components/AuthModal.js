@@ -31,46 +31,50 @@ export default function AuthModal({ onClose }) {
     }
   };
 
+  const inputCls =
+    "w-full rounded-xl bg-black/[0.03] border border-black/10 px-4 py-3 text-sm text-[#14161C] outline-none focus:border-black/30 focus:ring-2 focus:ring-black/10 transition-[border-color]";
+  const labelCls = "mb-1 block text-xs uppercase tracking-wider text-gray-500";
+
   return (
     <div
       className="fixed inset-0 z-[2000] flex items-center justify-center p-4"
       data-testid="auth-modal"
     >
       <div
-        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
         style={{
           backgroundImage:
-            "linear-gradient(rgba(11,12,16,0.85),rgba(11,12,16,0.92)), url(https://images.pexels.com/photos/31032753/pexels-photo-31032753.jpeg)",
+            "linear-gradient(rgba(238,241,245,0.6),rgba(238,241,245,0.75)), url(https://images.pexels.com/photos/31032753/pexels-photo-31032753.jpeg)",
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
       />
-      <div className="relative w-full max-w-md rounded-2xl bg-[#14161C] border border-white/10 p-8 shadow-[0_8px_32px_rgba(0,0,0,0.6)] rp-fade-up">
+      <div className="relative w-full max-w-md rounded-2xl bg-white border border-black/10 p-8 shadow-[0_20px_60px_rgba(0,0,0,0.18)] rp-fade-up">
         <button
           onClick={onClose}
           aria-label="Fermer"
           data-testid="auth-close-btn"
-          className="absolute right-4 top-4 rounded-full bg-white/5 p-2 hover:bg-white/10 transition-[background-color]"
+          className="absolute right-4 top-4 rounded-full bg-black/5 p-2 hover:bg-black/10 transition-[background-color]"
         >
           <X className="h-4 w-4" />
         </button>
 
         <div className="mb-6 flex items-center gap-3">
-          <div className="rounded-xl bg-white p-2 text-black">
+          <div className="rounded-xl bg-[#14161C] p-2 text-white">
             <Package className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="font-head text-xl font-semibold tracking-tight">
+            <h2 className="font-head text-xl font-semibold tracking-tight text-[#14161C]">
               {mode === "login" ? "Bon retour" : "Créer un compte"}
             </h2>
-            <p className="text-xs text-white/50">
+            <p className="text-xs text-gray-500">
               Enregistrez vos points relais favoris
             </p>
           </div>
         </div>
 
-        <div className="mb-6 flex gap-1 rounded-full bg-black/40 p-1">
+        <div className="mb-6 flex gap-1 rounded-full bg-black/5 p-1">
           {["login", "register"].map((m) => (
             <button
               key={m}
@@ -80,7 +84,9 @@ export default function AuthModal({ onClose }) {
                 setError("");
               }}
               className={`flex-1 rounded-full py-2 text-sm font-medium transition-[background-color,color] ${
-                mode === m ? "bg-white text-black" : "text-white/60 hover:text-white"
+                mode === m
+                  ? "bg-[#14161C] text-white"
+                  : "text-gray-500 hover:text-[#14161C]"
               }`}
             >
               {m === "login" ? "Connexion" : "Inscription"}
@@ -91,37 +97,31 @@ export default function AuthModal({ onClose }) {
         <form onSubmit={submit} className="space-y-4">
           {mode === "register" && (
             <div>
-              <label className="mb-1 block text-xs uppercase tracking-wider text-white/50">
-                Nom
-              </label>
+              <label className={labelCls}>Nom</label>
               <input
                 data-testid="auth-name-input"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm outline-none focus:border-white/30 focus:ring-2 focus:ring-white/20 transition-[border-color]"
+                className={inputCls}
                 placeholder="Jean Dupont"
               />
             </div>
           )}
           <div>
-            <label className="mb-1 block text-xs uppercase tracking-wider text-white/50">
-              Email
-            </label>
+            <label className={labelCls}>Email</label>
             <input
               data-testid="auth-email-input"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm outline-none focus:border-white/30 focus:ring-2 focus:ring-white/20 transition-[border-color]"
+              className={inputCls}
               placeholder="vous@email.fr"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs uppercase tracking-wider text-white/50">
-              Mot de passe
-            </label>
+            <label className={labelCls}>Mot de passe</label>
             <input
               data-testid="auth-password-input"
               type="password"
@@ -129,13 +129,13 @@ export default function AuthModal({ onClose }) {
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
-              className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm outline-none focus:border-white/30 focus:ring-2 focus:ring-white/20 transition-[border-color]"
+              className={inputCls}
               placeholder="••••••••"
             />
           </div>
 
           {error && (
-            <p className="text-sm text-red-400" data-testid="auth-error">
+            <p className="text-sm text-red-500" data-testid="auth-error">
               {error}
             </p>
           )}
@@ -144,7 +144,7 @@ export default function AuthModal({ onClose }) {
             type="submit"
             disabled={loading}
             data-testid="auth-submit-btn"
-            className="flex w-full items-center justify-center gap-2 rounded-full bg-white py-3 text-sm font-semibold text-black hover:bg-gray-200 disabled:opacity-60 transition-[background-color]"
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-[#14161C] py-3 text-sm font-semibold text-white hover:bg-[#2a2d36] disabled:opacity-60 transition-[background-color]"
           >
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             {mode === "login" ? "Se connecter" : "S'inscrire"}
