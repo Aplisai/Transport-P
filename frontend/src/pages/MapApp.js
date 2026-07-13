@@ -91,6 +91,7 @@ export default function MapApp() {
         }
         setUserLoc(loc);
         setFlyTarget({ ...loc, zoom: 13 });
+        setTab("nearby");
         toast.success("Position détectée — points relais triés par distance");
       },
       (err) => {
@@ -119,8 +120,18 @@ export default function MapApp() {
     setShowAuth(true);
   };
 
+  const nearestByCarrier = userLoc
+    ? carriers
+        .map((c) => points.find((p) => p.carrier === c.id && p.distance != null))
+        .filter(Boolean)
+    : [];
+
   const visiblePoints =
-    tab === "favorites" ? points.filter((p) => favorites.includes(p.id)) : points;
+    tab === "favorites"
+      ? points.filter((p) => favorites.includes(p.id))
+      : tab === "nearby"
+      ? nearestByCarrier
+      : points;
   const listPoints = visiblePoints.slice(0, 300);
 
   const Panel = (
@@ -211,6 +222,17 @@ export default function MapApp() {
             <List className="h-3.5 w-3.5" /> Tous
           </button>
           <button
+            data-testid="tab-nearby"
+            onClick={() => setTab("nearby")}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-1.5 text-xs font-medium transition-[background-color,color] ${
+              tab === "nearby"
+                ? "bg-[#14161C] text-white"
+                : "text-gray-500 hover:text-[#14161C]"
+            }`}
+          >
+            <Crosshair className="h-3.5 w-3.5" /> Près de moi
+          </button>
+          <button
             data-testid="tab-favorites"
             onClick={() => (user ? setTab("favorites") : requireAuth())}
             className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-1.5 text-xs font-medium transition-[background-color,color] ${
@@ -260,11 +282,34 @@ export default function MapApp() {
       <div className="rp-scroll flex-1 space-y-2 overflow-y-auto bg-[#F5F6F8] p-4">
         <div className="mb-1 flex items-center justify-between text-xs text-gray-400">
           <span data-testid="results-count">
-            {visiblePoints.length} point{visiblePoints.length > 1 ? "s" : ""} relais
+            {tab === "nearby"
+              ? "Le plus proche par transporteur"
+              : `${visiblePoints.length} point${visiblePoints.length > 1 ? "s" : ""} relais`}
           </span>
           {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
         </div>
-        {visiblePoints.length === 0 && !loading && (
+
+        {tab === "nearby" && !userLoc && !loading && (
+          <div className="py-10 text-center" data-testid="nearby-prompt">
+            <p className="mb-3 text-sm text-gray-500">
+              Activez votre position pour voir le point relais le plus proche de chaque transporteur.
+            </p>
+            <button
+              onClick={geolocate}
+              data-testid="nearby-locate-btn"
+              className="inline-flex items-center gap-2 rounded-full bg-[#14161C] px-4 py-2 text-xs font-semibold text-white hover:bg-[#2a2d36] transition-[background-color]"
+            >
+              {locating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Crosshair className="h-4 w-4" />
+              )}
+              Ma position
+            </button>
+          </div>
+        )}
+
+        {visiblePoints.length === 0 && tab !== "nearby" && !loading && (
           <div className="py-10 text-center text-sm text-gray-400" data-testid="empty-state">
             {tab === "favorites"
               ? "Aucun favori enregistré pour le moment."
@@ -281,7 +326,7 @@ export default function MapApp() {
             onRequireAuth={requireAuth}
           />
         ))}
-        {visiblePoints.length > listPoints.length && (
+        {tab !== "nearby" && visiblePoints.length > listPoints.length && (
           <p className="py-3 text-center text-xs text-gray-400" data-testid="list-truncation-note">
             {listPoints.length} premiers affichés — affinez avec la recherche ou les filtres
           </p>
