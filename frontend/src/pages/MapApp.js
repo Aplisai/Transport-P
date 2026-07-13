@@ -138,6 +138,19 @@ export default function MapApp() {
               </h1>
               <p className="text-[11px] text-gray-400">Points relais de France</p>
             </div>
+            <button
+              onClick={geolocate}
+              aria-label="Ma position"
+              data-testid="geolocate-btn"
+              className="ml-1 flex items-center gap-1.5 rounded-full bg-[#14161C] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#2a2d36] transition-[background-color]"
+            >
+              {locating ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Crosshair className="h-3.5 w-3.5" />
+              )}
+              <span>Ma position</span>
+            </button>
           </div>
           {user ? (
             <div className="flex items-center gap-2">
@@ -288,21 +301,6 @@ export default function MapApp() {
           onSelect={selectPoint}
         />
       </div>
-
-      {/* Geolocation button */}
-      <button
-        onClick={geolocate}
-        aria-label="Ma position"
-        data-testid="geolocate-btn"
-        className="absolute right-4 top-4 z-[1000] flex items-center gap-2 rounded-full bg-white/95 backdrop-blur-xl border border-black/10 px-4 py-3 text-sm font-semibold text-[#14161C] shadow-[0_8px_24px_rgba(0,0,0,0.15)] hover:bg-white transition-[background-color] lg:right-6 lg:top-6"
-      >
-        {locating ? (
-          <Loader2 className="h-5 w-5 animate-spin" />
-        ) : (
-          <Crosshair className="h-5 w-5" />
-        )}
-        <span>Ma position</span>
-      </button>
 
       {/* Desktop panel */}
       <aside className="absolute left-0 top-0 z-[1000] hidden h-full w-[400px] border-r border-black/10 bg-white shadow-[8px_0_32px_rgba(0,0,0,0.06)] lg:block">
