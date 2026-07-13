@@ -150,19 +150,6 @@ export default function MapApp() {
               </h1>
               <p className="text-[11px] text-gray-400">Points relais de France</p>
             </div>
-            <button
-              onClick={geolocate}
-              aria-label="Ma position"
-              data-testid="geolocate-btn"
-              className="ml-1 flex items-center gap-1.5 rounded-full bg-[#14161C] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#2a2d36] transition-[background-color]"
-            >
-              {locating ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Crosshair className="h-3.5 w-3.5" />
-              )}
-              <span>Ma position</span>
-            </button>
           </div>
           {user ? (
             <div className="flex items-center gap-2">
