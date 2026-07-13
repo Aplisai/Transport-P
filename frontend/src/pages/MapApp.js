@@ -129,8 +129,8 @@ export default function MapApp() {
       <div className="border-b border-black/10 p-4">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="rounded-lg bg-[#14161C] p-1.5 text-white">
-              <Package className="h-4 w-4" />
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#14161C]">
+              <span className="font-head text-base font-bold leading-none text-[#00E676]">R</span>
             </div>
             <div>
               <h1 className="font-head text-lg font-semibold leading-none tracking-tight text-[#14161C]">
