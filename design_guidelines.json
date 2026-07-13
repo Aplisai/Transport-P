@@ -1,0 +1,141 @@
+{
+  "theme_strategy": {
+    "primary_mode": "dark",
+    "style": "elegant utility",
+    "archetype": "Archetype 5: LUXURY (Premium, Depth, Mystery) - adjusted for Utility Map App",
+    "description": "A dark, elegant interface that prioritizes high contrast for map readability and reduces cognitive load. Focus on smooth, tactile glassmorphism and deep charcoal/slate backgrounds rather than flat black."
+  },
+  "typography": {
+    "headings": {
+      "font": "Outfit, sans-serif",
+      "style": "Elegant, geometric, clean. tracking-tight for H1/H2."
+    },
+    "body": {
+      "font": "Manrope, sans-serif",
+      "style": "Highly legible at small sizes, clean and modern."
+    },
+    "scales": {
+      "h1": "text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight",
+      "h2": "text-2xl sm:text-3xl font-medium tracking-tight",
+      "h3": "text-xl sm:text-2xl font-medium",
+      "body": "text-base leading-relaxed",
+      "small_labels": "text-xs tracking-[0.1em] uppercase font-semibold text-white/50"
+    }
+  },
+  "colors": {
+    "backgrounds": {
+      "base": "#0B0C10",
+      "panel": "#14161C",
+      "glass": "bg-black/70 backdrop-blur-xl"
+    },
+    "text": {
+      "primary": "#FFFFFF",
+      "secondary": "#9CA3AF",
+      "accent": "#E5E7EB"
+    },
+    "carriers": {
+      "mondial_relay": "#FF3366",
+      "chronopost": "#3399FF",
+      "la_poste": "#FFCC00",
+      "dpd": "#FF3333",
+      "ups": "#FF9900",
+      "relais_colis": "#00E676"
+    },
+    "borders": {
+      "default": "border-white/10",
+      "focus": "border-white/30"
+    },
+    "actions": {
+      "primary_btn": "bg-white text-black hover:bg-gray-200",
+      "icon_bg": "bg-white/5 hover:bg-white/10"
+    }
+  },
+  "visual_enhancers": {
+    "surfaces": [
+      "Glassmorphism (The Crystal Variant): Use for top navigation, floating map controls, and bottom sheets. bg-black/70 with backdrop-blur-xl, border-white/10, shadow-lg.",
+      "Solid Panels: Use for card backgrounds within lists. #14161C with 1px border-white/5.",
+      "CRITICAL: DO NOT use complete transparent background in header, overlays, dropdowns, or any surface that has content under it. Always use a solid color or a blur layer (e.g., bg-black/80 backdrop-blur-md) so text remains readable."
+    ],
+    "shadows": [
+      "ambient: shadow-[0_8px_32px_rgba(0,0,0,0.4)]",
+      "glow: shadow-[0_0_15px_currentColor]"
+    ]
+  },
+  "layouts": {
+    "mobile": "Map takes 100% viewport. Floating action buttons (FAB) for Geolocation on the right side. Bottom sheet (glass or solid dark) for search, carrier filters, and points list.",
+    "desktop": "Map takes full background. Fixed left panel (400px wide, bg-[#14161C] or thick glass) containing search, carrier filters, and scrollable list. User profile/login at top of panel.",
+    "spacing": "Generous internal padding for cards (p-6). Tight gaps for filter chips (gap-2). Large margins (bottom) on list to allow scrolling past bottom sheet.",
+    "alignment": "Left-align list details (address, hours). Center align icons in map markers."
+  },
+  "components": {
+    "map_markers": "Custom HTML markers (DivIcon in Leaflet). Circular shape, bg color matches carrier, crisp white icon in center, subtle outer glow. On select/hover: scale up 1.15x and increase glow.",
+    "filter_chips": "Pill-shaped (rounded-full). Unselected: bg-black/50 border border-white/20 text-white/70. Selected: Use carrier color for background, text-black or white depending on contrast. ALWAYS explicitly set hover state: hover:border-white/50.",
+    "point_card": "Rectangular layout, no heavy shadows, border-white/10. Include carrier color indicator dot, distance, name, address, and status (Open/Closed). Layout must be clean and scannable.",
+    "login_form": "Centered on a dedicated screen over the abstract background image (with heavy dark overlay bg-black/70). Use Shadcn forms, clean inputs with bg-white/5 and border-white/10."
+  },
+  "motion": {
+    "transitions": "Use specific properties: transition: transform 0.2s ease, opacity 0.2s ease. NEVER use transition: all.",
+    "list_items": "Staggered fade-up entrance on load.",
+    "map_interaction": "Smooth flyTo for geolocation and clicking a list item.",
+    "hover_states": "Cards lift slightly (-translate-y-1), border brightens."
+  },
+  "map_guidelines": {
+    "library": "react-leaflet",
+    "tile_layer": "Use a dark theme tile layer, e.g., CartoDB Dark Matter: https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    "geolocation": "Use browser navigator.geolocation to center map on 'Near me' action."
+  },
+  "image_urls": {
+    "login_background": {
+      "url": "https://images.pexels.com/photos/31032753/pexels-photo-31032753.jpeg",
+      "description": "Sleek abstract art with curved dark blue and black patterns.",
+      "category": "login_page_background"
+    }
+  },
+  "icons": {
+    "library": "lucide-react",
+    "usage": "Use MapPin, Crosshair (for geolocation), Search, Filter, User, Heart (for favorites), Clock (for hours)."
+  },
+  "accessibility": {
+    "contrast": "Ensure carrier colors pass contrast ratio on dark backgrounds. Add text-shadow to markers if needed.",
+    "focus": "All interactive elements must have focus:ring-2 focus:ring-white/50.",
+    "aria": "Add aria-labels to icon-only buttons (like geolocation and filter)."
+  },
+  "testing": {
+    "attributes": "All interactive and key informational elements MUST include `data-testid` attribute (e.g., `data-testid=\"carrier-filter-dpd\"`, `data-testid=\"geolocate-btn\"`)."
+  },
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
+    "You tend to converge toward generic, 'on distribution' outputs. In frontend design, this creates what users call the 'AI slop' aesthetic. Avoid this: make creative, distinctive frontends that surprise and delight.",
+    "Dark colors look good when used independently without gradients. DO NOT use dark colors as gradients.",
+    "Don't make generic centered layouts, simplistic gradients, and uniform styling.",
+    "Create depth through layered design elements with z-index hierarchy.",
+    "Use glass-morphism effects with backdrop filters (12-24px blur).",
+    "You MUST NOT apply universal transition. Eg: transition: all. This results in breaking transforms. Always add transitions for specific interactive elements like button, input excluding transforms.",
+    "You MUST NOT center align the app container, ie do not add .App { text-align: center; } in the css file. This disrupts the human natural reading flow of text.",
+    "Always use modern button styles like pill-shaped, or sharp button with interaction animations & color relevant to the app style.",
+    "NEVER: use AI assistant Emoji characters like 🤖🧠💭💡🔮🎯 etc for icons.",
+    "Every interaction needs micro-animations - hover states, transitions, parallax effects, and entrance animations. Static = dead.",
+    "Use 2-3x more spacing than feels comfortable. Cramped designs look cheap.",
+    "Subtle grain textures, noise overlays, custom cursors, selection states, and loading animations: separates good from extraordinary.",
+    "Main agent relies on these image URLs. Missing categories (especially sponsor logos) = main agent will use placeholder text which is FORBIDDEN.",
+    "Prioritize using pre-existing components from src/components/ui when applicable.",
+    "Create new components that match the style and conventions of existing components when needed.",
+    "Examine existing components to understand the project's component patterns before creating new ones.",
+    "Use `sonner` for toasts.",
+    "Sonner component are located in /app/frontend/src/components/ui/sonner.js (Note we are using .js files!)."
+  ],
+  "instructions_to_main_agent": {
+    "general": "Build a hybrid mobile/web app map interface using React and Tailwind CSS. The app lists package pickup points in France. ALL components and files MUST be created as .js files (JSX inside .js), DO NOT use .tsx or .ts extensions.",
+    "packages": "Install react-leaflet, leaflet, lucide-react, @fontsource/outfit, @fontsource/manrope. For UI components, use Shadcn.",
+    "map_implementation": "The map should dominate the viewport. Use MapContainer from react-leaflet. Place UI elements over the map with position: absolute and high z-index. Ensure Leaflet CSS is imported.",
+    "data_mocking": "Mock a list of pickup points in France (e.g., Paris region) containing different carriers (Mondial Relay, Chronopost, La Poste, DPD, UPS, Relais Colis) with their respective coordinates, addresses, and hours.",
+    "features_required": [
+      "Interactive Leaflet map with CartoDB Dark Matter tiles.",
+      "Custom color-coded markers per carrier (use Leaflet DivIcon with inline styles using the carrier hex codes).",
+      "Auto-geolocation button to center map on the user's location.",
+      "Filter pills to toggle carriers visibility on the map and list.",
+      "Search bar for city/postal code.",
+      "Pickup point detail card view showing address, hours, distance, and a 'Save to Favorites' heart icon.",
+      "Login / Registration UI (can be a modal or separate route) allowing users to access saved favorites."
+    ]
+  }
+}
