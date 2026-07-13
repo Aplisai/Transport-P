@@ -115,7 +115,7 @@ export default function MapApp() {
             </div>
             <div>
               <h1 className="font-head text-lg font-semibold leading-none tracking-tight">
-                RelaisPoint
+                Relay Dip
               </h1>
               <p className="text-[11px] text-white/40">Points relais de France</p>
             </div>

@@ -194,7 +194,7 @@ async def remove_favorite(point_id: str, user: dict = Depends(get_current_user))
 
 @api_router.get("/")
 async def root():
-    return {"message": "RelaisPoint API", "points": len(POINTS)}
+    return {"message": "Relay Dip API", "points": len(POINTS)}
 
 # ---------------------------------------------------------------- Startup
 @app.on_event("startup")
