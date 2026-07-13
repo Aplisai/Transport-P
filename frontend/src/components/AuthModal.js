@@ -66,7 +66,7 @@ export default function AuthModal({ onClose }) {
           </div>
           <div>
             <h2 className="font-head text-xl font-semibold tracking-tight text-[#14161C]">
-              {mode === "login" ? "Bon retour" : "Créer un compte"}
+              {mode === "login" ? "En route" : "Créer un compte"}
             </h2>
             <p className="text-xs text-gray-500">
               Enregistrez vos points relais favoris
