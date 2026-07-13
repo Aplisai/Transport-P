@@ -1,0 +1,41 @@
+{
+  "summary": "Verified SEARCH BUG FIX + accent-insensitive backend search. Backend 27/27 pass (added 3 new tests: q=nimes→21, q=Lyon→93, uppercase/accent equivalence). Frontend 10/10 UI scenarios pass including the primary bug: typing on 'Près de moi' tab auto-switches to 'Tous' and shows Lyon (93) results. C'est parti button, Enter key, debounced input, no-match toast, postal-code search, combined search+ptype+carrier filters, regression on route-btn and 3193 initial count — all PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_scenarios_verified": {
+    "backend_search_nimes_accent": "GET /api/points?q=nimes → 21 Nîmes points — PASS",
+    "backend_search_lyon_count": "GET /api/points?q=Lyon → exactly 93 — PASS",
+    "backend_search_case_accent_equiv": "q=nimes == q=NIMES == q=Nîmes — PASS",
+    "backend_regression_full_suite": "All 27 tests pass (7 carriers, 3193 pts, ptype filters, gzip, auth, favorites) — PASS",
+    "frontend_initial_3193": "results-count = '3193 points relais' on load — PASS",
+    "frontend_search_lyon_typing": "Type 'Lyon' in search-input → debounced fetch, 93 cards, all Lyon/69 — PASS",
+    "frontend_search_postal_69001": "Type '69001' → filters to 57 cards, all contain 69001 — PASS",
+    "frontend_search_no_match_toast": "Click search-btn with 'XXNOMATCH' → 'Aucun point relais trouvé' toast — PASS",
+    "frontend_PRIMARY_BUG_autoswitch_nearby_to_all": "On 'Près de moi' tab (after geolocation Paris + nearby-locate-btn), typing 'Lyon' auto-switches tab-all active and shows 93 Lyon points — PASS",
+    "frontend_combined_lyon_lockers": "Lyon + type-filter-locker → 25 Locker-badged Lyon cards — PASS",
+    "frontend_combined_lyon_dpd": "Lyon + carrier-filter-dpd → 14 DPD Lyon cards — PASS",
+    "frontend_accent_insensitive_nimes": "Type 'nimes' (no accent) → 21 Nîmes results in UI — PASS",
+    "frontend_enter_key_search": "Type 'Marseille' + Enter → 131 results (form onSubmit → runSearch) — PASS",
+    "frontend_regression_route_btn": "route-btn-<id> present on point cards (300 first shown) — PASS"
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "MapApp.js:230 – onChange handler correctly setTab('all') only when e.target.value.trim() is non-empty. Good: prevents unexpected tab switch on empty backspace.",
+    "MapApp.js:122 runSearch – manually rebuilds params and fetches instead of relying on the debounced fetchPoints. This works but duplicates logic. Minor: could refactor by exposing fetchPoints and calling it after setTab('all'). Not a bug.",
+    "MapApp.js:158 visiblePoints – when tab==='favorites' with a query, `points` state still contains q-filtered results and .filter(favorites) is applied on top — reasonable but the UI auto-switches to 'all' on typing, so this case is unreachable via typing (only via clicking Favoris after typing). Acceptable behaviour.",
+    "server.py _norm() – uses NFKD + strip combining chars + lower(). Matches city, postal_code (not normalized — fine since digits/ASCII), and name. Postal-code substring match ('69' matches '69001','69002',...); intentional per spec.",
+    "Panel is duplicated (desktop aside + mobile sheet) so tests MUST scope 'aside [data-testid=...]'. Documented from prior iterations; still applies."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py"],
+  "success_rate": {"backend": "100% (27/27)", "frontend": "100% (10/10 scenarios)"},
+  "test_credentials": "admin@relaispoint.fr / admin123 (verified working). Fresh TEST_-prefixed users registered via /api/auth/register for favorites regression.",
+  "seed_data_creation": "None persisted intentionally; TEST_ users created for auth tests remain in Mongo (harmless).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Search bug fix is COMPLETE and verified end-to-end. Two-part fix confirmed: (1) MapApp.js search input onChange forces setTab('all') when text present, so search results are always in the visible 'all' branch; form onSubmit runSearch() also forces 'all', flies map, and toasts on empty result. (2) Backend server.py _norm() (unicodedata NFKD) makes q filter accent-insensitive across city and name. Numbers to remember: total=3193, relais=2220, lockers=973, Lyon=93, Nîmes(nimes)=21, Marseille=131, 69001=57. Panel is duplicated across desktop aside + mobile sheet → always scope selectors to 'aside'. Geolocation must be granted via context.grant_permissions(['geolocation']) + context.set_geolocation BEFORE page.goto for nearby-locate-btn tests.",
+  "rca_of_the_issue": "Root cause: When user was on tab='nearby' or 'favorites', visiblePoints was computed as nearestByCarrier or favorites.filter, NOT `points` — so query-filtered points from the API were fetched (correctly) but never displayed. Symptom: search bar 'did not work'. Fix: (a) input onChange forces setTab('all') on non-empty text; (b) form submit runSearch() also forces setTab('all') plus flyTo first result and empty-toast; (c) backend _norm() adds accent-insensitive matching. All three pieces verified via UI + API."
+}

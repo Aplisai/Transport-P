@@ -119,6 +119,31 @@ export default function MapApp() {
     setSheetOpen(true);
   }, []);
 
+  const runSearch = async () => {
+    setTab("all");
+    setLoading(true);
+    const params = {};
+    if (active.size) params.carriers = [...active].join(",");
+    if (query.trim()) params.q = query.trim();
+    if (ptype !== "all") params.ptype = ptype;
+    if (userLoc) {
+      params.lat = userLoc.lat;
+      params.lng = userLoc.lng;
+    }
+    try {
+      const { data } = await api.get("/points", { params });
+      setPoints(data);
+      if (query.trim() && data.length) {
+        setFlyTarget({ lat: data[0].lat, lng: data[0].lng, zoom: 12 });
+        setSheetOpen(true);
+      } else if (query.trim() && !data.length) {
+        toast.info("Aucun point relais trouvé pour cette recherche");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const requireAuth = useCallback(() => {
     toast.info("Connectez-vous pour enregistrer vos favoris");
     setShowAuth(true);
@@ -191,7 +216,7 @@ export default function MapApp() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            fetchPoints();
+            runSearch();
           }}
           className="flex items-center gap-2"
         >
@@ -200,7 +225,10 @@ export default function MapApp() {
             <input
               data-testid="search-input"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                if (e.target.value.trim() && tab !== "all") setTab("all");
+              }}
               placeholder="Ville ou code postal…"
               className="w-full rounded-full bg-black/[0.03] border border-black/10 py-2.5 pl-9 pr-4 text-sm text-[#14161C] outline-none focus:border-black/30 focus:ring-2 focus:ring-black/10 transition-[border-color]"
             />
@@ -211,7 +239,7 @@ export default function MapApp() {
             className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#14161C] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#2a2d36] transition-[background-color]"
           >
             <Search className="h-4 w-4" />
-            Recherche
+            C'est parti
           </button>
         </form>
 

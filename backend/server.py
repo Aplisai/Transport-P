@@ -5,8 +5,15 @@ load_dotenv(Path(__file__).parent / '.env')
 import os
 import math
 import logging
+import unicodedata
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Annotated
+
+
+def _norm(s: str) -> str:
+    s = unicodedata.normalize("NFKD", s or "")
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    return s.lower().strip()
 
 import jwt
 import bcrypt
@@ -158,8 +165,8 @@ async def get_points(
         if ptype and ptype != "all" and p.get("type", "relais") != ptype:
             continue
         if q:
-            ql = q.lower()
-            if ql not in p["city"].lower() and ql not in p["postal_code"] and ql not in p["name"].lower():
+            ql = _norm(q)
+            if ql not in _norm(p["city"]) and ql not in p["postal_code"] and ql not in _norm(p["name"]):
                 continue
         item = dict(p)
         if lat is not None and lng is not None:

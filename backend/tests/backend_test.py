@@ -162,6 +162,32 @@ class TestPoints:
         assert len(data) > 0
         assert all(p["postal_code"] == "75001" for p in data)
 
+    def test_search_accent_insensitive_nimes(self, s):
+        """BUG-FIX: q=nimes must return Nîmes points (21)."""
+        r = s.get(f"{API}/points", params={"q": "nimes"}, timeout=30)
+        assert r.status_code == 200
+        data = r.json()
+        assert len(data) == 21, f"expected 21 Nîmes points for q=nimes, got {len(data)}"
+        # Every entry must match Nîmes (any case, with or without accent)
+        for p in data:
+            city_norm = p["city"].lower().replace("î", "i").replace("Î", "I")
+            assert "nimes" in city_norm or p["postal_code"].startswith("30"), \
+                f"unexpected point in Nîmes search: {p['city']} / {p['postal_code']}"
+
+    def test_search_lyon_count(self, s):
+        """BUG-FIX: q=Lyon must return exactly 93 points per spec."""
+        r = s.get(f"{API}/points", params={"q": "Lyon"}, timeout=30)
+        assert r.status_code == 200
+        data = r.json()
+        assert len(data) == 93, f"expected 93 Lyon points for q=Lyon, got {len(data)}"
+
+    def test_search_accent_insensitive_uppercase(self, s):
+        """q=NIMES (all caps, no accent) must equal q=Nîmes case."""
+        r_lower = s.get(f"{API}/points", params={"q": "nimes"}, timeout=30)
+        r_upper = s.get(f"{API}/points", params={"q": "NIMES"}, timeout=30)
+        r_accent = s.get(f"{API}/points", params={"q": "Nîmes"}, timeout=30)
+        assert len(r_lower.json()) == len(r_upper.json()) == len(r_accent.json())
+
     def test_distance_sort(self, s):
         r = s.get(f"{API}/points",
                   params={"lat": 48.8566, "lng": 2.3522}, timeout=30)
