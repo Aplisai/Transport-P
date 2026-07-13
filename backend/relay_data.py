@@ -8,6 +8,7 @@ CARRIERS = {
     "dpd": {"name": "DPD", "color": "#FF3333"},
     "ups": {"name": "UPS", "color": "#FF9900"},
     "relais_colis": {"name": "Relais Colis", "color": "#00E676"},
+    "colis_prive": {"name": "Colis Privé", "color": "#A855F7"},
 }
 
 # Villes françaises: nom, lat, lng, codes postaux
