@@ -188,16 +188,32 @@ export default function MapApp() {
         </div>
 
         {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input
-            data-testid="search-input"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Ville ou code postal…"
-            className="w-full rounded-full bg-black/[0.03] border border-black/10 py-2.5 pl-9 pr-4 text-sm text-[#14161C] outline-none focus:border-black/30 focus:ring-2 focus:ring-black/10 transition-[border-color]"
-          />
-        </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            fetchPoints();
+          }}
+          className="flex items-center gap-2"
+        >
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              data-testid="search-input"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Ville ou code postal…"
+              className="w-full rounded-full bg-black/[0.03] border border-black/10 py-2.5 pl-9 pr-4 text-sm text-[#14161C] outline-none focus:border-black/30 focus:ring-2 focus:ring-black/10 transition-[border-color]"
+            />
+          </div>
+          <button
+            type="submit"
+            data-testid="search-btn"
+            className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#14161C] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#2a2d36] transition-[background-color]"
+          >
+            <Search className="h-4 w-4" />
+            Recherche
+          </button>
+        </form>
 
         {/* Tabs */}
         <div className="mt-3 flex gap-1 rounded-full bg-black/5 p-1">
