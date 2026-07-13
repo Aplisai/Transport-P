@@ -222,7 +222,9 @@ export default function MapApp() {
       {/* List */}
       <div className="rp-scroll flex-1 space-y-2 overflow-y-auto p-4">
         <div className="mb-1 flex items-center justify-between text-xs text-white/40">
-          <span data-testid="results-count">{visiblePoints.length} points relais</span>
+          <span data-testid="results-count">
+            {visiblePoints.length} point{visiblePoints.length > 1 ? "s" : ""} relais
+          </span>
           {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
         </div>
         {visiblePoints.length === 0 && !loading && (
