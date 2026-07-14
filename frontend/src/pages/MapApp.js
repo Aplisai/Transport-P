@@ -680,6 +680,11 @@ export default function MapApp() {
         <PointDetail
           point={selected}
           carriersInfo={carriers}
+          isAdmin={user?.role === "admin"}
+          onUpdated={(updated) => {
+            setSelected(updated);
+            setPoints((prev) => prev.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)));
+          }}
           onClose={() => setSelected(null)}
           onRequireAuth={requireAuth}
         />

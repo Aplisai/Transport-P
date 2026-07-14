@@ -1,0 +1,52 @@
+{
+  "summary": "Iteration 11 — validated NEW admin-only edit (name/lat/lng) feature for point relais/lockers end-to-end. Backend: 11 new pytest cases (TestAdminPointOverrides) covering auth (401/403), full update + persistence in GET /api/points/{id} and GET /api/points list with edited:true flag, DELETE reset restoring originals, France-bounds validation (lat 60→400, lng 20→400), 404 on missing id, and partial name-only update. All 62/62 backend tests PASS (11 new + 51 regression). Frontend: admin login → open pt-00001 detail modal → detail-edit-btn visible → admin-edit-panel opens → save new name+coords → detail-name & detail-coords reflect changes → reset restores originals → logout → same modal shows NO edit button. Regression: initial 4127 points load, detail modal displays name/coords/hours/carriers/address. pt-00001 verified clean after tests (no leftover override).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_scenarios_verified": {
+    "backend_put_without_auth_401": "PUT /api/admin/points/pt-00001 no cookie → 401 — PASS",
+    "backend_delete_without_auth_401": "DELETE /api/admin/points/pt-00001 no cookie → 401 — PASS",
+    "backend_put_as_regular_user_403": "PUT as fresh registered user → 403 'Accès réservé à l'administrateur' — PASS",
+    "backend_delete_as_regular_user_403": "DELETE as fresh registered user → 403 — PASS",
+    "backend_admin_put_updates_and_persists": "PUT {name, lat, lng} → 200 with edited:true; GET /api/points/{id} and GET /api/points both reflect the override — PASS",
+    "backend_admin_delete_resets": "DELETE → 200, returns original name/lat/lng and edited flag cleared — PASS",
+    "backend_lat_out_of_france_400": "lat=60.0 → 400 with 'Latitude hors de France' — PASS",
+    "backend_lng_out_of_france_400": "lng=20.0 → 400 with 'Longitude hors de France' — PASS",
+    "backend_nonexistent_point_404": "PUT/DELETE /api/admin/points/pt-99999999 → 404 — PASS",
+    "backend_partial_name_update": "PUT with only name → lat/lng untouched, name updated, edited:true — PASS",
+    "backend_regression_full_suite": "62 passed / 0 failed (all previous suites + new admin tests) — PASS",
+    "frontend_admin_edit_flow": "admin login → aside card click → detail-edit-btn visible → click opens admin-edit-panel → fill name+lat+lng → edit-save-btn saves → detail-name/detail-coords updated, toast 'Point relais modifié' shown — PASS",
+    "frontend_admin_reset_flow": "click edit-reset-btn → detail-name/detail-coords restored to original, toast 'Modifications réinitialisées' shown — PASS",
+    "frontend_anonymous_no_edit_btn": "logout → open same point detail → detail-edit-btn NOT present (count=0) — PASS",
+    "frontend_regression_detail_content": "detail-name, detail-coords, detail-hours, detail-carriers, detail-address all render for standard demo point — PASS",
+    "frontend_regression_4127_points": "Initial results-count = '4127 points relais' — PASS"
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py:257 admin_update_point() only writes 'name' to Mongo when data.name.strip() is truthy. This means an admin cannot clear/restore a name via PUT — they must call DELETE. Fine as documented behaviour, but worth noting.",
+    "PointDetail.js:41-43 initial useState(point.name/lat/lng) is set only on mount. If the parent updates the same 'selected' point (e.g., via onUpdated) without unmounting the modal, edit-name-input still shows the previously typed value until the modal is reopened. Not blocking (save closes editing), but re-opening edit on the same session after a name change works because setName(data.name) runs inside resetEdit. Save keeps the state in sync via new_name.",
+    "server.py admin routes do not persist author/timestamp of the override. Consider storing updated_by, updated_at in point_overrides for audit trail.",
+    "server.py validation ranges (41.0–51.5 lat / -5.8–9.8 lng) exclude Corsica edges partially (Corsica lat ~41.3–43.0 lng 8.5–9.6 which is fine) — bounds are OK for mainland+Corsica, but not overseas territories (DOM-TOM). Acceptable given app scope is France métropolitaine.",
+    "Regression from previous iterations still relevant: MapApp.js ~695 lines with duplicated aside/mobile-sheet UI blocks (consider extraction), liveMode not URL-persisted. No new files added — feature was cleanly implemented in existing components."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py (added TestAdminPointOverrides class with 11 tests; setup_method/teardown_method reset pt-00001 to keep demo clean)"
+  ],
+  "success_rate": {"backend": "100% (62/62 pass, 0 failed)", "frontend": "100% (all admin-edit + regression scenarios verified)"},
+  "test_credentials": "admin@relaispoint.fr / admin123 (used). Non-admin: TEST_<uuid>@relaispoint.fr registered fresh per module.",
+  "seed_data_creation": "None persistent — pt-00001 override is created and cleaned up in each test via setup/teardown; final state clean (verified via curl showing no 'edited' field).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Admin edit feature works end-to-end. Backend endpoints: PUT /api/admin/points/{id} body {name?, lat?, lng?} → 200 + updated point (edited:true); DELETE /api/admin/points/{id} → 200 + original point. Auth via httpOnly cookie (samesite=none, secure) OR Bearer header. 401 unauth, 403 non-admin, 404 unknown id, 400 out-of-France coords. Overrides persisted in db.point_overrides and cached in _OVERRIDES dict (loaded at startup). Frontend testids: detail-edit-btn (only when isAdmin=user.role==='admin'), admin-edit-panel, edit-name-input, edit-lat-input, edit-lng-input, edit-save-btn, edit-reset-btn. onUpdated callback in MapApp.js updates both selected and points list so map + list stay in sync. pt-00001 is the safe test target — always clean up after tests.",
+  "rca_of_the_issue": "No bugs found. Implementation matches spec across backend and frontend."
+}

@@ -63,6 +63,11 @@ class LoginIn(BaseModel):
 class FavoriteIn(BaseModel):
     point_id: str
 
+class PointOverrideIn(BaseModel):
+    name: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+
 # ---------------------------------------------------------------- Auth helpers
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
@@ -97,6 +102,13 @@ async def get_current_user(request: Request) -> dict:
         raise HTTPException(status_code=401, detail="Session expirée")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Jeton invalide")
+
+
+async def require_admin(user: dict = Depends(get_current_user)) -> dict:
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Accès réservé à l'administrateur")
+    return user
+
 
 def user_public(user: dict) -> dict:
     return {"_id": str(user["_id"]), "email": user["email"],
@@ -183,6 +195,26 @@ def suggest(q: str, limit: int = 8):
 async def get_carriers():
     return [{"id": k, "name": v["name"], "color": v["color"]} for k, v in CARRIERS.items()]
 
+
+# Modifications administrateur (nom / coordonnées) stockées en base, chargées en mémoire
+_OVERRIDES = {}
+
+
+def _apply_override(p: dict) -> dict:
+    ov = _OVERRIDES.get(p["id"])
+    if not ov:
+        return p
+    merged = dict(p)
+    if ov.get("name"):
+        merged["name"] = ov["name"]
+    if ov.get("lat") is not None:
+        merged["lat"] = ov["lat"]
+    if ov.get("lng") is not None:
+        merged["lng"] = ov["lng"]
+    merged["edited"] = True
+    return merged
+
+
 @api_router.get("/points")
 async def get_points(
     carriers: Optional[str] = None,
@@ -203,13 +235,45 @@ async def get_points(
             ql = _norm(q)
             if ql not in _norm(p["city"]) and ql not in p["postal_code"] and ql not in _norm(p["name"]):
                 continue
-        item = dict(p)
+        item = dict(_apply_override(p))
         if lat is not None and lng is not None:
-            item["distance"] = haversine(lat, lng, p["lat"], p["lng"])
+            item["distance"] = haversine(lat, lng, item["lat"], item["lng"])
         results.append(item)
     if lat is not None and lng is not None:
         results.sort(key=lambda x: x.get("distance", 9999))
     return results[:limit]
+
+
+@api_router.put("/admin/points/{point_id}")
+async def admin_update_point(point_id: str, data: PointOverrideIn, admin: dict = Depends(require_admin)):
+    base = next((p for p in POINTS if p["id"] == point_id), None)
+    if not base:
+        raise HTTPException(status_code=404, detail="Point relais introuvable")
+    if data.lat is not None and not (41.0 <= data.lat <= 51.5):
+        raise HTTPException(status_code=400, detail="Latitude hors de France (41–51.5)")
+    if data.lng is not None and not (-5.8 <= data.lng <= 9.8):
+        raise HTTPException(status_code=400, detail="Longitude hors de France (-5.8–9.8)")
+    ov = {"point_id": point_id}
+    if data.name is not None and data.name.strip():
+        ov["name"] = data.name.strip()
+    if data.lat is not None:
+        ov["lat"] = round(data.lat, 6)
+    if data.lng is not None:
+        ov["lng"] = round(data.lng, 6)
+    await db.point_overrides.update_one({"point_id": point_id}, {"$set": ov}, upsert=True)
+    _OVERRIDES[point_id] = {k: v for k, v in ov.items() if k != "point_id"}
+    return _apply_override(base)
+
+
+@api_router.delete("/admin/points/{point_id}")
+async def admin_reset_point(point_id: str, admin: dict = Depends(require_admin)):
+    base = next((p for p in POINTS if p["id"] == point_id), None)
+    if not base:
+        raise HTTPException(status_code=404, detail="Point relais introuvable")
+    await db.point_overrides.delete_one({"point_id": point_id})
+    _OVERRIDES.pop(point_id, None)
+    return base
+
 
 @api_router.get("/geocode")
 def geocode(q: str):
@@ -423,7 +487,7 @@ def mondialrelay_points(
 async def get_point(point_id: str):
     for p in POINTS:
         if p["id"] == point_id:
-            return p
+            return _apply_override(p)
     raise HTTPException(status_code=404, detail="Point relais introuvable")
 
 # ---------------------------------------------------------------- Favorites
@@ -466,6 +530,12 @@ async def startup():
     elif not verify_password(admin_pw, existing["password_hash"]):
         await db.users.update_one({"email": admin_email},
                                   {"$set": {"password_hash": hash_password(admin_pw)}})
+    # Charger les modifications admin en mémoire
+    async for ov in db.point_overrides.find():
+        _OVERRIDES[ov["point_id"]] = {
+            k: ov[k] for k in ("name", "lat", "lng") if k in ov
+        }
+    logger.info("Overrides chargés: %d", len(_OVERRIDES))
 
 app.include_router(api_router)
 app.add_middleware(GZipMiddleware, minimum_size=1000)

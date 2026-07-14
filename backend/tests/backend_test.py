@@ -611,8 +611,186 @@ class TestLivePoints:
     def test_live_gracefully_handles_geocode_failure(self, s):
         """BUG-FIX: when Nominatim rate-limits (429), live endpoint must return
         200 with center=None + message, NOT 502."""
-        # Use a query that requires geocoding; if Nominatim is up we get a valid center;
-        # if it's rate-limited we should get center=None + explicit message.
         r = _live_get({"q": "Lyon", "radius": 8})
         assert r.status_code == 200, f"live endpoint must never 502 on geocode failure, got {r.status_code}"
 
+
+# ============================================================ Admin point overrides
+def _admin_session():
+    sess = requests.Session()
+    r = sess.post(
+        f"{API}/auth/login",
+        json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD},
+        timeout=15,
+    )
+    assert r.status_code == 200, f"admin login failed: {r.text}"
+    return sess
+
+
+class TestAdminPointOverrides:
+    """PUT/DELETE /api/admin/points/{id} — admin-only edits persisted in Mongo."""
+
+    POINT_ID = "pt-00001"
+
+    def setup_method(self):
+        # Ensure clean state before each test
+        try:
+            sess = _admin_session()
+            sess.delete(f"{API}/admin/points/{self.POINT_ID}", timeout=15)
+        except Exception:
+            pass
+
+    def teardown_method(self):
+        # Always reset back to original after each test
+        try:
+            sess = _admin_session()
+            sess.delete(f"{API}/admin/points/{self.POINT_ID}", timeout=15)
+        except Exception:
+            pass
+
+    def test_put_without_auth_returns_401(self):
+        r = requests.put(
+            f"{API}/admin/points/{self.POINT_ID}",
+            json={"name": "Hack"},
+            timeout=15,
+        )
+        assert r.status_code == 401
+
+    def test_delete_without_auth_returns_401(self):
+        r = requests.delete(f"{API}/admin/points/{self.POINT_ID}", timeout=15)
+        assert r.status_code == 401
+
+    def test_put_as_regular_user_returns_403(self, fresh_user_session):
+        sess, _, _ = fresh_user_session
+        r = sess.put(
+            f"{API}/admin/points/{self.POINT_ID}",
+            json={"name": "NonAdminAttempt"},
+            timeout=15,
+        )
+        assert r.status_code == 403
+        detail = r.json().get("detail", "")
+        assert "administrateur" in detail.lower() or "admin" in detail.lower(), \
+            f"expected admin-only error, got: {detail}"
+
+    def test_delete_as_regular_user_returns_403(self, fresh_user_session):
+        sess, _, _ = fresh_user_session
+        r = sess.delete(f"{API}/admin/points/{self.POINT_ID}", timeout=15)
+        assert r.status_code == 403
+
+    def test_admin_put_updates_name_and_coords_and_persists(self):
+        sess = _admin_session()
+        # Get original
+        orig = requests.get(f"{API}/points/{self.POINT_ID}", timeout=15).json()
+
+        new_name = f"TEST_Point Modifié {uuid.uuid4().hex[:6]}"
+        new_lat = 48.860000
+        new_lng = 2.340000
+        r = sess.put(
+            f"{API}/admin/points/{self.POINT_ID}",
+            json={"name": new_name, "lat": new_lat, "lng": new_lng},
+            timeout=15,
+        )
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert data["id"] == self.POINT_ID
+        assert data["name"] == new_name
+        assert abs(data["lat"] - new_lat) < 1e-5
+        assert abs(data["lng"] - new_lng) < 1e-5
+        assert data.get("edited") is True
+
+        # Verify via GET /api/points/{id}
+        r2 = requests.get(f"{API}/points/{self.POINT_ID}", timeout=15)
+        assert r2.status_code == 200
+        d2 = r2.json()
+        assert d2["name"] == new_name
+        assert abs(d2["lat"] - new_lat) < 1e-5
+        assert abs(d2["lng"] - new_lng) < 1e-5
+        assert d2.get("edited") is True
+
+        # Verify present in GET /api/points list too
+        listing = requests.get(f"{API}/points", timeout=30).json()
+        matched = next((p for p in listing if p["id"] == self.POINT_ID), None)
+        assert matched is not None
+        assert matched["name"] == new_name
+        assert matched.get("edited") is True
+
+        # Sanity: name actually differs from original
+        assert new_name != orig["name"]
+
+    def test_admin_delete_resets_point(self):
+        sess = _admin_session()
+        # Snapshot original before any edits
+        orig = requests.get(f"{API}/points/{self.POINT_ID}", timeout=15).json()
+        assert not orig.get("edited")
+
+        # Apply edit
+        sess.put(
+            f"{API}/admin/points/{self.POINT_ID}",
+            json={"name": "TEST_ToBeReset", "lat": 45.0, "lng": 3.0},
+            timeout=15,
+        )
+
+        # Reset
+        r = sess.delete(f"{API}/admin/points/{self.POINT_ID}", timeout=15)
+        assert r.status_code == 200
+        data = r.json()
+        assert data["name"] == orig["name"]
+        assert abs(data["lat"] - orig["lat"]) < 1e-5
+        assert abs(data["lng"] - orig["lng"]) < 1e-5
+        assert not data.get("edited")
+
+        # Verify via GET
+        d2 = requests.get(f"{API}/points/{self.POINT_ID}", timeout=15).json()
+        assert d2["name"] == orig["name"]
+        assert not d2.get("edited")
+
+    def test_put_lat_out_of_france_returns_400(self):
+        sess = _admin_session()
+        r = sess.put(
+            f"{API}/admin/points/{self.POINT_ID}",
+            json={"lat": 60.0, "lng": 2.0},
+            timeout=15,
+        )
+        assert r.status_code == 400
+        assert "Latitude" in r.json().get("detail", "") or "atitude" in r.json().get("detail", "")
+
+    def test_put_lng_out_of_france_returns_400(self):
+        sess = _admin_session()
+        r = sess.put(
+            f"{API}/admin/points/{self.POINT_ID}",
+            json={"lat": 48.0, "lng": 20.0},
+            timeout=15,
+        )
+        assert r.status_code == 400
+        assert "ongitude" in r.json().get("detail", "")
+
+    def test_put_nonexistent_point_returns_404(self):
+        sess = _admin_session()
+        r = sess.put(
+            f"{API}/admin/points/pt-99999999",
+            json={"name": "Nope"},
+            timeout=15,
+        )
+        assert r.status_code == 404
+
+    def test_delete_nonexistent_point_returns_404(self):
+        sess = _admin_session()
+        r = sess.delete(f"{API}/admin/points/pt-99999999", timeout=15)
+        assert r.status_code == 404
+
+    def test_admin_partial_update_name_only(self):
+        sess = _admin_session()
+        orig = requests.get(f"{API}/points/{self.POINT_ID}", timeout=15).json()
+
+        r = sess.put(
+            f"{API}/admin/points/{self.POINT_ID}",
+            json={"name": "TEST_NameOnly"},
+            timeout=15,
+        )
+        assert r.status_code == 200
+        data = r.json()
+        assert data["name"] == "TEST_NameOnly"
+        # lat/lng untouched -> equal to original
+        assert abs(data["lat"] - orig["lat"]) < 1e-5
+        assert abs(data["lng"] - orig["lng"]) < 1e-5
+        assert data.get("edited") is True
