@@ -375,6 +375,49 @@ out center tags 400;
     return {"center": {"lat": lat, "lng": lng}, "points": points}
 
 
+@api_router.get("/mondialrelay/points")
+def mondialrelay_points(
+    q: Optional[str] = None,
+    lat: Optional[float] = None,
+    lng: Optional[float] = None,
+    radius: float = 20,
+    ptype: Optional[str] = None,
+):
+    import mondial_relay as mr
+
+    center = None
+    ville, cp = "", ""
+    if lat is not None and lng is not None:
+        center = {"lat": lat, "lng": lng}
+    elif q and q.strip():
+        raw = q.strip()
+        if raw.isdigit():
+            cp = raw
+        else:
+            ville = raw
+        try:
+            geo = geocode(q)
+            if geo.get("lat") is not None:
+                center = {"lat": geo["lat"], "lng": geo["lng"]}
+                lat, lng = geo["lat"], geo["lng"]
+        except HTTPException:
+            pass
+    else:
+        return {"center": None, "points": [], "message": "Précisez une ville ou votre position"}
+
+    res = mr.search(ville=ville, cp=cp, lat=lat, lng=lng,
+                    action="24R", radius=int(min(max(radius, 1), 50)))
+    points = res["points"]
+    if ptype and ptype != "all":
+        points = [p for p in points if p["type"] == ptype]
+    if center:
+        for p in points:
+            p["distance"] = haversine(center["lat"], center["lng"], p["lat"], p["lng"])
+        points.sort(key=lambda x: x.get("distance", 9999))
+    return {"center": center, "points": points, "message": res["message"]}
+
+
+
 
 @api_router.get("/points/{point_id}")
 async def get_point(point_id: str):

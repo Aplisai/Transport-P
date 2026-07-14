@@ -41,8 +41,9 @@ export default function MapApp() {
   const [geocoding, setGeocoding] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggest, setShowSuggest] = useState(false);
-  const [liveMode, setLiveMode] = useState(false);
+  const [source, setSource] = useState("demo"); // demo | osm | mr
   const [liveMessage, setLiveMessage] = useState("");
+  const liveMode = source !== "demo";
   const suggestRef = useRef(null);
   const debounceRef = useRef(null);
 
@@ -54,28 +55,33 @@ export default function MapApp() {
     if (liveMode) {
       if (!query.trim() && !userLoc) {
         setPoints([]);
-        setLiveMessage("Recherchez une ville/code postal ou activez « Ma position » pour charger les points réels.");
+        setLiveMessage(
+          source === "mr"
+            ? "Recherchez une ville/code postal ou activez « Ma position » pour charger les points Mondial Relay."
+            : "Recherchez une ville/code postal ou activez « Ma position » pour charger les points réels."
+        );
         return;
       }
       setLoading(true);
       setLiveMessage("");
+      const endpoint = source === "mr" ? "/mondialrelay/points" : "/live/points";
       const params = { radius: Math.min(radius, 25) };
       if (query.trim()) params.q = query.trim();
       if (userLoc) {
         params.lat = userLoc.lat;
         params.lng = userLoc.lng;
       }
-      if (active.size) params.carriers = [...active].join(",");
+      if (source === "osm" && active.size) params.carriers = [...active].join(",");
       if (ptype !== "all") params.ptype = ptype;
       try {
-        const { data } = await api.get("/live/points", { params });
+        const { data } = await api.get(endpoint, { params });
         setPoints(data.points || []);
         if (data.center) setFlyTarget({ ...data.center, zoom: 12 });
         if (data.message) setLiveMessage(data.message);
-        else if (!data.points?.length) setLiveMessage("Aucun point relais réel trouvé dans cette zone.");
+        else if (!data.points?.length) setLiveMessage("Aucun point trouvé dans cette zone.");
       } catch {
         setPoints([]);
-        setLiveMessage("Service OpenStreetMap momentanément indisponible. Réessayez.");
+        setLiveMessage("Service momentanément indisponible. Réessayez.");
       } finally {
         setLoading(false);
       }
@@ -96,7 +102,7 @@ export default function MapApp() {
     } finally {
       setLoading(false);
     }
-  }, [active, query, userLoc, ptype, liveMode, radius]);
+  }, [active, query, userLoc, ptype, liveMode, source, radius]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -381,34 +387,46 @@ export default function MapApp() {
           </button>
         </form>
 
-        {/* Data source toggle: Démo / Réel */}
-        <div className="mt-3 flex items-center justify-between gap-2 rounded-full bg-black/5 p-1">
+        {/* Data source selector: Démo / OSM / Mondial Relay */}
+        <div className="mt-3 flex items-center gap-1 rounded-full bg-black/5 p-1">
           <button
             data-testid="mode-demo"
             onClick={() => {
-              setLiveMode(false);
+              setSource("demo");
               setLiveMessage("");
               setActive(new Set());
               setPtype("all");
               setTab("all");
             }}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-1.5 text-xs font-medium transition-[background-color,color] ${
-              !liveMode ? "bg-[#14161C] text-white" : "text-gray-500 hover:text-[#14161C]"
+            className={`flex flex-1 items-center justify-center gap-1 rounded-full py-1.5 text-[11px] font-medium transition-[background-color,color] ${
+              source === "demo" ? "bg-[#14161C] text-white" : "text-gray-500 hover:text-[#14161C]"
             }`}
           >
-            <Box className="h-3.5 w-3.5" /> Démo (France)
+            <Box className="h-3.5 w-3.5" /> Démo
           </button>
           <button
             data-testid="mode-live"
             onClick={() => {
-              setLiveMode(true);
+              setSource("osm");
               setPoints([]);
             }}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-1.5 text-xs font-medium transition-[background-color,color] ${
-              liveMode ? "bg-[#00E676] text-[#0B0C10]" : "text-gray-500 hover:text-[#14161C]"
+            className={`flex flex-1 items-center justify-center gap-1 rounded-full py-1.5 text-[11px] font-medium transition-[background-color,color] ${
+              source === "osm" ? "bg-[#00E676] text-[#0B0C10]" : "text-gray-500 hover:text-[#14161C]"
             }`}
           >
-            <MapPin className="h-3.5 w-3.5" /> Réel (OpenStreetMap)
+            <MapPin className="h-3.5 w-3.5" /> OSM
+          </button>
+          <button
+            data-testid="mode-mr"
+            onClick={() => {
+              setSource("mr");
+              setPoints([]);
+            }}
+            className={`flex flex-1 items-center justify-center gap-1 rounded-full py-1.5 text-[11px] font-medium transition-[background-color,color] ${
+              source === "mr" ? "bg-[#FF3366] text-white" : "text-gray-500 hover:text-[#14161C]"
+            }`}
+          >
+            <MapPin className="h-3.5 w-3.5" /> Mondial Relay
           </button>
         </div>
 
@@ -528,11 +546,27 @@ export default function MapApp() {
         {liveMode && (
           <div
             data-testid="live-banner"
-            className="mb-3 flex items-start gap-2 rounded-xl border border-[#00E676]/40 bg-[#00E676]/10 px-3 py-2.5 text-xs text-[#14161C]"
+            className={`mb-3 flex items-start gap-2 rounded-xl border px-3 py-2.5 text-xs text-[#14161C] ${
+              source === "mr"
+                ? "border-[#FF3366]/40 bg-[#FF3366]/10"
+                : "border-[#00E676]/40 bg-[#00E676]/10"
+            }`}
           >
-            <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#00A152]" />
+            <MapPin
+              className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${
+                source === "mr" ? "text-[#FF3366]" : "text-[#00A152]"
+              }`}
+            />
             <span>
-              <b>Données réelles (OpenStreetMap).</b> {liveMessage || "Points relais et lockers réels autour du lieu recherché (rayon max 25 km)."}
+              <b>
+                {source === "mr"
+                  ? "Mondial Relay (API officielle)."
+                  : "Données réelles (OpenStreetMap)."}
+              </b>{" "}
+              {liveMessage ||
+                (source === "mr"
+                  ? "Vrais points relais Mondial Relay autour du lieu recherché."
+                  : "Points relais et lockers réels autour du lieu recherché (rayon max 25 km).")}
             </span>
           </div>
         )}
