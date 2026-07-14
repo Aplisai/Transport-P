@@ -210,6 +210,28 @@ class TestPoints:
         assert r.status_code == 404
 
 
+# ============================================================ Geocode
+class TestGeocode:
+    def test_geocode_valid_address_paris(self, s):
+        r = s.get(f"{API}/geocode", params={"q": "10 rue de Rivoli Paris"}, timeout=15)
+        assert r.status_code == 200
+        data = r.json()
+        assert data.get("lat") is not None, f"expected coords, got {data}"
+        assert 48.7 <= data["lat"] <= 49.0, f"lat out of Paris range: {data['lat']}"
+        assert 2.2 <= data["lng"] <= 2.5, f"lng out of Paris range: {data['lng']}"
+        assert "label" in data
+
+    def test_geocode_invalid_address(self, s):
+        r = s.get(f"{API}/geocode", params={"q": "uihqweXYZnope"}, timeout=15)
+        assert r.status_code == 200
+        assert r.json() == {"lat": None}
+
+    def test_geocode_empty_query(self, s):
+        r = s.get(f"{API}/geocode", params={"q": ""}, timeout=15)
+        assert r.status_code == 200
+        assert r.json() == {"lat": None}
+
+
 # ============================================================ GZip
 class TestGZip:
     def test_gzip_encoding_on_points(self):

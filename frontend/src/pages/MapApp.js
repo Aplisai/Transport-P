@@ -34,6 +34,9 @@ export default function MapApp() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [locating, setLocating] = useState(false);
   const [ptype, setPtype] = useState("all"); // all | relais | locker
+  const [radius, setRadius] = useState(20); // km, 5-200
+  const [address, setAddress] = useState("");
+  const [geocoding, setGeocoding] = useState(false);
   const debounceRef = useRef(null);
 
   useEffect(() => {
@@ -113,6 +116,28 @@ export default function MapApp() {
     );
   };
 
+  const geocodeAddress = async (e) => {
+    if (e) e.preventDefault();
+    if (!address.trim()) return;
+    setGeocoding(true);
+    try {
+      const { data } = await api.get("/geocode", { params: { q: address.trim() } });
+      if (data.lat != null) {
+        const loc = { lat: data.lat, lng: data.lng };
+        setUserLoc(loc);
+        setFlyTarget({ ...loc, zoom: 13 });
+        setTab("nearby");
+        toast.success("Adresse localisée — points relais triés par distance");
+      } else {
+        toast.error("Adresse introuvable en France");
+      }
+    } catch {
+      toast.error("Impossible de localiser cette adresse");
+    } finally {
+      setGeocoding(false);
+    }
+  };
+
   const selectPoint = useCallback((p) => {
     setSelected(p);
     setFlyTarget({ lat: p.lat, lng: p.lng, zoom: 15 });
@@ -149,17 +174,15 @@ export default function MapApp() {
     setShowAuth(true);
   }, []);
 
-  const nearestByCarrier = userLoc
-    ? carriers
-        .map((c) => points.find((p) => p.carrier === c.id && p.distance != null))
-        .filter(Boolean)
+  const withinRadius = userLoc
+    ? points.filter((p) => p.distance != null && p.distance <= radius)
     : [];
 
   const visiblePoints =
     tab === "favorites"
       ? points.filter((p) => favorites.includes(p.id))
       : tab === "nearby"
-      ? nearestByCarrier
+      ? withinRadius
       : points;
   const listPoints = visiblePoints.slice(0, 300);
 
@@ -348,29 +371,85 @@ export default function MapApp() {
         <div className="mb-1 flex items-center justify-between text-xs text-gray-400">
           <span data-testid="results-count">
             {tab === "nearby"
-              ? "Le plus proche par transporteur"
+              ? userLoc
+                ? `${visiblePoints.length} point${visiblePoints.length > 1 ? "s" : ""} dans un rayon de ${radius} km`
+                : "Choisissez votre point de départ"
               : `${visiblePoints.length} point${visiblePoints.length > 1 ? "s" : ""} relais`}
           </span>
-          {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+          {(loading || geocoding) && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
         </div>
 
-        {tab === "nearby" && !userLoc && !loading && (
-          <div className="py-10 text-center" data-testid="nearby-prompt">
-            <p className="mb-3 text-sm text-gray-500">
-              Activez votre position pour voir le point relais le plus proche de chaque transporteur.
-            </p>
+        {tab === "nearby" && (
+          <div
+            className="mb-3 space-y-3 rounded-xl border border-black/10 bg-white p-3"
+            data-testid="nearby-controls"
+          >
             <button
               onClick={geolocate}
               data-testid="nearby-locate-btn"
-              className="inline-flex items-center gap-2 rounded-full bg-[#14161C] px-4 py-2 text-xs font-semibold text-white hover:bg-[#2a2d36] transition-[background-color]"
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-[#14161C] px-4 py-2 text-xs font-semibold text-white hover:bg-[#2a2d36] transition-[background-color]"
             >
               {locating ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Crosshair className="h-4 w-4" />
               )}
-              Ma position
+              Ma position (GPS)
             </button>
+
+            <div className="flex items-center gap-2 text-[11px] text-gray-400">
+              <span className="h-px flex-1 bg-black/10" />
+              ou une adresse
+              <span className="h-px flex-1 bg-black/10" />
+            </div>
+
+            <form onSubmit={geocodeAddress} className="flex gap-2">
+              <input
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                data-testid="nearby-address-input"
+                placeholder="Ex : 10 rue de Rivoli, Paris"
+                className="min-w-0 flex-1 rounded-full bg-black/[0.03] border border-black/10 px-3 py-2 text-xs text-[#14161C] outline-none focus:border-black/30 focus:ring-2 focus:ring-black/10 transition-[border-color]"
+              />
+              <button
+                type="submit"
+                data-testid="nearby-address-btn"
+                className="shrink-0 rounded-full bg-[#14161C] px-4 py-2 text-xs font-semibold text-white hover:bg-[#2a2d36] transition-[background-color]"
+              >
+                {geocoding ? <Loader2 className="h-4 w-4 animate-spin" /> : "OK"}
+              </button>
+            </form>
+
+            {userLoc && (
+              <div data-testid="radius-control" className="pt-1">
+                <div className="mb-1 flex items-center justify-between text-xs text-[#14161C]">
+                  <span className="font-medium">Rayon de recherche</span>
+                  <span data-testid="radius-value" className="font-semibold">
+                    {radius} km
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={5}
+                  max={200}
+                  step={5}
+                  value={radius}
+                  onChange={(e) => setRadius(Number(e.target.value))}
+                  data-testid="radius-slider"
+                  className="w-full accent-[#14161C]"
+                />
+                <div className="flex justify-between text-[10px] text-gray-400">
+                  <span>5 km</span>
+                  <span>200 km</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === "nearby" && userLoc && visiblePoints.length === 0 && !loading && (
+          <div className="py-8 text-center text-sm text-gray-400" data-testid="nearby-empty">
+            Aucun point relais dans un rayon de {radius} km. Élargissez le rayon.
           </div>
         )}
 

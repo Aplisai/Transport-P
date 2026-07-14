@@ -6,6 +6,7 @@ import os
 import math
 import logging
 import unicodedata
+import requests
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Annotated
 
@@ -175,6 +176,30 @@ async def get_points(
     if lat is not None and lng is not None:
         results.sort(key=lambda x: x.get("distance", 9999))
     return results[:limit]
+
+@api_router.get("/geocode")
+async def geocode(q: str):
+    if not q or not q.strip():
+        return {"lat": None}
+    try:
+        r = requests.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"q": q, "format": "json", "countrycodes": "fr", "limit": 1},
+            headers={"User-Agent": "RelayDip/1.0 (points relais France)"},
+            timeout=10,
+        )
+        data = r.json()
+    except Exception as e:
+        logger.warning("Geocode error: %s", e)
+        raise HTTPException(status_code=502, detail="Service de géocodage indisponible")
+    if not data:
+        return {"lat": None}
+    return {
+        "lat": float(data[0]["lat"]),
+        "lng": float(data[0]["lon"]),
+        "label": data[0].get("display_name", q),
+    }
+
 
 @api_router.get("/points/{point_id}")
 async def get_point(point_id: str):
