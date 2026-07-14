@@ -9,6 +9,8 @@ CARRIERS = {
     "ups": {"name": "UPS", "color": "#FF9900"},
     "relais_colis": {"name": "Relais Colis", "color": "#00E676"},
     "colis_prive": {"name": "Colis Privé", "color": "#A855F7"},
+    "vinted_go": {"name": "Vinted Go", "color": "#09B1BA"},
+    "amazon": {"name": "Amazon", "color": "#146EB4"},
 }
 
 # Communes françaises: (nom, lat, lng, code postal, poids ~ taille de la ville)
@@ -113,6 +115,8 @@ LOCKER_LABELS = {
     "ups": "UPS Access Point Locker",
     "relais_colis": "Consigne Relais Colis",
     "colis_prive": "Locker Colis Privé",
+    "vinted_go": "Vinted Go Locker",
+    "amazon": "Amazon Locker",
 }
 LOCKER_SPOTS = [
     "Parking Centre Commercial", "Gare SNCF", "Station-service Total",
