@@ -387,49 +387,6 @@ export default function MapApp() {
           </button>
         </form>
 
-        {/* Data source selector: Démo / OSM / Mondial Relay */}
-        <div className="mt-3 flex items-center gap-1 rounded-full bg-black/5 p-1">
-          <button
-            data-testid="mode-demo"
-            onClick={() => {
-              setSource("demo");
-              setLiveMessage("");
-              setActive(new Set());
-              setPtype("all");
-              setTab("all");
-            }}
-            className={`flex flex-1 items-center justify-center gap-1 rounded-full py-1.5 text-[11px] font-medium transition-[background-color,color] ${
-              source === "demo" ? "bg-[#14161C] text-white" : "text-gray-500 hover:text-[#14161C]"
-            }`}
-          >
-            <Box className="h-3.5 w-3.5" /> Démo
-          </button>
-          <button
-            data-testid="mode-live"
-            onClick={() => {
-              setSource("osm");
-              setPoints([]);
-            }}
-            className={`flex flex-1 items-center justify-center gap-1 rounded-full py-1.5 text-[11px] font-medium transition-[background-color,color] ${
-              source === "osm" ? "bg-[#00E676] text-[#0B0C10]" : "text-gray-500 hover:text-[#14161C]"
-            }`}
-          >
-            <MapPin className="h-3.5 w-3.5" /> OSM
-          </button>
-          <button
-            data-testid="mode-mr"
-            onClick={() => {
-              setSource("mr");
-              setPoints([]);
-            }}
-            className={`flex flex-1 items-center justify-center gap-1 rounded-full py-1.5 text-[11px] font-medium transition-[background-color,color] ${
-              source === "mr" ? "bg-[#FF3366] text-white" : "text-gray-500 hover:text-[#14161C]"
-            }`}
-          >
-            <MapPin className="h-3.5 w-3.5" /> Mondial Relay
-          </button>
-        </div>
-
         {/* Tabs */}
         <div className="mt-3 flex gap-1 rounded-full bg-black/5 p-1">
           <button
