@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, useMap, ZoomControl } from "react-leaflet";
 import L from "leaflet";
 import "leaflet.markercluster";
 import "leaflet.markercluster/dist/MarkerCluster.css";
@@ -99,10 +99,11 @@ export default function MapView({ points, userLocation, flyTarget, onSelect }) {
         [51.5, 9.8],
       ]}
       maxBoundsViscosity={1.0}
-      zoomControl={true}
+      zoomControl={false}
       className="h-full w-full"
       style={{ height: "100%", width: "100%" }}
     >
+      <ZoomControl position="topright" />
       <TileLayer
         url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
         attribution="&copy; OpenStreetMap &copy; CARTO"
