@@ -6,6 +6,7 @@ import os
 import math
 import logging
 import unicodedata
+import secrets
 import requests
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Annotated
@@ -155,6 +156,47 @@ async def logout(response: Response):
 @api_router.get("/auth/me")
 async def me(user: dict = Depends(get_current_user)):
     return user_public(user)
+
+class ForgotIn(BaseModel):
+    email: EmailStr
+
+class ResetIn(BaseModel):
+    token: str
+    password: str = Field(min_length=6)
+
+@api_router.post("/auth/forgot-password")
+async def forgot_password(data: ForgotIn):
+    email = data.email.lower()
+    user = await db.users.find_one({"email": email})
+    if not user:
+        # Ne pas révéler l'existence du compte
+        return {"ok": True, "message": "Si ce compte existe, un code de réinitialisation a été généré."}
+    token = secrets.token_urlsafe(24)
+    await db.password_reset_tokens.insert_one({
+        "user_id": str(user["_id"]),
+        "token": token,
+        "used": False,
+        "expires_at": datetime.now(timezone.utc) + timedelta(hours=1),
+    })
+    logger.info("Reset token pour %s : %s", email, token)
+    # Mode sans e-mail : le code est renvoyé pour permettre la réinitialisation dans l'app
+    return {"ok": True, "reset_token": token,
+            "message": "Code de réinitialisation généré."}
+
+@api_router.post("/auth/reset-password")
+async def reset_password(data: ResetIn):
+    doc = await db.password_reset_tokens.find_one({"token": data.token})
+    if not doc or doc.get("used"):
+        raise HTTPException(status_code=400, detail="Code invalide ou déjà utilisé")
+    exp = doc["expires_at"]
+    if exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    if exp < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Code expiré, refaites une demande")
+    await db.users.update_one({"_id": ObjectId(doc["user_id"])},
+                              {"$set": {"password_hash": hash_password(data.password)}})
+    await db.password_reset_tokens.update_one({"_id": doc["_id"]}, {"$set": {"used": True}})
+    return {"ok": True, "message": "Mot de passe réinitialisé. Vous pouvez vous connecter."}
 
 # ---------------------------------------------------------------- Relay points
 # Index des localités uniques (ville + code postal) pour l'autocomplétion
@@ -518,6 +560,7 @@ async def root():
 @app.on_event("startup")
 async def startup():
     await db.users.create_index("email", unique=True)
+    await db.password_reset_tokens.create_index("expires_at", expireAfterSeconds=3600)
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@relaispoint.fr").lower()
     admin_pw = os.environ.get("ADMIN_PASSWORD", "admin123")
     existing = await db.users.find_one({"email": admin_email})

@@ -778,6 +778,152 @@ class TestAdminPointOverrides:
         r = sess.delete(f"{API}/admin/points/pt-99999999", timeout=15)
         assert r.status_code == 404
 
+# ============================================================ Forgot/Reset password (no-email mode)
+class TestPasswordReset:
+    """POST /api/auth/forgot-password and /api/auth/reset-password.
+
+    No-email mode: reset_token is returned in response for existing users.
+    Generic response for non-existent emails.
+    """
+
+    def _register_user(self):
+        sess = requests.Session()
+        email = f"TEST_reset_{uuid.uuid4().hex[:10]}@relaispoint.fr"
+        password = "oldpass1"
+        r = sess.post(
+            f"{API}/auth/register",
+            json={"email": email, "password": password, "name": "Reset User"},
+            timeout=15,
+        )
+        assert r.status_code == 200, f"register failed: {r.text}"
+        sess.post(f"{API}/auth/logout", timeout=15)
+        return email, password
+
+    def test_forgot_existing_returns_reset_token(self):
+        email, _ = self._register_user()
+        r = requests.post(
+            f"{API}/auth/forgot-password", json={"email": email}, timeout=15
+        )
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert data.get("ok") is True
+        assert "reset_token" in data and isinstance(data["reset_token"], str)
+        assert len(data["reset_token"]) > 10
+
+    def test_forgot_nonexistent_no_token(self):
+        fake = f"TEST_nope_{uuid.uuid4().hex[:8]}@relaispoint.fr"
+        r = requests.post(
+            f"{API}/auth/forgot-password", json={"email": fake}, timeout=15
+        )
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert data.get("ok") is True
+        assert "reset_token" not in data, \
+            f"non-existent email must not reveal via reset_token, got {data}"
+
+    def test_forgot_email_case_insensitive(self):
+        email, _ = self._register_user()
+        r = requests.post(
+            f"{API}/auth/forgot-password",
+            json={"email": email.upper()},
+            timeout=15,
+        )
+        assert r.status_code == 200
+        assert "reset_token" in r.json()
+
+    def test_reset_success_and_login_with_new_password(self):
+        email, old_pw = self._register_user()
+        r = requests.post(
+            f"{API}/auth/forgot-password", json={"email": email}, timeout=15
+        )
+        token = r.json()["reset_token"]
+        new_pw = "newpass123"
+        r = requests.post(
+            f"{API}/auth/reset-password",
+            json={"token": token, "password": new_pw},
+            timeout=15,
+        )
+        assert r.status_code == 200, r.text
+        assert r.json().get("ok") is True
+
+        # old password rejected
+        r_old = requests.post(
+            f"{API}/auth/login",
+            json={"email": email, "password": old_pw},
+            timeout=15,
+        )
+        assert r_old.status_code == 401, \
+            f"old password must be rejected after reset, got {r_old.status_code}"
+
+        # new password works
+        r_new = requests.post(
+            f"{API}/auth/login",
+            json={"email": email, "password": new_pw},
+            timeout=15,
+        )
+        assert r_new.status_code == 200, r_new.text
+        assert r_new.json()["email"] == email.lower()
+
+    def test_reset_with_invalid_token(self):
+        r = requests.post(
+            f"{API}/auth/reset-password",
+            json={"token": "notarealtoken_xyz123", "password": "newpass123"},
+            timeout=15,
+        )
+        assert r.status_code == 400
+        detail = r.json().get("detail", "").lower()
+        assert "invalide" in detail or "invalid" in detail or "utilis" in detail
+
+    def test_reset_token_reuse_returns_400(self):
+        email, _ = self._register_user()
+        r = requests.post(
+            f"{API}/auth/forgot-password", json={"email": email}, timeout=15
+        )
+        token = r.json()["reset_token"]
+        r1 = requests.post(
+            f"{API}/auth/reset-password",
+            json={"token": token, "password": "firstnew1"},
+            timeout=15,
+        )
+        assert r1.status_code == 200
+        r2 = requests.post(
+            f"{API}/auth/reset-password",
+            json={"token": token, "password": "secondnew1"},
+            timeout=15,
+        )
+        assert r2.status_code == 400, r2.text
+        detail = r2.json().get("detail", "").lower()
+        assert "utilis" in detail or "invalide" in detail or "used" in detail
+
+    def test_reset_short_password_returns_422(self):
+        r = requests.post(
+            f"{API}/auth/reset-password",
+            json={"token": "anytoken", "password": "abc"},
+            timeout=15,
+        )
+        assert r.status_code == 422
+
+    def test_admin_login_still_works_regression(self):
+        r = requests.post(
+            f"{API}/auth/login",
+            json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD},
+            timeout=15,
+        )
+        assert r.status_code == 200
+        assert r.json()["role"] == "admin"
+
+
+# ============================================================ Admin partial (existing)
+class TestAdminPartial:
+    POINT_ID = "pt-00001"
+
+    def teardown_method(self):
+        try:
+            sess = _admin_session()
+            sess.delete(f"{API}/admin/points/{self.POINT_ID}", timeout=15)
+        except Exception:
+            pass
+
     def test_admin_partial_update_name_only(self):
         sess = _admin_session()
         orig = requests.get(f"{API}/points/{self.POINT_ID}", timeout=15).json()

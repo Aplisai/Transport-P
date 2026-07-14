@@ -1,0 +1,53 @@
+{
+  "summary": "Iteration 12 — validated NEW forgot/reset password feature (no-email mode) end-to-end. Backend: 8 new pytest cases (TestPasswordReset) covering forgot for existing user (returns reset_token), forgot for non-existent email (200 ok, no reset_token — no account enumeration), case-insensitive email, full reset flow (old password rejected, new password accepted), invalid token → 400, token reuse → 400, pydantic min_length=6 → 422, admin regression login. Frontend: registered temporary user, verified toggle-password-visibility switches type password↔text, logged out, clicked forgot-password-btn, forgot view shows forgot-email-input + forgot-submit-btn, submitted email advanced to reset view with reset-token-input pre-filled (len=32) and reset-password-input, toggle-reset-password-visibility works, submitted new password successfully, returned to login view with success toast, logged in with new password (toast 'Connexion réussie' visible). Regression: admin@relaispoint.fr / admin123 login still works. All 70/70 backend tests PASS (8 new + 62 regression).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_scenarios_verified": {
+    "backend_forgot_existing_returns_token": "POST /api/auth/forgot-password for existing user → 200 {ok:true, reset_token:<32chars>} — PASS",
+    "backend_forgot_nonexistent_no_token": "POST /api/auth/forgot-password for unknown email → 200 {ok:true} WITHOUT reset_token (no enumeration) — PASS",
+    "backend_forgot_case_insensitive": "Upper-case email variant still returns reset_token — PASS",
+    "backend_reset_success_old_pw_rejected": "POST /api/auth/reset-password with valid token succeeds; old password → 401; new password → 200 — PASS",
+    "backend_reset_invalid_token_400": "Bogus token → 400 'Code invalide ou déjà utilisé' — PASS",
+    "backend_reset_token_reuse_400": "Reusing already-consumed token → 400 — PASS",
+    "backend_reset_short_password_422": "Password length < 6 → 422 Pydantic validation — PASS",
+    "backend_admin_login_regression": "admin@relaispoint.fr/admin123 still authenticates — PASS",
+    "backend_regression_full_suite": "70 passed / 0 failed (all previous 62 tests + 8 new) — PASS",
+    "frontend_toggle_password_visibility": "auth-password-input type switches password→text→password via toggle-password-visibility — PASS",
+    "frontend_forgot_flow_ui": "forgot-password-btn (only in login mode) → forgot view (forgot-email-input + forgot-submit-btn) — PASS",
+    "frontend_reset_view_prefilled_token": "Submitting existing email advances to reset view with reset-token-input pre-filled (32-char token) — PASS",
+    "frontend_toggle_reset_password_visibility": "reset-password-input toggle switches type — PASS",
+    "frontend_reset_success_returns_to_login": "reset-submit-btn success → toast 'Mot de passe réinitialisé' + mode returns to login — PASS",
+    "frontend_login_with_new_password": "Immediately logging in with new password succeeds (toast 'Connexion réussie') — PASS",
+    "frontend_admin_login_regression": "admin login and tab switching (auth-tab-login/register) unaffected — PASS"
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py:174 secrets.token_urlsafe(24) yields ~32 chars; adequate entropy. Token stored plaintext in Mongo — acceptable for no-email mode + 1h TTL but note it grants password-reset if DB is compromised. Consider hashing before storage for defence-in-depth.",
+    "server.py:167-184 forgot_password does NOT rate-limit per-email or per-IP. In no-email mode this is a bigger risk because an attacker who knows an email can enumerate valid accounts by simply POSTing (the {ok:true} shape is the same, but timing/DB writes differ, and a user could be spammed with token generations). Recommend simple in-memory rate-limit (e.g. 3 requests / email / 15 min) if this ever becomes email-backed.",
+    "server.py:186-199 reset_password doesn't invalidate any active JWT/cookie session for the affected user. If the user's cookie is stolen and reset is used to change password, the attacker's existing session remains valid until natural expiry. Consider bumping a 'token_version' claim in JWT and checking it in get_current_user.",
+    "AuthModal.js:13 showPwd state is shared between login/register/reset password inputs (both use `type={showPwd ? 'text' : 'password'}`). If user toggles show on login form and switches to reset, the reset field will render as text. Minor UX inconsistency, not a security bug.",
+    "AuthModal.js:57-72 submitReset resets password/newPwd state but keeps `resetToken` and `email` state values; not a bug but a small leak between submissions if user manually goes back.",
+    "AuthModal.js: forgot view lacks a data-testid on 'Retour à la connexion' button — not blocking. Consider adding for testability."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py (added TestPasswordReset class with 8 tests + wrapped stray test_admin_partial_update_name_only into TestAdminPartial class with teardown_method)"
+  ],
+  "success_rate": {"backend": "100% (70/70 pass, 0 failed)", "frontend": "100% (all forgot/reset + toggle + regression scenarios verified)"},
+  "test_credentials": "Admin admin@relaispoint.fr/admin123 (regression). Fresh temp user resetflow{timestamp}@ex.fr created per playwright run — password reset to newpass123 then logged out (record persists in DB with new hash, benign).",
+  "seed_data_creation": "Test users prefixed TEST_reset_* are created by pytest fixtures for each pytest run; they persist in db.users (unique emails, no cleanup) — recommend main agent add periodic cleanup of TEST_* prefix users if desired. Frontend playwright creates one resetflow{ts}@ex.fr user per run (persists).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Forgot/reset password (no-email mode) works end-to-end. Backend: POST /api/auth/forgot-password → {ok:true, reset_token} for existing users, {ok:true} for unknown (no enumeration). POST /api/auth/reset-password {token, password (min 6)} → 200 ok on valid unused token, 400 on invalid/reused, 422 on short pw. Tokens stored in db.password_reset_tokens with 1h TTL index. Frontend testids: forgot-password-btn (only in login mode), forgot-email-input, forgot-submit-btn, reset-token-input (pre-filled), reset-password-input, toggle-password-visibility, toggle-reset-password-visibility, reset-submit-btn. Both password inputs use showPwd state so toggling either shows both if visible together. All 70 pytest tests pass. Consider adding rate-limiting on /auth/forgot-password and JWT token_version bump on reset for defence-in-depth.",
+  "rca_of_the_issue": "No bugs found. Implementation matches spec across backend and frontend."
+}
