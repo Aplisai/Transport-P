@@ -11,6 +11,7 @@ import {
   Loader2,
   Store,
   Box,
+  MapPin,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
@@ -38,6 +39,9 @@ export default function MapApp() {
   const [radius, setRadius] = useState(20); // km, 5-200
   const [address, setAddress] = useState("");
   const [geocoding, setGeocoding] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggest, setShowSuggest] = useState(false);
+  const suggestRef = useRef(null);
   const debounceRef = useRef(null);
 
   useEffect(() => {
@@ -145,12 +149,14 @@ export default function MapApp() {
     setSheetOpen(true);
   }, []);
 
-  const runSearch = async () => {
+  const runSearch = async (overrideQ, flyTo) => {
     setTab("all");
+    setShowSuggest(false);
     setLoading(true);
+    const qv = overrideQ !== undefined ? overrideQ : query;
     const params = {};
     if (active.size) params.carriers = [...active].join(",");
-    if (query.trim()) params.q = query.trim();
+    if (qv.trim()) params.q = qv.trim();
     if (ptype !== "all") params.ptype = ptype;
     if (userLoc) {
       params.lat = userLoc.lat;
@@ -159,15 +165,44 @@ export default function MapApp() {
     try {
       const { data } = await api.get("/points", { params });
       setPoints(data);
-      if (query.trim() && data.length) {
+      if (flyTo) {
+        setFlyTarget({ lat: flyTo.lat, lng: flyTo.lng, zoom: 12 });
+        setSheetOpen(true);
+      } else if (qv.trim() && data.length) {
         setFlyTarget({ lat: data[0].lat, lng: data[0].lng, zoom: 12 });
         setSheetOpen(true);
-      } else if (query.trim() && !data.length) {
+      } else if (qv.trim() && !data.length) {
         toast.info("Aucun point relais trouvé pour cette recherche");
       }
     } finally {
       setLoading(false);
     }
+  };
+
+  const onQueryChange = (v) => {
+    setQuery(v);
+    if (v.trim() && tab !== "all") setTab("all");
+    if (suggestRef.current) clearTimeout(suggestRef.current);
+    if (v.trim().length >= 1) {
+      suggestRef.current = setTimeout(async () => {
+        try {
+          const { data } = await api.get("/suggest", { params: { q: v.trim() } });
+          setSuggestions(data);
+          setShowSuggest(true);
+        } catch {
+          setSuggestions([]);
+        }
+      }, 180);
+    } else {
+      setSuggestions([]);
+      setShowSuggest(false);
+    }
+  };
+
+  const pickSuggestion = (s) => {
+    setQuery(s.city);
+    setShowSuggest(false);
+    runSearch(s.city, { lat: s.lat, lng: s.lng });
   };
 
   const requireAuth = useCallback(() => {
@@ -249,13 +284,55 @@ export default function MapApp() {
             <input
               data-testid="search-input"
               value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                if (e.target.value.trim() && tab !== "all") setTab("all");
-              }}
+              onChange={(e) => onQueryChange(e.target.value)}
+              onFocus={() => suggestions.length && setShowSuggest(true)}
+              onBlur={() => setTimeout(() => setShowSuggest(false), 150)}
+              autoComplete="off"
               placeholder="Ville ou code postal…"
               className="w-full rounded-full bg-black/[0.03] border border-black/10 py-2.5 pl-9 pr-4 text-sm text-[#14161C] outline-none focus:border-black/30 focus:ring-2 focus:ring-black/10 transition-[border-color]"
             />
+            {showSuggest && (
+              <div
+                data-testid="search-suggestions"
+                className="absolute left-0 right-0 top-full z-[1200] mt-2 overflow-hidden rounded-2xl border border-black/10 bg-white shadow-[0_12px_40px_rgba(0,0,0,0.15)]"
+              >
+                <button
+                  type="button"
+                  data-testid="suggest-my-position"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setShowSuggest(false);
+                    geolocate();
+                  }}
+                  className="flex w-full items-center gap-2.5 border-b border-black/5 px-4 py-2.5 text-left text-sm text-[#14161C] hover:bg-black/[0.03] transition-[background-color]"
+                >
+                  <Crosshair className="h-4 w-4 text-[#14161C]" />
+                  <span className="font-medium">Ma position (autour de moi)</span>
+                </button>
+                {suggestions.length === 0 ? (
+                  <p className="px-4 py-3 text-xs text-gray-400">
+                    Aucune ville ou code postal correspondant
+                  </p>
+                ) : (
+                  suggestions.map((s) => (
+                    <button
+                      key={`${s.city}-${s.postal_code}`}
+                      type="button"
+                      data-testid={`suggest-item-${s.postal_code}`}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        pickSuggestion(s);
+                      }}
+                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm hover:bg-black/[0.03] transition-[background-color]"
+                    >
+                      <MapPin className="h-4 w-4 shrink-0 text-gray-400" />
+                      <span className="text-[#14161C]">{s.city}</span>
+                      <span className="ml-auto text-xs text-gray-400">{s.postal_code}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
           </div>
           <button
             type="submit"

@@ -145,6 +145,40 @@ async def me(user: dict = Depends(get_current_user)):
     return user_public(user)
 
 # ---------------------------------------------------------------- Relay points
+# Index des localités uniques (ville + code postal) pour l'autocomplétion
+_LOC_INDEX = {}
+for _p in POINTS:
+    _key = (_p["city"], _p["postal_code"])
+    if _key not in _LOC_INDEX:
+        _LOC_INDEX[_key] = {
+            "city": _p["city"],
+            "postal_code": _p["postal_code"],
+            "lat": _p["lat"],
+            "lng": _p["lng"],
+            "label": f"{_p['city']} ({_p['postal_code']})",
+        }
+_LOCS = list(_LOC_INDEX.values())
+
+
+@api_router.get("/suggest")
+def suggest(q: str, limit: int = 8):
+    if not q or not q.strip():
+        return []
+    raw = q.strip()
+    ql = _norm(raw)
+    res = []
+    for loc in _LOCS:
+        city_n = _norm(loc["city"])
+        if city_n.startswith(ql) or ql in city_n or loc["postal_code"].startswith(raw):
+            res.append(loc)
+    res.sort(key=lambda l: (
+        not (_norm(l["city"]).startswith(ql) or l["postal_code"].startswith(raw)),
+        l["city"],
+        l["postal_code"],
+    ))
+    return res[:limit]
+
+
 @api_router.get("/carriers")
 async def get_carriers():
     return [{"id": k, "name": v["name"], "color": v["color"]} for k, v in CARRIERS.items()]

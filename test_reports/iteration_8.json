@@ -1,0 +1,48 @@
+{
+  "summary": "Full backend + frontend test of the NEW smart autocomplete feature (/api/suggest) plus regression. Backend: 38/38 pytest cases PASS including 8 new TestSuggest cases (city prefix 'ly' -> Lyon 69001/69007; postal '69' -> Lyon 69001 + Villeurbanne 69100; empty/whitespace -> []; accent-insensitive 'nim' -> Nîmes; default limit 8, custom limit param, no-match -> []). Frontend: suggestion dropdown appears after ~180ms debounce for q='ly' inside the aside, with 'Ma position' at top followed by suggest-item-69001 & suggest-item-69007. Clicking suggest-item-69001 fills input with 'Lyon', closes dropdown, updates results-count to 114 points and first card is a Lyon point. Clicking 'Ma position' (geolocation Paris) closes the dropdown, switches to 'Près de moi' tab, shows 408 points in 20 km radius sorted by distance (first card 0.25 km) and shows the 'Position détectée' toast. search-btn ('Trouver') still works (Paris -> 320 points), dropdown closes after search. Accent-insensitive 'nim' shows Nîmes suggestion. Regression: total 4112 points, 9 carriers, Lyon 114 all intact.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_scenarios_verified": {
+    "backend_suggest_city_prefix_ly": "GET /api/suggest?q=ly returns Lyon 69001 & Lyon 69007 with shape {city,postal_code,lat,lng,label} — PASS",
+    "backend_suggest_postal_69": "GET /api/suggest?q=69 returns Lyon 69001, Lyon 69007, Villeurbanne 69100, Vénissieux 69200 — PASS",
+    "backend_suggest_empty": "GET /api/suggest?q= returns [] — PASS",
+    "backend_suggest_whitespace": "GET /api/suggest?q=%20%20%20 returns [] — PASS",
+    "backend_suggest_accent_insensitive": "GET /api/suggest?q=nim returns Nîmes — PASS",
+    "backend_suggest_limit_default_8": "capped at 8 by default — PASS",
+    "backend_suggest_limit_param": "limit=3 -> <=3 results — PASS",
+    "backend_suggest_no_match": "GET /api/suggest?q=zzqxwvy returns [] — PASS",
+    "frontend_debounce_dropdown_open": "typing 'ly' in aside search-input opens [data-testid=search-suggestions] after ~180ms — PASS",
+    "frontend_ma_position_button": "[data-testid=suggest-my-position] visible at top with text 'Ma position (autour de moi)' — PASS",
+    "frontend_suggest_items_69001_69007": "[data-testid=suggest-item-69001] and 69007 present for q='ly' — PASS",
+    "frontend_pick_suggestion_flow": "click suggest-item-69001 -> input='Lyon', dropdown closed, results-count=114, first card city=Lyon (Cordonnerie - Mondial Relay, 69001 Lyon) — PASS",
+    "frontend_geolocation_flow": "Paris geolocation granted -> click suggest-my-position -> tab-nearby active, dropdown closed, 408 points in 20km, first card 0.25 km — PASS",
+    "frontend_search_btn_still_works": "type 'Paris' + click search-btn -> 320 points, dropdown closed after submit — PASS",
+    "frontend_accent_insensitive_dropdown": "q='nim' -> dropdown shows Nîmes 30000 — PASS",
+    "regression_total_4112": "results-count = '4112 points relais' on initial load — PASS",
+    "regression_9_carriers": "carrier chips: mondial_relay, chronopost, la_poste, dpd, ups, relais_colis, colis_prive, vinted_go, amazon — PASS"
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Server.py line 165-166: `if not q or not q.strip(): return []` — good empty/whitespace guard. But `q` is a required query param on FastAPI (no default), so calling /api/suggest without ?q= returns 422 rather than []. Consider `q: str = ''` if the frontend ever forgets to send q. Non-blocking (frontend gates with v.trim().length >= 1).",
+    "Server.py line 172: `city_n.startswith(ql) or ql in city_n or loc['postal_code'].startswith(raw)` — postal_code match uses the raw (un-normalized) string. Since postal codes are ASCII digits this is fine, but for consistency consider using ql (normalized). Non-blocking.",
+    "MapApp.js line 189: /suggest is fetched via `api.get('/suggest', { params: { q: v.trim() } })` with no request-cancellation for stale in-flight requests. If a user types fast, an older slower response can override a newer faster one and show stale suggestions. Consider AbortController or a request-id guard. Minor UX; not observed in this test run.",
+    "MapApp.js line 288: `onFocus={() => suggestions.length && setShowSuggest(true)}` — this evaluates `suggestions.length` which returns 0 or a number; React will render '0' if suggestions is empty. It happens NOT to because `showSuggest` is not the returned value, but `suggestions.length && setShowSuggest(true)` returns `0` when empty which is fine as an expression. Slight code smell, prefer `if (suggestions.length) setShowSuggest(true)`.",
+    "MapApp.js aside vs mobile sheet duplication: MapApp.js is ~618 lines and the search+suggest UI is duplicated for aside and mobile sheet (both render the same data-testids). Playwright must scope selectors to 'aside' to avoid picking two elements. Consider extracting SearchPanel into its own component (DRY). Also for testability, mobile-only testids should be namespaced (e.g., mobile-suggest-item-*).",
+    "Backend /api/suggest has no rate limiting; each keystroke hits the API. Acceptable for now but could add response caching (`Cache-Control: public, max-age=60`) since the underlying _LOCS list is static at boot.",
+    "Backend _LOCS is built at import time from POINTS — good. But there is no explicit deduplication of coordinates; the first point per (city, postal_code) wins. Acceptable per spec ('representative lat/lng')."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py (updated EXPECTED_TOTAL=4112, EXPECTED_RELAIS=2868, EXPECTED_LOCKERS=1244, EXPECTED_CARRIER_IDS+={vinted_go,amazon}, relaxed Lyon and Nîmes count assertions since dataset grew, added new TestSuggest class with 8 tests)"
+  ],
+  "success_rate": {"backend": "100% (38/38)", "frontend": "100% (7/7 scenarios: dropdown-open, ma-position-visible, items-present, pick-lyon-flow, search-btn-flow, accent, geolocation)"},
+  "test_credentials": "admin@relaispoint.fr / admin123 (used only for auth regression tests).",
+  "seed_data_creation": "Fresh test user registered inline per module fixture (TEST_<uuid>@relaispoint.fr).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Autocomplete feature is fully working end-to-end. Backend /api/suggest returns {city, postal_code, lat, lng, label} objects (accent-insensitive via _norm(), default limit 8, empty/whitespace -> []). Frontend testids inside aside: search-input, search-btn, search-suggestions, suggest-my-position, suggest-item-<postal_code>. Debounce is 180ms in MapApp.js. Suggestion items use onMouseDown (with e.preventDefault() to avoid input blur race); Playwright .click() dispatches mousedown first so it works. Panel is duplicated in aside + mobile sheet -> always scope to 'aside' selector when testing on desktop viewport. For geolocation tests: page.context.grant_permissions(['geolocation'], origin=BASE) + page.context.set_geolocation({latitude,longitude}) BEFORE navigation. Ma position triggers geolocate() which switches to 'Près de moi' tab (tab-nearby active class contains 'bg-[#14161C]'). Dropdown closes on blur via setTimeout(() => setShowSuggest(false), 150) on the input. When dropdown is open, elements below (like tab-all) are intercepted by the form/dropdown subtree — clicking outside the aside (e.g. on the map) is the safe way to blur. Totals: 4112 points, 9 carriers, Lyon=114, Nîmes=32, Villeurbanne visible for q=69, Paris search-btn=320.",
+  "rca_of_the_issue": "N/A — no bugs found. All specified suggest features work correctly, regression intact."
+}
