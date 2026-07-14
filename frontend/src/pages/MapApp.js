@@ -388,6 +388,9 @@ export default function MapApp() {
             onClick={() => {
               setLiveMode(false);
               setLiveMessage("");
+              setActive(new Set());
+              setPtype("all");
+              setTab("all");
             }}
             className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-1.5 text-xs font-medium transition-[background-color,color] ${
               !liveMode ? "bg-[#14161C] text-white" : "text-gray-500 hover:text-[#14161C]"
