@@ -34,9 +34,9 @@ EXPECTED_CARRIER_IDS = {
     "dpd", "ups", "relais_colis", "colis_prive",
     "vinted_go", "amazon",
 }
-EXPECTED_TOTAL = 4112
-EXPECTED_RELAIS = 2868
-EXPECTED_LOCKERS = 1244
+EXPECTED_TOTAL = 4127
+EXPECTED_RELAIS = 2857
+EXPECTED_LOCKERS = 1270
 
 
 # ------------------------------------------------------------------ fixtures
@@ -138,7 +138,7 @@ class TestPoints:
         data = r.json()
         assert len(data) > 0
         assert all(p["type"] == "relais" for p in data)
-        assert all(p["carrier"] == "dpd" for p in data)
+        assert all("dpd" in p.get("carriers", [p["carrier"]]) for p in data)
 
     def test_filter_by_carriers(self, s):
         r = s.get(f"{API}/points",
@@ -146,7 +146,9 @@ class TestPoints:
         assert r.status_code == 200
         data = r.json()
         assert len(data) > 0
-        assert all(p["carrier"] in {"mondial_relay", "dpd"} for p in data)
+        for p in data:
+            handled = set(p.get("carriers", [p["carrier"]]))
+            assert handled & {"mondial_relay", "dpd"}, f"point does not handle either carrier: {p['carriers']}"
 
     def test_search_by_city(self, s):
         r = s.get(f"{API}/points", params={"q": "Lyon"}, timeout=30)
@@ -209,6 +211,69 @@ class TestPoints:
     def test_get_point_404(self, s):
         r = s.get(f"{API}/points/pt-99999999", timeout=15)
         assert r.status_code == 404
+
+
+# ============================================================ Carriers list feature
+class TestCarriersList:
+    """New feature: each point has a 'carriers' array.
+    Relais may have 1-4 carriers; lockers have exactly 1."""
+
+    def test_all_points_have_carriers_field(self, s):
+        r = s.get(f"{API}/points", timeout=30)
+        assert r.status_code == 200
+        data = r.json()
+        for p in data:
+            assert "carriers" in p, f"point {p['id']} missing 'carriers'"
+            assert isinstance(p["carriers"], list)
+            assert len(p["carriers"]) >= 1
+            # primary carrier must be included in the handled list
+            assert p["carrier"] in p["carriers"], \
+                f"primary {p['carrier']} not in {p['carriers']} for {p['id']}"
+
+    def test_locker_has_exactly_one_carrier(self, s):
+        r = s.get(f"{API}/points", params={"ptype": "locker"}, timeout=30)
+        data = r.json()
+        for p in data:
+            assert len(p["carriers"]) == 1, \
+                f"locker {p['id']} has {len(p['carriers'])} carriers: {p['carriers']}"
+            assert p["carriers"][0] == p["carrier"]
+
+    def test_relais_can_have_multiple_carriers(self, s):
+        r = s.get(f"{API}/points", params={"ptype": "relais"}, timeout=30)
+        data = r.json()
+        multi = [p for p in data if len(p["carriers"]) > 1]
+        assert len(multi) > 0, "expected some relais with >1 carriers"
+        for p in data:
+            assert 1 <= len(p["carriers"]) <= 4, \
+                f"relais {p['id']} has {len(p['carriers'])} carriers"
+
+    def test_filter_dpd_matches_carriers_list(self, s):
+        """Filter carriers=dpd returns all points whose 'carriers' includes dpd."""
+        r = s.get(f"{API}/points", params={"carriers": "dpd"}, timeout=30)
+        assert r.status_code == 200
+        data = r.json()
+        # Count should be around 902 per spec
+        assert 800 <= len(data) <= 1000, \
+            f"expected ~902 dpd points, got {len(data)}"
+        for p in data:
+            assert "dpd" in p["carriers"], \
+                f"point {p['id']} carriers={p['carriers']} lacks dpd"
+
+    def test_filter_vinted_go_matches_carriers_list(self, s):
+        r = s.get(f"{API}/points", params={"carriers": "vinted_go"}, timeout=30)
+        data = r.json()
+        assert 800 <= len(data) <= 1050, \
+            f"expected ~928 vinted_go points, got {len(data)}"
+        for p in data:
+            assert "vinted_go" in p["carriers"]
+
+    def test_filter_amazon_matches_carriers_list(self, s):
+        r = s.get(f"{API}/points", params={"carriers": "amazon"}, timeout=30)
+        data = r.json()
+        assert 800 <= len(data) <= 1050, \
+            f"expected ~907 amazon points, got {len(data)}"
+        for p in data:
+            assert "amazon" in p["carriers"]
 
 
 # ============================================================ Geocode

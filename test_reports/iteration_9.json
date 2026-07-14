@@ -1,0 +1,45 @@
+{
+  "summary": "Full backend + frontend regression + validation of NEW carrier-logo feature on point detail modal. Backend: 44/44 pytest cases PASS incl. 6 new TestCarriersList cases validating every point has a 'carriers' array, lockers hold exactly 1 carrier == primary, relais hold 1-4 carriers with primary included, and GET /api/points?carriers=<id> filter matches the carriers list (dpd=902, vinted_go=928, amazon=907). Updated totals: 4127 total (2857 relais + 1270 lockers). Frontend: clicking a point card opens point-detail modal which shows detail-carriers section with one carrier-logo-<id> badge per handled carrier (colored initials chip + name). Locker (Locker - Gare SNCF, Paris): 1 badge (MR Mondial Relay), section title 'Transporteur du locker'. Multi-carrier relais (Alimentation Générale - Mondial Relay, Paris): 4 badges (MR Mondial Relay, UPS UPS, AZ Amazon, RC Relais Colis) with section title 'Transporteurs pris en charge'. Regression: 4127 initial count, 9 carrier filters present, smart search suggestions still work (q='ly' shows suggest-my-position + suggest-item-69001).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_scenarios_verified": {
+    "backend_totals_4127": "GET /api/points returns 4127 items (2857 relais + 1270 lockers) — PASS",
+    "backend_carriers_field_present": "Every point has a non-empty 'carriers' list including its primary carrier — PASS",
+    "backend_locker_single_carrier": "Every locker has exactly 1 carrier == primary — PASS",
+    "backend_relais_multi_carriers": "Some relais have 1-4 carriers; primary always included — PASS",
+    "backend_filter_dpd_via_carriers_list": "GET /api/points?carriers=dpd -> 902 items all containing 'dpd' in carriers — PASS",
+    "backend_filter_vinted_go_via_carriers_list": "GET /api/points?carriers=vinted_go -> 928 items — PASS",
+    "backend_filter_amazon_via_carriers_list": "GET /api/points?carriers=amazon -> 907 items — PASS",
+    "backend_ptype_relais_dpd_combined": "ptype=relais+carriers=dpd -> only relais points, each containing dpd in carriers — PASS",
+    "frontend_click_card_opens_detail": "Clicking [data-testid=point-card-*] opens [data-testid=point-detail] modal — PASS",
+    "frontend_detail_regression_testids": "detail-name, detail-type, detail-address, detail-coords (6 decimals), detail-hours (3 rows), detail-route-btn, detail-fav-btn, detail-close-btn all present — PASS",
+    "frontend_locker_single_badge": "type-filter-locker -> first card is a Locker -> modal shows exactly 1 carrier-logo-* badge (mondial_relay) with title 'Transporteur du locker' — PASS",
+    "frontend_relais_multi_badges": "type-filter-relais -> found relais with 4 carrier-logo-* badges [mondial_relay, ups, amazon, relais_colis] with title 'Transporteurs pris en charge' — PASS",
+    "frontend_carrier_badge_content": "Each carrier-logo-* renders a colored initials chip (MR/UPS/AZ/RC/etc) + carrier name — PASS (verified visually + text content)",
+    "regression_9_carriers": "Aside carrier filters: mondial_relay, chronopost, la_poste, dpd, ups, relais_colis, colis_prive, vinted_go, amazon — PASS",
+    "regression_smart_search": "q='ly' opens search-suggestions with suggest-my-position + suggest-item-69001 — PASS",
+    "regression_results_count": "Initial results-count = '4127 points relais' — PASS"
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "PointDetail.js line 40 fallback: `handledIds = point.carriers && point.carriers.length ? point.carriers : [point.carrier]` — good defensive default when backend omits the field, though backend always returns it now.",
+    "PointDetail.js CODES map hardcodes initials for 9 known carrier IDs; falls back to `name.slice(0,2).toUpperCase()` for unknown IDs. Adding a new carrier requires editing this map. Consider moving initials into the backend /api/carriers payload (e.g. `code: 'MR'`) to keep frontend generic.",
+    "relay_data.py line 150: `extra = random.sample(others, random.randint(0, 3))` allows a relais to have 0 extras (only primary) — this is fine but the PR spec says 'relais points may list 1-4 carriers'. Since 1 (primary alone) is included in 1-4, no bug.",
+    "server.py GET /api/points filter (line 198): `selected & set(p.get('carriers', [p['carrier']]))` — correct set-intersection semantics: 'point matches if ANY of the selected carriers is handled'. Backward compatible with old points via fallback. Good.",
+    "MapApp.js is now ~619 lines and still duplicates the search+filters+list UI between aside and mobile sheet — extracting SearchPanel into its own component would reduce duplication and simplify testing (single set of testids)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py (updated EXPECTED_TOTAL=4127, EXPECTED_RELAIS=2857, EXPECTED_LOCKERS=1270; fixed test_ptype_relais_and_carrier_dpd + test_filter_by_carriers to assert against p['carriers'] list instead of primary p['carrier']; added TestCarriersList class with 6 new tests)"
+  ],
+  "success_rate": {"backend": "100% (44/44)", "frontend": "100% (all scenarios: locker-single-badge, relais-multi-badges, regression testids, 9 carriers, smart search)"},
+  "test_credentials": "admin@relaispoint.fr / admin123 (used for auth regression tests only).",
+  "seed_data_creation": "Fresh test user registered inline per module fixture (TEST_<uuid>@relaispoint.fr).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Carrier-logo feature fully working. Backend GET /api/points now returns 4127 points (2857 relais + 1270 lockers, up from 4112/2868/1244) because relay_data.py now generates 'carriers' arrays with random extras. Filter carriers=<id> uses set-intersection with the 'carriers' list: dpd=902, vinted_go=928, amazon=907. Frontend: type-filter testids are type-filter-{all,relais,locker} (NOT tab-*). Detail modal single top-level overlay [data-testid=point-detail]. Section [data-testid=detail-carriers] contains one [data-testid=carrier-logo-<carrierId>] per carrier (colored initials chip via CODES map + carrier name). Section title: 'Transporteurs pris en charge' for relais, 'Transporteur du locker' for lockers. Lockers always have exactly 1 badge; relais have 1-4. Aside list contains 300 cards (list-truncation-note past that). PointDetail receives carriersInfo prop from MapApp so it can look up color/name by carrier id; if carriersInfo is missing an id it falls back to point.carrier_name+point.color.",
+  "rca_of_the_issue": "N/A — no bugs found. All specified carrier-logo features work correctly end-to-end. Only maintenance recommendation: consider extracting SearchPanel from MapApp.js (~619 lines, DRY between aside and mobile sheet) and adding carrier 'code' to backend carriers payload so frontend CODES map is unnecessary."
+}

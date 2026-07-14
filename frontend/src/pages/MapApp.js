@@ -608,6 +608,7 @@ export default function MapApp() {
       {selected && (
         <PointDetail
           point={selected}
+          carriersInfo={carriers}
           onClose={() => setSelected(null)}
           onRequireAuth={requireAuth}
         />

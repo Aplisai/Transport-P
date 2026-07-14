@@ -2,9 +2,47 @@ import { X, MapPin, Clock, Phone, Navigation2, Heart, Locate, Box, Store } from 
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 
-export default function PointDetail({ point, onClose, onRequireAuth }) {
+const CODES = {
+  mondial_relay: "MR",
+  chronopost: "CH",
+  la_poste: "LP",
+  dpd: "DPD",
+  ups: "UPS",
+  relais_colis: "RC",
+  colis_prive: "CP",
+  vinted_go: "VG",
+  amazon: "AZ",
+};
+
+function CarrierLogo({ id, name, color }) {
+  return (
+    <div
+      data-testid={`carrier-logo-${id}`}
+      className="flex items-center gap-2 rounded-lg border border-black/10 bg-white px-2.5 py-1.5 shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
+    >
+      <span
+        className="flex h-6 w-6 items-center justify-center rounded-md text-[9px] font-extrabold tracking-tight text-white"
+        style={{ background: color }}
+      >
+        {CODES[id] || name.slice(0, 2).toUpperCase()}
+      </span>
+      <span className="text-xs font-bold text-[#14161C]">{name}</span>
+    </div>
+  );
+}
+
+export default function PointDetail({ point, carriersInfo = [], onClose, onRequireAuth }) {
   const { user, favorites, toggleFavorite } = useAuth();
   const isFav = favorites.includes(point.id);
+
+  const infoById = {};
+  carriersInfo.forEach((c) => (infoById[c.id] = c));
+  const handledIds = point.carriers && point.carriers.length ? point.carriers : [point.carrier];
+  const handled = handledIds.map((id) => infoById[id] || {
+    id,
+    name: point.carrier_name,
+    color: point.color,
+  });
 
   const handleFav = async () => {
     if (!user) {
@@ -82,6 +120,20 @@ export default function PointDetail({ point, onClose, onRequireAuth }) {
               <Navigation2 className="h-3.5 w-3.5" /> à {point.distance} km
             </span>
           )}
+
+          {/* Carriers handled — logos */}
+          <div className="mt-4">
+            <p className="mb-2 text-xs uppercase tracking-wider text-gray-400">
+              {point.type === "locker"
+                ? "Transporteur du locker"
+                : "Transporteurs pris en charge"}
+            </p>
+            <div className="flex flex-wrap gap-2" data-testid="detail-carriers">
+              {handled.map((c) => (
+                <CarrierLogo key={c.id} id={c.id} name={c.name} color={c.color} />
+              ))}
+            </div>
+          </div>
 
           {/* Address */}
           <div className="mt-4 flex items-start gap-2 text-sm text-[#14161C]">

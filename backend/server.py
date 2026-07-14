@@ -195,7 +195,7 @@ async def get_points(
     selected = set(carriers.split(",")) if carriers else None
     results = []
     for p in POINTS:
-        if selected and p["carrier"] not in selected:
+        if selected and not (selected & set(p.get("carriers", [p["carrier"]]))):
             continue
         if ptype and ptype != "all" and p.get("type", "relais") != ptype:
             continue

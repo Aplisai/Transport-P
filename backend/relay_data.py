@@ -145,12 +145,17 @@ def generate_points():
                 shop = random.choice(SHOP_TYPES)
                 num = random.randint(1, 220)
                 street = random.choice(STREET_NAMES)
+                # Un point relais boutique gère souvent plusieurs réseaux
+                others = [c for c in carriers if c != carrier]
+                extra = random.sample(others, random.randint(0, 3))
+                handled = [carrier] + extra
                 points.append({
                     "id": f"pt-{pid:05d}",
                     "type": "relais",
                     "carrier": carrier,
                     "carrier_name": CARRIERS[carrier]["name"],
                     "color": CARRIERS[carrier]["color"],
+                    "carriers": handled,
                     "name": f"{shop} - {CARRIERS[carrier]['name']}",
                     "address": f"{num} {street}",
                     "postal_code": cp,
@@ -174,6 +179,7 @@ def generate_points():
                     "carrier": carrier,
                     "carrier_name": CARRIERS[carrier]["name"],
                     "color": CARRIERS[carrier]["color"],
+                    "carriers": [carrier],
                     "name": f"{LOCKER_LABELS[carrier]} - {spot}",
                     "address": spot,
                     "postal_code": cp,
