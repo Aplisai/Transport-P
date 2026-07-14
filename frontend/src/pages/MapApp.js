@@ -41,6 +41,8 @@ export default function MapApp() {
   const [geocoding, setGeocoding] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggest, setShowSuggest] = useState(false);
+  const [liveMode, setLiveMode] = useState(false);
+  const [liveMessage, setLiveMessage] = useState("");
   const suggestRef = useRef(null);
   const debounceRef = useRef(null);
 
@@ -49,6 +51,36 @@ export default function MapApp() {
   }, []);
 
   const fetchPoints = useCallback(async () => {
+    if (liveMode) {
+      if (!query.trim() && !userLoc) {
+        setPoints([]);
+        setLiveMessage("Recherchez une ville/code postal ou activez « Ma position » pour charger les points réels.");
+        return;
+      }
+      setLoading(true);
+      setLiveMessage("");
+      const params = { radius: Math.min(radius, 25) };
+      if (query.trim()) params.q = query.trim();
+      if (userLoc) {
+        params.lat = userLoc.lat;
+        params.lng = userLoc.lng;
+      }
+      if (active.size) params.carriers = [...active].join(",");
+      if (ptype !== "all") params.ptype = ptype;
+      try {
+        const { data } = await api.get("/live/points", { params });
+        setPoints(data.points || []);
+        if (data.center) setFlyTarget({ ...data.center, zoom: 12 });
+        if (data.message) setLiveMessage(data.message);
+        else if (!data.points?.length) setLiveMessage("Aucun point relais réel trouvé dans cette zone.");
+      } catch {
+        setPoints([]);
+        setLiveMessage("Service OpenStreetMap momentanément indisponible. Réessayez.");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
     setLoading(true);
     const params = {};
     if (active.size) params.carriers = [...active].join(",");
@@ -64,7 +96,7 @@ export default function MapApp() {
     } finally {
       setLoading(false);
     }
-  }, [active, query, userLoc, ptype]);
+  }, [active, query, userLoc, ptype, liveMode, radius]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -152,8 +184,14 @@ export default function MapApp() {
   const runSearch = async (overrideQ, flyTo) => {
     setTab("all");
     setShowSuggest(false);
-    setLoading(true);
     const qv = overrideQ !== undefined ? overrideQ : query;
+    if (overrideQ !== undefined) setQuery(overrideQ);
+    if (flyTo) setFlyTarget({ lat: flyTo.lat, lng: flyTo.lng, zoom: 12 });
+    if (liveMode) {
+      // en mode réel, le fetch (débounce) se déclenche via le changement de query
+      return;
+    }
+    setLoading(true);
     const params = {};
     if (active.size) params.carriers = [...active].join(",");
     if (qv.trim()) params.q = qv.trim();
@@ -166,7 +204,6 @@ export default function MapApp() {
       const { data } = await api.get("/points", { params });
       setPoints(data);
       if (flyTo) {
-        setFlyTarget({ lat: flyTo.lat, lng: flyTo.lng, zoom: 12 });
         setSheetOpen(true);
       } else if (qv.trim() && data.length) {
         setFlyTarget({ lat: data[0].lat, lng: data[0].lng, zoom: 12 });
@@ -344,6 +381,34 @@ export default function MapApp() {
           </button>
         </form>
 
+        {/* Data source toggle: Démo / Réel */}
+        <div className="mt-3 flex items-center justify-between gap-2 rounded-full bg-black/5 p-1">
+          <button
+            data-testid="mode-demo"
+            onClick={() => {
+              setLiveMode(false);
+              setLiveMessage("");
+            }}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-1.5 text-xs font-medium transition-[background-color,color] ${
+              !liveMode ? "bg-[#14161C] text-white" : "text-gray-500 hover:text-[#14161C]"
+            }`}
+          >
+            <Box className="h-3.5 w-3.5" /> Démo (France)
+          </button>
+          <button
+            data-testid="mode-live"
+            onClick={() => {
+              setLiveMode(true);
+              setPoints([]);
+            }}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-1.5 text-xs font-medium transition-[background-color,color] ${
+              liveMode ? "bg-[#00E676] text-[#0B0C10]" : "text-gray-500 hover:text-[#14161C]"
+            }`}
+          >
+            <MapPin className="h-3.5 w-3.5" /> Réel (OpenStreetMap)
+          </button>
+        </div>
+
         {/* Tabs */}
         <div className="mt-3 flex gap-1 rounded-full bg-black/5 p-1">
           <button
@@ -456,6 +521,18 @@ export default function MapApp() {
           </span>
           {(loading || geocoding) && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
         </div>
+
+        {liveMode && (
+          <div
+            data-testid="live-banner"
+            className="mb-3 flex items-start gap-2 rounded-xl border border-[#00E676]/40 bg-[#00E676]/10 px-3 py-2.5 text-xs text-[#14161C]"
+          >
+            <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#00A152]" />
+            <span>
+              <b>Données réelles (OpenStreetMap).</b> {liveMessage || "Points relais et lockers réels autour du lieu recherché (rayon max 25 km)."}
+            </span>
+          </div>
+        )}
 
         {tab === "nearby" && (
           <div

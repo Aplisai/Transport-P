@@ -238,6 +238,144 @@ def geocode(q: str):
         return {"lat": None}
 
 
+# ---------------------------------------------------------------- Live data (OpenStreetMap)
+_CARRIER_MATCH = [
+    ("mondial relay", "mondial_relay"),
+    ("chronopost", "chronopost"),
+    ("colissimo", "la_poste"),
+    ("la poste", "la_poste"),
+    ("pickup", "la_poste"),
+    ("relais colis", "relais_colis"),
+    ("colis prive", "colis_prive"),
+    ("colis privé", "colis_prive"),
+    ("dpd", "dpd"),
+    ("ups", "ups"),
+    ("vinted", "vinted_go"),
+    ("amazon", "amazon"),
+]
+_LIVE_CACHE = {}
+_LIVE_TTL = 300  # secondes
+
+
+def _detect_carrier(tags):
+    hay = _norm(" ".join([
+        tags.get("brand", ""), tags.get("operator", ""), tags.get("name", ""),
+    ]))
+    for needle, cid in _CARRIER_MATCH:
+        if _norm(needle) in hay:
+            return cid, CARRIERS[cid]["name"], CARRIERS[cid]["color"]
+    label = tags.get("brand") or tags.get("operator") or tags.get("name") or "Point relais"
+    return "autre", label, "#94A3B8"
+
+
+def _osm_to_point(el):
+    tags = el.get("tags", {})
+    lat = el.get("lat") or (el.get("center") or {}).get("lat")
+    lng = el.get("lon") or (el.get("center") or {}).get("lon")
+    if lat is None or lng is None:
+        return None
+    cid, cname, color = _detect_carrier(tags)
+    is_locker = (
+        tags.get("amenity") == "parcel_locker"
+        or (tags.get("amenity") == "vending_machine" and "parcel" in tags.get("vending", ""))
+    )
+    house = tags.get("addr:housenumber", "")
+    street = tags.get("addr:street", "")
+    address = (f"{house} {street}").strip() or tags.get("addr:full", "") or "Adresse non communiquée"
+    oh = tags.get("opening_hours")
+    hours = {
+        "lun-ven": oh if oh else "Horaires non communiqués",
+        "sam": "—",
+        "dim": "—",
+    }
+    name = tags.get("name") or f"{cname} - {tags.get('brand', 'Point relais')}"
+    return {
+        "id": f"osm-{el.get('type')}-{el.get('id')}",
+        "type": "locker" if is_locker else "relais",
+        "carrier": cid,
+        "carrier_name": cname,
+        "color": color,
+        "carriers": [cid],
+        "name": name,
+        "address": address,
+        "postal_code": tags.get("addr:postcode", ""),
+        "city": tags.get("addr:city", ""),
+        "lat": round(float(lat), 6),
+        "lng": round(float(lng), 6),
+        "hours": hours,
+        "phone": tags.get("phone") or tags.get("contact:phone") or "",
+    }
+
+
+@api_router.get("/live/points")
+def live_points(
+    q: Optional[str] = None,
+    lat: Optional[float] = None,
+    lng: Optional[float] = None,
+    radius: float = 15,
+    carriers: Optional[str] = None,
+    ptype: Optional[str] = None,
+):
+    # 1) Déterminer le centre
+    if (lat is None or lng is None) and q and q.strip():
+        try:
+            geo = geocode(q)
+        except HTTPException:
+            return {"center": None, "points": [], "message": "Service de géocodage momentanément indisponible, réessayez"}
+        if geo.get("lat") is None:
+            return {"center": None, "points": [], "message": "Lieu introuvable"}
+        lat, lng = geo["lat"], geo["lng"]
+    if lat is None or lng is None:
+        return {"center": None, "points": [], "message": "Précisez une ville ou votre position"}
+
+    meters = int(min(max(radius, 1), 25) * 1000)  # Overpass: rayon plafonné à 25 km
+    ckey = (round(lat, 3), round(lng, 3), meters)
+    now = datetime.now(timezone.utc).timestamp()
+    cached = _LIVE_CACHE.get(ckey)
+    if cached and now - cached[0] < _LIVE_TTL:
+        raw = cached[1]
+    else:
+        query = f"""
+[out:json][timeout:25];
+(
+  nwr(around:{meters},{lat},{lng})["amenity"="parcel_locker"];
+  nwr(around:{meters},{lat},{lng})["amenity"="vending_machine"]["vending"~"parcel"];
+  nwr(around:{meters},{lat},{lng})["parcel_pickup"];
+  nwr(around:{meters},{lat},{lng})["shop"="pickup"];
+  nwr(around:{meters},{lat},{lng})["post_office"~"post_partner|parcel_pickup"];
+);
+out center tags 400;
+"""
+        try:
+            r = requests.post(
+                "https://overpass-api.de/api/interpreter",
+                data={"data": query},
+                headers={"User-Agent": "RelayDip/1.0 (points relais France)"},
+                timeout=30,
+            )
+            raw = r.json().get("elements", [])
+        except Exception as e:
+            logger.warning("Overpass error: %s", e)
+            raise HTTPException(status_code=502, detail="Service OpenStreetMap indisponible, réessayez")
+        _LIVE_CACHE[ckey] = (now, raw)
+
+    selected = set(carriers.split(",")) if carriers else None
+    points = []
+    for el in raw:
+        p = _osm_to_point(el)
+        if not p:
+            continue
+        if ptype and ptype != "all" and p["type"] != ptype:
+            continue
+        if selected and not (selected & set(p["carriers"])):
+            continue
+        p["distance"] = haversine(lat, lng, p["lat"], p["lng"])
+        points.append(p)
+    points.sort(key=lambda x: x["distance"])
+    return {"center": {"lat": lat, "lng": lng}, "points": points}
+
+
+
 @api_router.get("/points/{point_id}")
 async def get_point(point_id: str):
     for p in POINTS:
