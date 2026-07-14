@@ -200,7 +200,7 @@ export default function MapApp() {
               <h1 className="font-head text-lg font-semibold leading-none tracking-tight text-[#14161C]">
                 Relay Dip
               </h1>
-              <p className="text-[11px] text-gray-400">Points relais</p>
+              <p className="text-[11px] text-gray-400">Trouver mon point relais ou locker</p>
             </div>
           </div>
           {user ? (
