@@ -178,7 +178,7 @@ async def get_points(
     return results[:limit]
 
 @api_router.get("/geocode")
-async def geocode(q: str):
+def geocode(q: str):
     if not q or not q.strip():
         return {"lat": None}
     try:
@@ -194,11 +194,14 @@ async def geocode(q: str):
         raise HTTPException(status_code=502, detail="Service de géocodage indisponible")
     if not data:
         return {"lat": None}
-    return {
-        "lat": float(data[0]["lat"]),
-        "lng": float(data[0]["lon"]),
-        "label": data[0].get("display_name", q),
-    }
+    try:
+        return {
+            "lat": float(data[0]["lat"]),
+            "lng": float(data[0]["lon"]),
+            "label": data[0].get("display_name", q),
+        }
+    except (KeyError, ValueError, TypeError):
+        return {"lat": None}
 
 
 @api_router.get("/points/{point_id}")
