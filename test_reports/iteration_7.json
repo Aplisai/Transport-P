@@ -1,0 +1,45 @@
+{
+  "summary": "Frontend-only testing for the NEW Point Detail modal feature + regression for 9 carriers (Vinted Go + Amazon) and total ~4112. All 11 scenarios PASSED. Detail modal opens from list card click AND map marker click; renders name/carrier/type-badge/address/coords(6-decimals)/phone/hours(3 rows: Lundi-Vendredi, Samedi, Dimanche); Itinéraire opens Google Maps directions in a new tab; Favori logged-out triggers login prompt; Fermer button closes the modal. Regression: 4112 points (~expected), 9 carriers present (mondial_relay, chronopost, la_poste, dpd, ups, relais_colis, colis_prive, vinted_go, amazon), Vinted Go filter=436, Amazon filter=456, search 'Lyon'=114 points, type-filter locker→detail-type='Locker', type-filter relais→detail-type='Point relais'.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_scenarios_verified": {
+    "9_carriers": "aside [data-testid^='carrier-filter-'] → 9 chips: mondial_relay, chronopost, la_poste, dpd, ups, relais_colis, colis_prive, vinted_go, amazon — PASS",
+    "total_4112": "results-count = '4112 points relais' on initial load — PASS",
+    "card_opens_modal": "click aside [data-testid='point-card-pt-00001'] → [data-testid='point-detail'] visible — PASS",
+    "detail_name": "'Librairie - Mondial Relay' — PASS",
+    "detail_type_badge": "Point relais / Locker rendered based on point.type — PASS",
+    "detail_address": "'36 rue Victor Hugo, 75001 Paris' (street + postal + city) — PASS",
+    "detail_coords_format": "coords match ^-?\\d+\\.\\d{6},\\s*-?\\d+\\.\\d{6}$ e.g. '48.828101, 2.334202' — PASS",
+    "detail_phone": "phone rendered when present ('05 21 85 64 14') — PASS",
+    "detail_hours_3_rows": "Lundi – Vendredi 09:30-18:30 | Samedi 09:30-17:00 | Dimanche Fermé — PASS",
+    "locker_type_badge": "type-filter-locker → first card modal detail-type='Locker' (name='Locker - Gare Routière', hours 06:00-23:00) — PASS (NB: not all lockers are 24h/24, some are 06-23; this is data variety, not a bug)",
+    "relais_type_badge": "type-filter-relais → detail-type='Point relais' with shop hours (09:30-18:30) — PASS",
+    "route_btn_new_tab": "detail-route-btn opens https://www.google.com/maps/dir/?api=1&destination=48.828101,2.334202&travelmode=driving in new tab — PASS",
+    "fav_btn_logged_out_prompts_login": "detail-fav-btn while logged out → AuthModal opens with 2 login inputs — PASS",
+    "close_btn_closes_modal": "detail-close-btn → [data-testid='point-detail'] no longer in DOM — PASS",
+    "map_marker_click_opens_modal": "search Lyon → click .leaflet-marker-pane .leaflet-marker-icon (non-cluster) → point-detail opens (name='Pickup Station - Station BP') — PASS",
+    "regression_vinted_go": "carrier-filter-vinted_go → 436 points, first card carrier='Vinted Go' — PASS",
+    "regression_amazon": "carrier-filter-amazon → 456 points, first card carrier='Amazon' — PASS",
+    "regression_search_lyon": "search Lyon → 114 points — PASS"
+  },
+  "test_report_links": [
+    "/app/test_reports/pytest/pytest_results.xml (from iteration 6)"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AuthModal (rendered when detail-fav-btn is clicked while logged out) has no data-testid on its close button — Escape key doesn't close it either. Users on logged-out state can dismiss only via backdrop click or the X button (no aria-label testid). Consider adding data-testid='auth-close-btn' and keydown Escape handler for keyboard accessibility.",
+    "PointDetail.js line 98 relies on point.lat / point.lng being numbers. If backend ever returns them as strings, .toFixed(6) would throw. Currently OK — backend returns floats. Minor hardening: Number(point.lat).toFixed(6).",
+    "PointDetail.js line 117: `point.hours[d.key] || 'Fermé'` — good defensive default. But comparison `val.toLowerCase() === 'fermé'` is fine for exact match; if backend ever returns 'FERMÉ' or 'closed', styling would drop. Non-blocking.",
+    "MapApp.js line 531-537: PointDetail always renders with `point={selected}`. When user clicks a marker AND then filters change and remove that point from `visiblePoints`, the modal still shows stale data. Minor UX; not a bug per spec.",
+    "PointCard.js and PointDetail.js both duplicate the fav+route logic (google maps URL, favorite toggle w/ toast). Consider extracting shared handlers into a hook (usePointActions) — DRY improvement, ~40 lines saved.",
+    "The desktop <aside> panel covers Leaflet's default zoom control (top-left of map at x=0..400). The zoom buttons are effectively unreachable from the panel side. Consider setting Leaflet zoomControl position to 'topright' or adding padding. Regression risk: user cannot zoom in via UI on desktop unless they scroll-wheel. Minor UX."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped per request)", "frontend": "100% (11/11 scenarios)"},
+  "test_credentials": "admin@relaispoint.fr / admin123 (available; not exercised in this iteration since detail-fav-btn login-prompt path was the target flow).",
+  "seed_data_creation": "None.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Point Detail modal is complete and working end-to-end. Total 4112, Vinted Go=436, Amazon=456, Lyon=114. Modal testids: point-detail, detail-name, detail-type ('Locker'|'Point relais'), detail-address, detail-coords (6-decimal 'lat, lng'), detail-phone (optional), detail-hours (3 direct child divs: Lundi–Vendredi | Samedi | Dimanche), detail-route-btn (opens google.com/maps/dir new tab), detail-fav-btn (opens AuthModal when logged-out), detail-close-btn. Both list-card click (aside [data-testid^='point-card-']) and Leaflet marker click (.leaflet-marker-pane .leaflet-marker-icon:not(.marker-cluster)) open the modal via MapApp.selectPoint. To interact with map markers: search a city first (e.g. Lyon) to auto-zoom, then iterate through non-cluster markers whose bounding_box().x > 420 (right of the aside). Leaflet zoom-control at top-left is covered by aside — cannot be clicked; use map._leaflet_map.setZoom() via JS if needed. AuthModal has no testid on close/no Escape handler — minor accessibility issue noted in code-review comments.",
+  "rca_of_the_issue": "N/A — no bugs found. All specified features are implemented correctly."
+}

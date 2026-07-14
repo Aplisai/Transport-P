@@ -16,6 +16,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import MapView from "@/components/MapView";
 import PointCard from "@/components/PointCard";
+import PointDetail from "@/components/PointDetail";
 import AuthModal from "@/components/AuthModal";
 import { toast } from "sonner";
 
@@ -527,6 +528,13 @@ export default function MapApp() {
       </div>
 
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+      {selected && (
+        <PointDetail
+          point={selected}
+          onClose={() => setSelected(null)}
+          onRequireAuth={requireAuth}
+        />
+      )}
     </div>
   );
 }

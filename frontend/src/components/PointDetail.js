@@ -1,0 +1,158 @@
+import { X, MapPin, Clock, Phone, Navigation2, Heart, Locate, Box, Store } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
+
+export default function PointDetail({ point, onClose, onRequireAuth }) {
+  const { user, favorites, toggleFavorite } = useAuth();
+  const isFav = favorites.includes(point.id);
+
+  const handleFav = async () => {
+    if (!user) {
+      onRequireAuth();
+      return;
+    }
+    await toggleFavorite(point.id);
+    toast.success(isFav ? "Retiré des favoris" : "Ajouté aux favoris");
+  };
+
+  const handleRoute = () => {
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${point.lat},${point.lng}&travelmode=driving`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const days = [
+    { key: "lun-ven", label: "Lundi – Vendredi" },
+    { key: "sam", label: "Samedi" },
+    { key: "dim", label: "Dimanche" },
+  ];
+
+  return (
+    <div
+      className="fixed inset-0 z-[2000] flex items-end justify-center sm:items-center p-0 sm:p-4"
+      data-testid="point-detail"
+    >
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div className="relative w-full max-w-md rounded-t-2xl sm:rounded-2xl bg-white border border-black/10 shadow-[0_20px_60px_rgba(0,0,0,0.25)] rp-fade-up max-h-[88vh] overflow-y-auto rp-scroll">
+        {/* Header band with carrier color */}
+        <div className="h-1.5 w-full rounded-t-2xl" style={{ background: point.color }} />
+
+        <div className="p-6">
+          <button
+            onClick={onClose}
+            aria-label="Fermer"
+            data-testid="detail-close-btn"
+            className="absolute right-4 top-5 rounded-full bg-black/5 p-2 hover:bg-black/10 transition-[background-color]"
+          >
+            <X className="h-4 w-4" />
+          </button>
+
+          {/* Carrier + type */}
+          <div className="mb-1 flex items-center gap-2">
+            <span
+              className="h-3 w-3 rounded-full"
+              style={{ background: point.color, boxShadow: `0 0 8px ${point.color}` }}
+            />
+            <span className="text-sm font-semibold" style={{ color: point.color }}>
+              {point.carrier_name}
+            </span>
+            <span
+              data-testid="detail-type"
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                point.type === "locker" ? "bg-[#14161C] text-white" : "bg-black/[0.06] text-gray-600"
+              }`}
+            >
+              {point.type === "locker" ? (
+                <><Box className="h-2.5 w-2.5" /> Locker</>
+              ) : (
+                <><Store className="h-2.5 w-2.5" /> Point relais</>
+              )}
+            </span>
+          </div>
+
+          {/* Exact name */}
+          <h2 className="font-head text-xl font-semibold tracking-tight text-[#14161C]" data-testid="detail-name">
+            {point.name}
+          </h2>
+
+          {point.distance != null && (
+            <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-black/5 px-2.5 py-1 text-xs text-gray-600">
+              <Navigation2 className="h-3.5 w-3.5" /> à {point.distance} km
+            </span>
+          )}
+
+          {/* Address */}
+          <div className="mt-4 flex items-start gap-2 text-sm text-[#14161C]">
+            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
+            <span data-testid="detail-address">
+              {point.address}, {point.postal_code} {point.city}
+            </span>
+          </div>
+
+          {/* Coordinates */}
+          <div className="mt-2 flex items-center gap-2 text-sm text-gray-600">
+            <Locate className="h-4 w-4 shrink-0 text-gray-400" />
+            <span data-testid="detail-coords">
+              {point.lat.toFixed(6)}, {point.lng.toFixed(6)}
+            </span>
+          </div>
+
+          {/* Phone */}
+          {point.phone && (
+            <div className="mt-2 flex items-center gap-2 text-sm text-gray-600">
+              <Phone className="h-4 w-4 shrink-0 text-gray-400" />
+              <span data-testid="detail-phone">{point.phone}</span>
+            </div>
+          )}
+
+          {/* Opening hours */}
+          <div className="mt-5">
+            <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wider text-gray-400">
+              <Clock className="h-3.5 w-3.5" /> Horaires d'ouverture
+            </div>
+            <div className="overflow-hidden rounded-xl border border-black/10" data-testid="detail-hours">
+              {days.map((d, i) => {
+                const val = point.hours[d.key] || "Fermé";
+                const closed = val.toLowerCase() === "fermé";
+                return (
+                  <div
+                    key={d.key}
+                    className={`flex items-center justify-between px-4 py-2.5 text-sm ${
+                      i > 0 ? "border-t border-black/5" : ""
+                    }`}
+                  >
+                    <span className="text-[#14161C]">{d.label}</span>
+                    <span className={closed ? "text-gray-400" : "font-medium text-[#14161C]"}>
+                      {val}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="mt-6 flex gap-2">
+            <button
+              onClick={handleRoute}
+              data-testid="detail-route-btn"
+              className="flex flex-1 items-center justify-center gap-2 rounded-full bg-[#14161C] py-3 text-sm font-semibold text-white hover:bg-[#2a2d36] transition-[background-color]"
+            >
+              <Navigation2 className="h-4 w-4" /> Itinéraire
+            </button>
+            <button
+              onClick={handleFav}
+              aria-label="Favori"
+              data-testid="detail-fav-btn"
+              className="flex items-center justify-center rounded-full border border-black/10 bg-white px-4 hover:bg-black/5 transition-[background-color]"
+            >
+              <Heart className={`h-5 w-5 transition-[color,fill] ${isFav ? "fill-red-500 text-red-500" : "text-gray-500"}`} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
