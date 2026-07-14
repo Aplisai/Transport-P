@@ -239,7 +239,7 @@ export default function MapApp() {
             className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#14161C] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#2a2d36] transition-[background-color]"
           >
             <Search className="h-4 w-4" />
-            C'est parti
+            Trouver
           </button>
         </form>
 
