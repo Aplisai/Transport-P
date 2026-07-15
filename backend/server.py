@@ -651,6 +651,10 @@ def mondialrelay_points(
 
 @api_router.get("/points/{point_id}")
 async def get_point(point_id: str):
+    if point_id in _CUSTOM:
+        return _CUSTOM[point_id]
+    if point_id in _DELETED:
+        raise HTTPException(status_code=404, detail="Point relais introuvable")
     for p in POINTS:
         if p["id"] == point_id:
             return _apply_override(p)
