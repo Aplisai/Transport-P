@@ -707,6 +707,10 @@ export default function MapApp() {
           carriersInfo={carriers}
           isAdmin={isAdmin}
           onEdit={(p) => setFormPoint(p)}
+          onDeleted={(id) => {
+            setPoints((prev) => prev.filter((p) => p.id !== id));
+            setSelected(null);
+          }}
           onClose={() => setSelected(null)}
           onRequireAuth={requireAuth}
         />

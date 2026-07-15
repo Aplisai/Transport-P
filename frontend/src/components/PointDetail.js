@@ -1,4 +1,6 @@
-import { X, MapPin, Clock, Phone, Navigation2, Heart, Locate, Box, Store, Pencil } from "lucide-react";
+import { useState } from "react";
+import { X, MapPin, Clock, Phone, Navigation2, Heart, Locate, Box, Store, Pencil, Trash2, Loader2 } from "lucide-react";
+import { api, formatApiError } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 
@@ -31,9 +33,25 @@ function CarrierLogo({ id, name, color }) {
   );
 }
 
-export default function PointDetail({ point, carriersInfo = [], isAdmin = false, onEdit, onClose, onRequireAuth }) {
+export default function PointDetail({ point, carriersInfo = [], isAdmin = false, onEdit, onDeleted, onClose, onRequireAuth }) {
   const { user, favorites, toggleFavorite } = useAuth();
   const isFav = favorites.includes(point.id);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const doDelete = async () => {
+    setDeleting(true);
+    try {
+      await api.delete(`/admin/points/${point.id}`);
+      toast.success("Point relais supprimé");
+      onDeleted && onDeleted(point.id);
+      onClose();
+    } catch (err) {
+      toast.error(formatApiError(err.response?.data?.detail) || "Échec de la suppression");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const infoById = {};
   carriersInfo.forEach((c) => (infoById[c.id] = c));
@@ -88,14 +106,52 @@ export default function PointDetail({ point, carriersInfo = [], isAdmin = false,
           </button>
 
           {isAdmin && (
-            <button
-              onClick={() => onEdit && onEdit(point)}
-              aria-label="Éditer"
-              data-testid="detail-edit-btn"
-              className="absolute right-14 top-5 flex items-center gap-1 rounded-full bg-[#14161C] px-2.5 py-2 text-[11px] font-semibold text-white hover:bg-[#2a2d36] transition-[background-color]"
+            <div className="absolute right-14 top-5 flex items-center gap-1.5">
+              <button
+                onClick={() => onEdit && onEdit(point)}
+                aria-label="Éditer"
+                data-testid="detail-edit-btn"
+                className="flex items-center gap-1 rounded-full bg-[#14161C] px-2.5 py-2 text-[11px] font-semibold text-white hover:bg-[#2a2d36] transition-[background-color]"
+              >
+                <Pencil className="h-3.5 w-3.5" /> Éditer
+              </button>
+              <button
+                onClick={() => setConfirmDelete(true)}
+                aria-label="Supprimer"
+                data-testid="detail-delete-btn"
+                className="flex items-center gap-1 rounded-full border border-red-500/40 bg-red-50 px-2.5 py-2 text-[11px] font-semibold text-red-600 hover:bg-red-100 transition-[background-color]"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Supprimer
+              </button>
+            </div>
+          )}
+
+          {isAdmin && confirmDelete && (
+            <div
+              className="mb-4 mt-9 rounded-xl border border-red-500/30 bg-red-50 p-3"
+              data-testid="detail-delete-confirm"
             >
-              <Pencil className="h-3.5 w-3.5" /> Éditer
-            </button>
+              <p className="mb-2 text-xs font-medium text-red-700">
+                Supprimer définitivement ce point ? Cette action est irréversible.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={doDelete}
+                  disabled={deleting}
+                  data-testid="detail-delete-confirm-btn"
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-red-600 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60 transition-[background-color]"
+                >
+                  {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                  Oui, supprimer
+                </button>
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  className="rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-black/5 transition-[background-color]"
+                >
+                  Annuler
+                </button>
+              </div>
+            </div>
           )}
 
           {/* Carrier + type */}
