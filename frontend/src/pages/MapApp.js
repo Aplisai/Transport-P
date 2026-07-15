@@ -285,6 +285,16 @@ export default function MapApp() {
               </h1>
               <p className="text-[11px] text-gray-400">Trouver mon point relais ou locker</p>
             </div>
+            {isAdmin && (
+              <button
+                onClick={() => setFormPoint(null)}
+                data-testid="header-add-point-btn"
+                title="Ajouter un point relais ou locker"
+                className="ml-1 flex items-center gap-1 rounded-full bg-[#FFCC00] px-2.5 py-1.5 text-[11px] font-bold text-[#14161C] hover:bg-[#f5c400] transition-[background-color]"
+              >
+                <Plus className="h-3.5 w-3.5" strokeWidth={2.5} /> Ajouter
+              </button>
+            )}
           </div>
           {user ? (
             <div className="flex items-center gap-2">
