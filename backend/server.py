@@ -190,6 +190,10 @@ class ResetIn(BaseModel):
     token: str
     password: str = Field(min_length=6)
 
+class ChangePasswordIn(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=6)
+
 @api_router.post("/auth/forgot-password")
 async def forgot_password(data: ForgotIn):
     email = data.email.lower()
@@ -223,6 +227,16 @@ async def reset_password(data: ResetIn):
                               {"$set": {"password_hash": hash_password(data.password)}})
     await db.password_reset_tokens.update_one({"_id": doc["_id"]}, {"$set": {"used": True}})
     return {"ok": True, "message": "Mot de passe réinitialisé. Vous pouvez vous connecter."}
+
+@api_router.post("/auth/change-password")
+async def change_password(data: ChangePasswordIn, user: dict = Depends(get_current_user)):
+    if not verify_password(data.current_password, user["password_hash"]):
+        raise HTTPException(status_code=400, detail="Mot de passe actuel incorrect")
+    if data.new_password == data.current_password:
+        raise HTTPException(status_code=400, detail="Le nouveau mot de passe doit être différent de l'actuel")
+    await db.users.update_one({"_id": user["_id"]},
+                              {"$set": {"password_hash": hash_password(data.new_password)}})
+    return {"ok": True, "message": "Mot de passe modifié avec succès."}
 
 # ---------------------------------------------------------------- Relay points
 # Index des localités uniques (ville + code postal) pour l'autocomplétion

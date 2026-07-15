@@ -36,6 +36,9 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 - PUT /api/admin/points/{id} (PointPatchIn, champs optionnels) — modifier
 - DELETE /api/admin/points/{id} — supprimer définitivement (custom + statique)
 
+## Auth
+- POST /api/auth/change-password (authentifié) — {current_password, new_password ≥6}. Vérifie l'ancien mot de passe (bcrypt) puis met à jour. UI: bouton « Mot de passe » dans l'en-tête (composant ChangePasswordModal.js).
+
 ## Backlog / Next
 - P1: Envoi réel d'email pour « Mot de passe oublié » (Resend ou SendGrid) — actuellement le token est affiché dans l'UI.
 - P2: Intégration des vraies API transporteurs (Mondial Relay, La Poste) — en attente clés/contrats officiels réels.

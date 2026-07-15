@@ -19,9 +19,10 @@ import MapView from "@/components/MapView";
 import PointCard from "@/components/PointCard";
 import PointDetail from "@/components/PointDetail";
 import PointForm from "@/components/PointForm";
+import ChangePasswordModal from "@/components/ChangePasswordModal";
 import AuthModal from "@/components/AuthModal";
 import { toast } from "sonner";
-import { Plus } from "lucide-react";
+import { Plus, KeyRound } from "lucide-react";
 
 export default function MapApp() {
   const { user, favorites, logout } = useAuth();
@@ -36,6 +37,7 @@ export default function MapApp() {
   const [userLoc, setUserLoc] = useState(null);
   const [flyTarget, setFlyTarget] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
+  const [showChangePwd, setShowChangePwd] = useState(false);
   const [tab, setTab] = useState("all"); // all | favorites
   const [sheetOpen, setSheetOpen] = useState(false);
   const [locating, setLocating] = useState(false);
@@ -273,18 +275,15 @@ export default function MapApp() {
     <div className="flex h-full flex-col bg-white">
       {/* Header */}
       <div className="border-b border-black/10 p-4">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <div className="flex h-7 items-center justify-center gap-0.5 rounded-lg bg-[#FFCC00] px-1.5">
               <span className="font-head text-base font-bold leading-none text-[#3399FF]">R</span>
               <Package className="h-3.5 w-3.5 text-black" strokeWidth={2.5} />
             </div>
-            <div>
-              <h1 className="whitespace-nowrap font-head text-lg font-semibold leading-none tracking-tight text-[#14161C]">
-                Relay Dip
-              </h1>
-              <p className="text-[11px] text-gray-400">Trouver mon point relais ou locker</p>
-            </div>
+            <h1 className="whitespace-nowrap font-head text-lg font-semibold leading-none tracking-tight text-[#14161C]">
+              Relay Dip
+            </h1>
             {isAdmin && (
               <button
                 onClick={() => setFormPoint(null)}
@@ -304,6 +303,16 @@ export default function MapApp() {
               >
                 {user.name}
               </span>
+              <button
+                onClick={() => setShowChangePwd(true)}
+                aria-label="Modifier mon mot de passe"
+                title="Modifier mon mot de passe"
+                data-testid="change-password-btn"
+                className="flex items-center gap-1.5 rounded-full bg-black/5 px-2.5 py-1.5 text-xs font-semibold text-[#14161C] hover:bg-black/10 transition-[background-color]"
+              >
+                <KeyRound className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Mot de passe</span>
+              </button>
               <button
                 onClick={() => {
                   logout();
@@ -702,6 +711,7 @@ export default function MapApp() {
       </div>
 
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+      {showChangePwd && <ChangePasswordModal onClose={() => setShowChangePwd(false)} />}
       {selected && formPoint === undefined && (
         <PointDetail
           point={selected}
