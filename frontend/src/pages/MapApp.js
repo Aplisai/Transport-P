@@ -18,8 +18,10 @@ import { useAuth } from "@/context/AuthContext";
 import MapView from "@/components/MapView";
 import PointCard from "@/components/PointCard";
 import PointDetail from "@/components/PointDetail";
+import PointForm from "@/components/PointForm";
 import AuthModal from "@/components/AuthModal";
 import { toast } from "sonner";
+import { Plus } from "lucide-react";
 
 export default function MapApp() {
   const { user, favorites, logout } = useAuth();
@@ -29,6 +31,8 @@ export default function MapApp() {
   const [points, setPoints] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState(null);
+  const [formPoint, setFormPoint] = useState(undefined); // undefined=fermé, null=création, objet=édition
+  const isAdmin = user?.role === "admin";
   const [userLoc, setUserLoc] = useState(null);
   const [flyTarget, setFlyTarget] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
@@ -655,6 +659,17 @@ export default function MapApp() {
         {sheetOpen ? "Voir la carte" : `Liste (${visiblePoints.length})`}
       </button>
 
+      {/* Admin: Add point button */}
+      {isAdmin && (
+        <button
+          onClick={() => setFormPoint(null)}
+          data-testid="admin-add-point-btn"
+          className="absolute right-5 top-5 z-[1100] flex items-center gap-2 rounded-full bg-[#FFCC00] px-4 py-3 text-sm font-bold text-[#14161C] shadow-[0_8px_24px_rgba(0,0,0,0.2)] hover:bg-[#f5c400] transition-[background-color]"
+        >
+          <Plus className="h-4 w-4" strokeWidth={2.5} /> Ajouter un point
+        </button>
+      )}
+
       {/* Mobile sheet */}
       <div
         className={`absolute inset-x-0 bottom-0 z-[1050] max-h-[82vh] rounded-t-2xl border-t border-black/10 bg-white shadow-[0_-8px_32px_rgba(0,0,0,0.12)] transition-transform duration-300 lg:hidden ${
@@ -676,17 +691,36 @@ export default function MapApp() {
       </div>
 
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
-      {selected && (
+      {selected && formPoint === undefined && (
         <PointDetail
           point={selected}
           carriersInfo={carriers}
-          isAdmin={user?.role === "admin"}
-          onUpdated={(updated) => {
-            setSelected(updated);
-            setPoints((prev) => prev.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)));
-          }}
+          isAdmin={isAdmin}
+          onEdit={(p) => setFormPoint(p)}
           onClose={() => setSelected(null)}
           onRequireAuth={requireAuth}
+        />
+      )}
+      {formPoint !== undefined && (
+        <PointForm
+          point={formPoint}
+          carriersInfo={carriers}
+          onSaved={(saved) => {
+            setPoints((prev) => {
+              const exists = prev.some((p) => p.id === saved.id);
+              return exists ? prev.map((p) => (p.id === saved.id ? saved : p)) : [saved, ...prev];
+            });
+            if (selected && selected.id === saved.id) setSelected(saved);
+            if (formPoint === null) {
+              setSelected(saved);
+              setFlyTarget({ lat: saved.lat, lng: saved.lng, zoom: 15 });
+            }
+          }}
+          onDeleted={(id) => {
+            setPoints((prev) => prev.filter((p) => p.id !== id));
+            if (selected && selected.id === id) setSelected(null);
+          }}
+          onClose={() => setFormPoint(undefined)}
         />
       )}
     </div>

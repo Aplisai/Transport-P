@@ -1,6 +1,4 @@
-import { useState } from "react";
-import { X, MapPin, Clock, Phone, Navigation2, Heart, Locate, Box, Store, Pencil, Save, RotateCcw, Loader2 } from "lucide-react";
-import { api, formatApiError } from "@/lib/api";
+import { X, MapPin, Clock, Phone, Navigation2, Heart, Locate, Box, Store, Pencil } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 
@@ -33,49 +31,9 @@ function CarrierLogo({ id, name, color }) {
   );
 }
 
-export default function PointDetail({ point, carriersInfo = [], isAdmin = false, onUpdated, onClose, onRequireAuth }) {
+export default function PointDetail({ point, carriersInfo = [], isAdmin = false, onEdit, onClose, onRequireAuth }) {
   const { user, favorites, toggleFavorite } = useAuth();
   const isFav = favorites.includes(point.id);
-  const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(point.name);
-  const [lat, setLat] = useState(point.lat);
-  const [lng, setLng] = useState(point.lng);
-  const [saving, setSaving] = useState(false);
-
-  const saveEdit = async () => {
-    setSaving(true);
-    try {
-      const { data } = await api.put(`/admin/points/${point.id}`, {
-        name,
-        lat: parseFloat(lat),
-        lng: parseFloat(lng),
-      });
-      toast.success("Point relais modifié");
-      setEditing(false);
-      onUpdated && onUpdated(data);
-    } catch (err) {
-      toast.error(formatApiError(err.response?.data?.detail) || "Échec de la modification");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const resetEdit = async () => {
-    setSaving(true);
-    try {
-      const { data } = await api.delete(`/admin/points/${point.id}`);
-      toast.success("Modifications réinitialisées");
-      setName(data.name);
-      setLat(data.lat);
-      setLng(data.lng);
-      setEditing(false);
-      onUpdated && onUpdated(data);
-    } catch {
-      toast.error("Échec de la réinitialisation");
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const infoById = {};
   carriersInfo.forEach((c) => (infoById[c.id] = c));
@@ -131,74 +89,13 @@ export default function PointDetail({ point, carriersInfo = [], isAdmin = false,
 
           {isAdmin && (
             <button
-              onClick={() => setEditing((e) => !e)}
+              onClick={() => onEdit && onEdit(point)}
               aria-label="Éditer"
               data-testid="detail-edit-btn"
               className="absolute right-14 top-5 flex items-center gap-1 rounded-full bg-[#14161C] px-2.5 py-2 text-[11px] font-semibold text-white hover:bg-[#2a2d36] transition-[background-color]"
             >
-              <Pencil className="h-3.5 w-3.5" /> {editing ? "Fermer" : "Éditer"}
+              <Pencil className="h-3.5 w-3.5" /> Éditer
             </button>
-          )}
-
-          {isAdmin && editing && (
-            <div
-              className="mb-4 rounded-xl border border-[#FFCC00]/60 bg-[#FFCC00]/10 p-3"
-              data-testid="admin-edit-panel"
-            >
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[#8a6d00]">
-                Édition administrateur
-              </p>
-              <label className="mb-1 block text-[11px] text-gray-500">Nom</label>
-              <input
-                data-testid="edit-name-input"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="mb-2 w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm outline-none focus:border-black/30"
-              />
-              <div className="mb-2 flex gap-2">
-                <div className="flex-1">
-                  <label className="mb-1 block text-[11px] text-gray-500">Latitude</label>
-                  <input
-                    data-testid="edit-lat-input"
-                    type="number"
-                    step="0.000001"
-                    value={lat}
-                    onChange={(e) => setLat(e.target.value)}
-                    className="w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm outline-none focus:border-black/30"
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="mb-1 block text-[11px] text-gray-500">Longitude</label>
-                  <input
-                    data-testid="edit-lng-input"
-                    type="number"
-                    step="0.000001"
-                    value={lng}
-                    onChange={(e) => setLng(e.target.value)}
-                    className="w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm outline-none focus:border-black/30"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={saveEdit}
-                  disabled={saving}
-                  data-testid="edit-save-btn"
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-[#14161C] py-2 text-xs font-semibold text-white hover:bg-[#2a2d36] disabled:opacity-60 transition-[background-color]"
-                >
-                  {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                  Enregistrer
-                </button>
-                <button
-                  onClick={resetEdit}
-                  disabled={saving}
-                  data-testid="edit-reset-btn"
-                  className="flex items-center justify-center gap-1.5 rounded-full border border-black/10 bg-white px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-black/5 transition-[background-color]"
-                >
-                  <RotateCcw className="h-3.5 w-3.5" /> Réinitialiser
-                </button>
-              </div>
-            </div>
           )}
 
           {/* Carrier + type */}

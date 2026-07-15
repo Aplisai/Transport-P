@@ -1,0 +1,67 @@
+{
+  "summary": "Iteration 13 — validated NEW admin full CRUD (create/edit/permanent delete) end-to-end. Backend: added TestAdminFullCRUD (8 tests) covering POST /api/admin/points create with full payload + defaults + invalid coords 400 + missing lat/lng 422 + non-admin 403 + unauth 401, PUT on custom point, DELETE permanent for custom (verified 404 on re-delete and listing exclusion), also added test_admin_delete_permanent_on_static_point on pt-01000. Adjusted TestAdminPointOverrides + TestAdminPartial teardown to use direct Mongo cleanup (delete is now permanent so HTTP DELETE can't reset). Skipped cust-* points in TestCarriersList invariants (they can legitimately violate locker=1-carrier rule). Frontend: full 14-step Playwright flow — guest cannot see admin-add-point-btn nor detail-edit-btn; admin login → add-btn visible → open form → fill all fields (name/type locker/carrier chronopost/address/postal/city/phone/lat/lng/hours) → save → toast + form closes + detail modal auto-opens on new point → edit-btn present → open edit → form pre-filled with 'Éditer le point' title → modify name+coords+save → detail refreshed → open edit again → delete-btn → confirm → confirm-btn → toast 'Point relais supprimé' + form closes + point removed from list → regression: search/suggest still works → logout → guest again cannot see edit btn. Backend 72 passed / 6 skipped (external Overpass/Nominatim) / 0 failed. Final Mongo state clean (0 overrides, 0 deleted, 0 custom).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/points/{id}", "issue": "get_point() does not check _DELETED set — a permanently-deleted static point still returns 200 on the single-point endpoint (listing /api/points correctly excludes it). No functional impact today (frontend never fetches by id, always via listing/state), but inconsistent with delete semantics."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_scenarios_verified": {
+    "backend_create_full_payload_persists": "POST /api/admin/points with name/type=locker/carrier=chronopost/carriers[chronopost,la_poste]/address/postal/city/phone/lat/lng/hours → 200, id starts with 'cust-', all fields persisted, appears in /api/points listing (also with ptype=locker&q=Paris) — PASS",
+    "backend_create_defaults_when_optional_omitted": "POST with only lat/lng → type='relais', carrier='mondial_relay', name='Nouveau point', hours={lun-ven:'',sam:'',dim:''} — PASS",
+    "backend_create_invalid_lat_returns_400": "lat=60.0 → 400; lng=20.0 → 400 — PASS",
+    "backend_create_missing_lat_lng_returns_422": "Payload without lat/lng → 422 (Pydantic) — PASS",
+    "backend_create_requires_admin_role": "fresh user → 403; unauth → 401 — PASS",
+    "backend_put_custom_point_updates": "PUT /api/admin/points/{cust-id} updates name+lat+lng+city+postal_code+carrier and appears in listing — PASS",
+    "backend_delete_custom_point_permanent": "DELETE /api/admin/points/{cust-id} → 200 {deleted:id}, absent from listing, re-DELETE → 404 — PASS",
+    "backend_delete_static_point_permanent": "DELETE /api/admin/points/pt-01000 → 200, absent from listing (Mongo state restored after test) — PASS",
+    "backend_admin_put_static_point_override": "PUT changes name+coords, edited:true, persisted through /api/points and /api/points/{id} — PASS",
+    "backend_admin_put_partial_name_only": "PUT with only name preserves lat/lng from original — PASS",
+    "backend_admin_put_lat_lng_out_of_france_400": "lat=60 → 400 'Latitude'; lng=20 → 400 'Longitude' — PASS",
+    "backend_admin_put_delete_nonexistent_404": "PUT/DELETE on pt-99999999 → 404 — PASS",
+    "backend_admin_put_delete_require_admin": "unauth → 401; non-admin → 403 — PASS",
+    "backend_regression_full_suite": "72 passed / 6 skipped (external) / 0 failed — PASS",
+    "frontend_guest_no_admin_ui": "admin-add-point-btn not rendered when logged out; detail-edit-btn not rendered on point detail — PASS",
+    "frontend_admin_login_shows_add_btn": "admin@relaispoint.fr / admin123 login → admin-add-point-btn visible top-right — PASS",
+    "frontend_add_point_flow": "Open form (title 'Ajouter un point relais'), fill 11 fields (name, type=locker, carrier, address, postal, city, phone, lat, lng, hours lun-ven/sam/dim), submit → form closes, toast success, detail modal auto-opens with new point — PASS",
+    "frontend_detail_edit_btn_admin_only": "detail-edit-btn present in point-detail when logged in as admin — PASS",
+    "frontend_edit_flow_prefilled": "Click detail-edit-btn → point-form opens with title 'Éditer le point' and form-name pre-filled with existing name — PASS",
+    "frontend_edit_save_updates_detail": "Modify name/lat/lng → save → detail-name refreshes to new value — PASS",
+    "frontend_delete_confirmation_flow": "form-delete-btn → form-delete-confirm shown → form-delete-confirm-btn → toast 'Point relais supprimé' + form closes + point removed from list — PASS",
+    "frontend_search_autocomplete_regression": "Typing 'Lyon' in search-input opens search-suggestions dropdown — PASS",
+    "frontend_logout_hides_admin_ui": "Click logout-btn → open-auth-btn returns, admin-add-point-btn disappears — PASS"
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "OPTIONAL/minor: In backend/server.py get_point(), also check `point_id not in _DELETED` to keep single-point endpoint consistent with listing after a permanent delete. Current UI flow doesn't hit this path so not blocking."
+  ],
+  "critical_code_review_comments": [
+    "server.py:652-657 GET /api/points/{id} doesn't honor _DELETED set — a deleted static point still returns 200 on this endpoint while /api/points hides it. Consider adding `if p['id'] in _DELETED: raise HTTPException(404)` to /api/points/{id} for consistency.",
+    "server.py:286-290 _validate_coords bounds (lat 41–51.5, lng -5.8–9.8) are correctly enforced on both POST and PUT; nice.",
+    "server.py:357 pid = f'cust-{secrets.token_hex(6)}' — 12 hex chars = 48 bits of entropy, low collision risk for the expected admin usage. If ever exposed publicly for enumeration hardening, consider token_urlsafe(9).",
+    "server.py:409-417 admin_update_point handles the branch 'point_id in _CUSTOM' via full replace + upsert — good. Note that when carrier changes and no new carriers list is provided, `pt.setdefault('carriers', [fields['carrier']])` will only fall back if the key is absent; if the point had carriers=['x','y'] and admin updates only carrier=z, carriers remains ['x','y'] (z not necessarily included). Minor edge case — the frontend form always sends both carrier and carriers together so no user-facing bug.",
+    "server.py:428-441 admin_delete_point permanently removes; matches spec. It also deletes any override for the same id — good.",
+    "server.py:684-711 startup loads _OVERRIDES/_CUSTOM/_DELETED from Mongo — good. However any mutation while backend is running is in-memory-only until restart in the sense that another backend instance wouldn't see them until reload. Not blocking for single-instance deploy.",
+    "PointForm.js:56 carrierList logic (`carriers.includes(carrier) ? carriers : [carrier, ...carriers]`) correctly ensures the primary carrier appears in the handled list — good.",
+    "PointForm.js:41 confirmDelete state doesn't reset when the modal is closed and reopened via edit; a user who cancelled delete then closed the form and re-edited may or may not see the confirm panel state — actually confirmDelete is component-local state that gets re-created on every mount (point key changes), so it's fine.",
+    "MapApp.js:704-725 PointForm rendered only when formPoint !== undefined — good. But state ordering means if selected exists AND formPoint is defined, PointDetail is hidden — intended UX (form takes over) — good."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py (added TestAdminFullCRUD class with 8 new tests, replaced legacy 'delete resets' test with 'delete permanent on static point' test, switched cleanup to direct Mongo, added cust-* skip in TestCarriersList invariants)"
+  ],
+  "success_rate": {"backend": "100% (72/72 pass, 6 skipped external Overpass/Nominatim, 0 failed)", "frontend": "100% (all 14 admin CRUD + regression scenarios verified)"},
+  "test_credentials": "Admin admin@relaispoint.fr/admin123 works (regression). Fresh user created per pytest run persists in db.users (unique emails).",
+  "seed_data_creation": "Test creates transient custom points (cust-*) and removes them via HTTP DELETE + Mongo cleanup teardown. Overrides for pt-00001/pt-00002/pt-01000 are removed via Mongo. Final state: 0 overrides, 0 deleted, 0 custom.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Admin full CRUD works end-to-end. Backend endpoints: POST /api/admin/points (PointFullIn, requires lat+lng), PUT /api/admin/points/{id} (PointPatchIn, all fields optional), DELETE /api/admin/points/{id} — permanent for both cust-* and static. Custom points stored in db.custom_points (id='cust-<12hex>'), overrides in db.point_overrides, tombstones in db.deleted_points. In-memory dicts _CUSTOM/_OVERRIDES/_DELETED are loaded at startup and mutated by admin endpoints; direct-Mongo cleanup during tests requires backend restart to reflect in-memory (session-safe workaround: only test on pt-01000 for static delete and don't restart in parallel). Frontend testids: admin-add-point-btn (top-right, admin only), point-form, point-form-title, point-form-close, form-name, form-type-relais/locker, form-carrier (select), form-carrier-chip-<id> (multi-select chips), form-carriers (wrapper), form-address, form-postal, form-city, form-phone, form-lat, form-lng, form-hours-lunven/sam/dim, form-save-btn, form-delete-btn (edit only), form-delete-confirm + form-delete-confirm-btn, detail-edit-btn (admin only in PointDetail). Minor known issue: GET /api/points/{id} doesn't check _DELETED (see action_items). Overpass/Nominatim geocoding external tests were skipped due to rate limits — not related to this feature.",
+  "rca_of_the_issue": "No user-facing bug found for this feature. Previous iteration reported backend crash (NameError PointFullIn/PointPatchIn) was already fixed by main agent; this iteration confirmed models are defined (server.py:72-96) and endpoints operate correctly."
+}

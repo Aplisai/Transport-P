@@ -69,6 +69,32 @@ class PointOverrideIn(BaseModel):
     lat: Optional[float] = None
     lng: Optional[float] = None
 
+class PointFullIn(BaseModel):
+    name: Optional[str] = None
+    type: Optional[str] = None
+    carrier: Optional[str] = None
+    carriers: Optional[List[str]] = None
+    address: Optional[str] = None
+    postal_code: Optional[str] = None
+    city: Optional[str] = None
+    phone: Optional[str] = None
+    lat: float
+    lng: float
+    hours: Optional[dict] = None
+
+class PointPatchIn(BaseModel):
+    name: Optional[str] = None
+    type: Optional[str] = None
+    carrier: Optional[str] = None
+    carriers: Optional[List[str]] = None
+    address: Optional[str] = None
+    postal_code: Optional[str] = None
+    city: Optional[str] = None
+    phone: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    hours: Optional[dict] = None
+
 # ---------------------------------------------------------------- Auth helpers
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
@@ -674,9 +700,15 @@ async def startup():
     # Charger les modifications admin en mémoire
     async for ov in db.point_overrides.find():
         _OVERRIDES[ov["point_id"]] = {
-            k: ov[k] for k in ("name", "lat", "lng") if k in ov
+            k: ov[k] for k in _EDITABLE if k in ov
         }
-    logger.info("Overrides chargés: %d", len(_OVERRIDES))
+    async for c in db.custom_points.find():
+        c.pop("_id", None)
+        _CUSTOM[c["id"]] = c
+    async for d in db.deleted_points.find():
+        _DELETED.add(d["point_id"])
+    logger.info("Overrides: %d | Custom: %d | Deleted: %d",
+                len(_OVERRIDES), len(_CUSTOM), len(_DELETED))
 
 app.include_router(api_router)
 app.add_middleware(GZipMiddleware, minimum_size=1000)

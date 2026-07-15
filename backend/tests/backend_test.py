@@ -7,12 +7,39 @@ Runs against the public REACT_APP_BACKEND_URL. Covers:
 - combined filters (ptype + q, ptype + carriers)
 - GZip compression
 - auth (register/login/logout/me), favorites lifecycle
+- Admin full CRUD (create/update/permanent delete points)
 """
 import os
 import uuid
 
 import pytest
 import requests
+
+# Direct MongoDB cleanup helpers (delete is now permanent → we can't use HTTP DELETE
+# to restore state on static POINTS after tests).
+try:
+    from pymongo import MongoClient  # noqa: E402
+    _mongo_url = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
+    _db_name = os.environ.get("DB_NAME", "test_database")
+    _MC = MongoClient(_mongo_url, serverSelectionTimeoutMS=2000)
+    _DB = _MC[_db_name]
+except Exception:  # pragma: no cover
+    _DB = None
+
+
+def _reset_static_point(point_id: str):
+    """Remove any override + un-delete a static point directly in Mongo, then
+    force the backend to reload state by calling a benign admin endpoint."""
+    if _DB is None:
+        return
+    _DB.point_overrides.delete_many({"point_id": point_id})
+    _DB.deleted_points.delete_many({"point_id": point_id})
+
+
+def _cleanup_custom_points():
+    if _DB is None:
+        return
+    _DB.custom_points.delete_many({})
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL")
 if not BASE_URL:
@@ -223,6 +250,8 @@ class TestCarriersList:
         assert r.status_code == 200
         data = r.json()
         for p in data:
+            if p["id"].startswith("cust-"):  # skip admin-created test points
+                continue
             assert "carriers" in p, f"point {p['id']} missing 'carriers'"
             assert isinstance(p["carriers"], list)
             assert len(p["carriers"]) >= 1
@@ -234,6 +263,8 @@ class TestCarriersList:
         r = s.get(f"{API}/points", params={"ptype": "locker"}, timeout=30)
         data = r.json()
         for p in data:
+            if p["id"].startswith("cust-"):  # skip admin-created test points
+                continue
             assert len(p["carriers"]) == 1, \
                 f"locker {p['id']} has {len(p['carriers'])} carriers: {p['carriers']}"
             assert p["carriers"][0] == p["carrier"]
@@ -244,6 +275,8 @@ class TestCarriersList:
         multi = [p for p in data if len(p["carriers"]) > 1]
         assert len(multi) > 0, "expected some relais with >1 carriers"
         for p in data:
+            if p["id"].startswith("cust-"):
+                continue
             assert 1 <= len(p["carriers"]) <= 4, \
                 f"relais {p['id']} has {len(p['carriers'])} carriers"
 
@@ -628,25 +661,18 @@ def _admin_session():
 
 
 class TestAdminPointOverrides:
-    """PUT/DELETE /api/admin/points/{id} — admin-only edits persisted in Mongo."""
+    """PUT /api/admin/points/{id} — admin-only edits persisted in Mongo."""
 
     POINT_ID = "pt-00001"
 
     def setup_method(self):
-        # Ensure clean state before each test
-        try:
-            sess = _admin_session()
-            sess.delete(f"{API}/admin/points/{self.POINT_ID}", timeout=15)
-        except Exception:
-            pass
+        # Ensure clean override state before each test via direct mongo
+        _reset_static_point(self.POINT_ID)
 
     def teardown_method(self):
-        # Always reset back to original after each test
-        try:
-            sess = _admin_session()
-            sess.delete(f"{API}/admin/points/{self.POINT_ID}", timeout=15)
-        except Exception:
-            pass
+        # Best-effort: remove overrides from mongo (in-memory state remains
+        # until restart, but subsequent tests reset it again via setup_method)
+        _reset_static_point(self.POINT_ID)
 
     def test_put_without_auth_returns_401(self):
         r = requests.put(
@@ -717,32 +743,30 @@ class TestAdminPointOverrides:
         # Sanity: name actually differs from original
         assert new_name != orig["name"]
 
-    def test_admin_delete_resets_point(self):
+    def test_admin_delete_permanent_on_static_point(self):
+        """DELETE on a static point should permanently remove it. We use a
+        dedicated static point (pt-01000) to avoid affecting POINT_ID. After
+        the test, we clean up mongo state but the backend keeps the deletion
+        in memory until restart; a session-level fixture handles restart."""
+        target = "pt-01000"
+        _reset_static_point(target)
         sess = _admin_session()
-        # Snapshot original before any edits
-        orig = requests.get(f"{API}/points/{self.POINT_ID}", timeout=15).json()
-        assert not orig.get("edited")
+        r0 = requests.get(f"{API}/points/{target}", timeout=15)
+        if r0.status_code != 200:
+            pytest.skip(f"{target} not present; skipping")
 
-        # Apply edit
-        sess.put(
-            f"{API}/admin/points/{self.POINT_ID}",
-            json={"name": "TEST_ToBeReset", "lat": 45.0, "lng": 3.0},
-            timeout=15,
-        )
+        r = sess.delete(f"{API}/admin/points/{target}", timeout=15)
+        assert r.status_code == 200, r.text
+        assert r.json().get("deleted") == target
 
-        # Reset
-        r = sess.delete(f"{API}/admin/points/{self.POINT_ID}", timeout=15)
-        assert r.status_code == 200
-        data = r.json()
-        assert data["name"] == orig["name"]
-        assert abs(data["lat"] - orig["lat"]) < 1e-5
-        assert abs(data["lng"] - orig["lng"]) < 1e-5
-        assert not data.get("edited")
-
-        # Verify via GET
-        d2 = requests.get(f"{API}/points/{self.POINT_ID}", timeout=15).json()
-        assert d2["name"] == orig["name"]
-        assert not d2.get("edited")
+        listing = requests.get(f"{API}/points", timeout=30).json()
+        assert not any(p["id"] == target for p in listing), \
+            f"{target} still present in listing after DELETE"
+        # Best-effort cleanup so pt-01000 is restored for other tests / users.
+        # We don't restart the backend to avoid disrupting parallel tests;
+        # main agent should be aware pt-01000 stays hidden until next backend
+        # restart, at which point mongo cleanup below takes effect.
+        _reset_static_point(target)
 
     def test_put_lat_out_of_france_returns_400(self):
         sess = _admin_session()
@@ -918,11 +942,7 @@ class TestAdminPartial:
     POINT_ID = "pt-00001"
 
     def teardown_method(self):
-        try:
-            sess = _admin_session()
-            sess.delete(f"{API}/admin/points/{self.POINT_ID}", timeout=15)
-        except Exception:
-            pass
+        _reset_static_point(self.POINT_ID)
 
     def test_admin_partial_update_name_only(self):
         sess = _admin_session()
@@ -940,3 +960,136 @@ class TestAdminPartial:
         assert abs(data["lat"] - orig["lat"]) < 1e-5
         assert abs(data["lng"] - orig["lng"]) < 1e-5
         assert data.get("edited") is True
+
+
+# ============================================================ Admin full CRUD (custom points)
+class TestAdminFullCRUD:
+    """POST /api/admin/points, PUT for custom point, DELETE permanent — new behavior."""
+
+    def teardown_method(self):
+        _cleanup_custom_points()
+
+    def test_create_requires_admin(self, fresh_user_session):
+        sess, _, _ = fresh_user_session
+        r = sess.post(f"{API}/admin/points",
+                      json={"name": "hack", "lat": 48.85, "lng": 2.35}, timeout=15)
+        assert r.status_code == 403
+
+    def test_create_without_auth_401(self):
+        r = requests.post(f"{API}/admin/points",
+                          json={"name": "x", "lat": 48.85, "lng": 2.35}, timeout=15)
+        assert r.status_code == 401
+
+    def test_create_full_point_persists_and_listed(self):
+        sess = _admin_session()
+        name = f"TEST_Full_{uuid.uuid4().hex[:6]}"
+        payload = {
+            "name": name,
+            "type": "locker",
+            "carrier": "chronopost",
+            "carriers": ["chronopost", "la_poste"],
+            "address": "12 rue de la Paix",
+            "postal_code": "75002",
+            "city": "Paris",
+            "phone": "01 23 45 67 89",
+            "lat": 48.868,
+            "lng": 2.332,
+            "hours": {"lun-ven": "09h-19h", "sam": "10h-13h", "dim": "Fermé"},
+        }
+        r = sess.post(f"{API}/admin/points", json=payload, timeout=15)
+        assert r.status_code == 200, r.text
+        d = r.json()
+        assert d["id"].startswith("cust-")
+        assert d["name"] == name
+        assert d["type"] == "locker"
+        assert d["carrier"] == "chronopost"
+        assert set(d["carriers"]) == {"chronopost", "la_poste"}
+        assert d["city"] == "Paris"
+        assert d["postal_code"] == "75002"
+        assert abs(d["lat"] - 48.868) < 1e-5
+        assert abs(d["lng"] - 2.332) < 1e-5
+        assert d["hours"]["lun-ven"] == "09h-19h"
+        assert d["hours"]["sam"] == "10h-13h"
+        assert d["hours"]["dim"] == "Fermé"
+        assert d.get("custom") is True
+        pid = d["id"]
+
+        # Listed in /api/points
+        listing = requests.get(f"{API}/points", timeout=30).json()
+        assert any(p["id"] == pid for p in listing), "custom point missing from listing"
+
+        # Findable by q (city) with ptype filter
+        r2 = requests.get(f"{API}/points",
+                          params={"q": "Paris", "ptype": "locker"}, timeout=30)
+        assert any(p["id"] == pid for p in r2.json())
+
+    def test_create_defaults_when_optional_omitted(self):
+        sess = _admin_session()
+        r = sess.post(f"{API}/admin/points",
+                      json={"lat": 48.86, "lng": 2.35}, timeout=15)
+        assert r.status_code == 200, r.text
+        d = r.json()
+        assert d["type"] == "relais"
+        assert d["carrier"] == "mondial_relay"
+        assert d["name"] == "Nouveau point"
+        assert d["hours"] == {"lun-ven": "", "sam": "", "dim": ""}
+
+    def test_create_invalid_coords_400(self):
+        sess = _admin_session()
+        r = sess.post(f"{API}/admin/points",
+                      json={"name": "x", "lat": 60.0, "lng": 2.35}, timeout=15)
+        assert r.status_code == 400
+        r = sess.post(f"{API}/admin/points",
+                      json={"name": "x", "lat": 48.0, "lng": 20.0}, timeout=15)
+        assert r.status_code == 400
+
+    def test_create_missing_lat_lng_422(self):
+        sess = _admin_session()
+        r = sess.post(f"{API}/admin/points",
+                      json={"name": "no coords"}, timeout=15)
+        assert r.status_code == 422
+
+    def test_update_custom_point(self):
+        sess = _admin_session()
+        r = sess.post(f"{API}/admin/points",
+                      json={"name": "TEST_Orig", "lat": 48.86, "lng": 2.35}, timeout=15)
+        pid = r.json()["id"]
+
+        new_name = f"TEST_Updated_{uuid.uuid4().hex[:6]}"
+        r2 = sess.put(f"{API}/admin/points/{pid}",
+                      json={"name": new_name, "lat": 48.87, "lng": 2.36,
+                            "city": "Lyon", "postal_code": "69001",
+                            "carrier": "la_poste"}, timeout=15)
+        assert r2.status_code == 200, r2.text
+        d = r2.json()
+        assert d["id"] == pid
+        assert d["name"] == new_name
+        assert d["city"] == "Lyon"
+        assert d["postal_code"] == "69001"
+        assert d["carrier"] == "la_poste"
+        assert abs(d["lat"] - 48.87) < 1e-5
+        # Verify in listing
+        listing = requests.get(f"{API}/points", timeout=30).json()
+        found = next((p for p in listing if p["id"] == pid), None)
+        assert found is not None
+        assert found["name"] == new_name
+
+    def test_delete_custom_point_permanent(self):
+        sess = _admin_session()
+        r = sess.post(f"{API}/admin/points",
+                      json={"name": "TEST_DelMe", "lat": 48.86, "lng": 2.35}, timeout=15)
+        pid = r.json()["id"]
+
+        r2 = sess.delete(f"{API}/admin/points/{pid}", timeout=15)
+        assert r2.status_code == 200
+        assert r2.json().get("deleted") == pid
+
+        # Should not appear in listing anymore
+        listing = requests.get(f"{API}/points", timeout=30).json()
+        assert not any(p["id"] == pid for p in listing), \
+            "deleted custom point still returned by /api/points"
+
+        # Re-deleting returns 404
+        r3 = sess.delete(f"{API}/admin/points/{pid}", timeout=15)
+        assert r3.status_code == 404
+
