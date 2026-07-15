@@ -238,8 +238,30 @@ async def get_carriers():
     return [{"id": k, "name": v["name"], "color": v["color"]} for k, v in CARRIERS.items()]
 
 
-# Modifications administrateur (nom / coordonnées) stockées en base, chargées en mémoire
+# ---- Couche données administrateur (CRUD complet) ----
+# _OVERRIDES: modifications de champs sur les points statiques
+# _DELETED: ids de points statiques masqués
+# _CUSTOM: points créés par l'admin (id -> doc)
 _OVERRIDES = {}
+_DELETED = set()
+_CUSTOM = {}
+
+_EDITABLE = ["name", "type", "carrier", "carriers", "address", "postal_code",
+             "city", "phone", "lat", "lng", "hours"]
+
+
+def _carrier_fields(carrier):
+    c = CARRIERS.get(carrier)
+    if c:
+        return c["name"], c["color"]
+    return (carrier or "Point relais"), "#94A3B8"
+
+
+def _validate_coords(lat, lng):
+    if lat is not None and not (41.0 <= lat <= 51.5):
+        raise HTTPException(status_code=400, detail="Latitude hors de France (41–51.5)")
+    if lng is not None and not (-5.8 <= lng <= 9.8):
+        raise HTTPException(status_code=400, detail="Longitude hors de France (-5.8–9.8)")
 
 
 def _apply_override(p: dict) -> dict:
@@ -247,14 +269,21 @@ def _apply_override(p: dict) -> dict:
     if not ov:
         return p
     merged = dict(p)
-    if ov.get("name"):
-        merged["name"] = ov["name"]
-    if ov.get("lat") is not None:
-        merged["lat"] = ov["lat"]
-    if ov.get("lng") is not None:
-        merged["lng"] = ov["lng"]
+    for k in _EDITABLE:
+        if k in ov and ov[k] is not None:
+            merged[k] = ov[k]
+    if "carrier" in ov and ov["carrier"]:
+        merged["carrier_name"], merged["color"] = _carrier_fields(ov["carrier"])
+        if "carriers" not in ov:
+            merged["carriers"] = [ov["carrier"]]
     merged["edited"] = True
     return merged
+
+
+def _effective_points():
+    pts = [_apply_override(p) for p in POINTS if p["id"] not in _DELETED]
+    pts.extend(_CUSTOM.values())
+    return pts
 
 
 @api_router.get("/points")
@@ -268,7 +297,7 @@ async def get_points(
 ):
     selected = set(carriers.split(",")) if carriers else None
     results = []
-    for p in POINTS:
+    for p in _effective_points():
         if selected and not (selected & set(p.get("carriers", [p["carrier"]]))):
             continue
         if ptype and ptype != "all" and p.get("type", "relais") != ptype:
@@ -277,7 +306,7 @@ async def get_points(
             ql = _norm(q)
             if ql not in _norm(p["city"]) and ql not in p["postal_code"] and ql not in _norm(p["name"]):
                 continue
-        item = dict(_apply_override(p))
+        item = dict(p)
         if lat is not None and lng is not None:
             item["distance"] = haversine(lat, lng, item["lat"], item["lng"])
         results.append(item)
@@ -286,35 +315,104 @@ async def get_points(
     return results[:limit]
 
 
+def _normalize_hours(h):
+    if not isinstance(h, dict):
+        return {"lun-ven": "", "sam": "", "dim": ""}
+    return {
+        "lun-ven": h.get("lun-ven", "") or "",
+        "sam": h.get("sam", "") or "",
+        "dim": h.get("dim", "") or "",
+    }
+
+
+@api_router.post("/admin/points")
+async def admin_create_point(data: PointFullIn, admin: dict = Depends(require_admin)):
+    _validate_coords(data.lat, data.lng)
+    pid = f"cust-{secrets.token_hex(6)}"
+    carrier = data.carrier or "mondial_relay"
+    cname, color = _carrier_fields(carrier)
+    point = {
+        "id": pid,
+        "type": data.type or "relais",
+        "carrier": carrier,
+        "carrier_name": cname,
+        "color": color,
+        "carriers": data.carriers or [carrier],
+        "name": (data.name or "").strip() or "Nouveau point",
+        "address": data.address or "",
+        "postal_code": data.postal_code or "",
+        "city": data.city or "",
+        "lat": round(data.lat, 6),
+        "lng": round(data.lng, 6),
+        "phone": data.phone or "",
+        "hours": _normalize_hours(data.hours),
+        "custom": True,
+    }
+    await db.custom_points.update_one({"id": pid}, {"$set": point}, upsert=True)
+    _CUSTOM[pid] = point
+    return point
+
+
 @api_router.put("/admin/points/{point_id}")
-async def admin_update_point(point_id: str, data: PointOverrideIn, admin: dict = Depends(require_admin)):
-    base = next((p for p in POINTS if p["id"] == point_id), None)
-    if not base:
-        raise HTTPException(status_code=404, detail="Point relais introuvable")
-    if data.lat is not None and not (41.0 <= data.lat <= 51.5):
-        raise HTTPException(status_code=400, detail="Latitude hors de France (41–51.5)")
-    if data.lng is not None and not (-5.8 <= data.lng <= 9.8):
-        raise HTTPException(status_code=400, detail="Longitude hors de France (-5.8–9.8)")
-    ov = {"point_id": point_id}
-    if data.name is not None and data.name.strip():
-        ov["name"] = data.name.strip()
+async def admin_update_point(point_id: str, data: PointPatchIn, admin: dict = Depends(require_admin)):
+    _validate_coords(data.lat, data.lng)
+    fields = {}
+    if data.name is not None:
+        fields["name"] = data.name
+    if data.type is not None:
+        fields["type"] = data.type
+    if data.carrier is not None:
+        fields["carrier"] = data.carrier
+    if data.carriers is not None:
+        fields["carriers"] = data.carriers
+    if data.address is not None:
+        fields["address"] = data.address
+    if data.postal_code is not None:
+        fields["postal_code"] = data.postal_code
+    if data.city is not None:
+        fields["city"] = data.city
+    if data.phone is not None:
+        fields["phone"] = data.phone
     if data.lat is not None:
-        ov["lat"] = round(data.lat, 6)
+        fields["lat"] = round(data.lat, 6)
     if data.lng is not None:
-        ov["lng"] = round(data.lng, 6)
-    await db.point_overrides.update_one({"point_id": point_id}, {"$set": ov}, upsert=True)
-    _OVERRIDES[point_id] = {k: v for k, v in ov.items() if k != "point_id"}
+        fields["lng"] = round(data.lng, 6)
+    if data.hours is not None:
+        fields["hours"] = _normalize_hours(data.hours)
+
+    if point_id in _CUSTOM:  # point créé par admin → édition directe
+        pt = dict(_CUSTOM[point_id])
+        pt.update(fields)
+        if "carrier" in fields:
+            pt["carrier_name"], pt["color"] = _carrier_fields(fields["carrier"])
+            pt.setdefault("carriers", [fields["carrier"]])
+        await db.custom_points.update_one({"id": point_id}, {"$set": pt}, upsert=True)
+        _CUSTOM[point_id] = pt
+        return pt
+
+    base = next((p for p in POINTS if p["id"] == point_id), None)
+    if not base or point_id in _DELETED:
+        raise HTTPException(status_code=404, detail="Point relais introuvable")
+    await db.point_overrides.update_one(
+        {"point_id": point_id}, {"$set": {"point_id": point_id, **fields}}, upsert=True)
+    _OVERRIDES[point_id] = {**_OVERRIDES.get(point_id, {}), **fields}
     return _apply_override(base)
 
 
 @api_router.delete("/admin/points/{point_id}")
-async def admin_reset_point(point_id: str, admin: dict = Depends(require_admin)):
+async def admin_delete_point(point_id: str, admin: dict = Depends(require_admin)):
+    if point_id in _CUSTOM:
+        await db.custom_points.delete_one({"id": point_id})
+        _CUSTOM.pop(point_id, None)
+        return {"ok": True, "deleted": point_id}
     base = next((p for p in POINTS if p["id"] == point_id), None)
     if not base:
         raise HTTPException(status_code=404, detail="Point relais introuvable")
+    await db.deleted_points.update_one({"point_id": point_id}, {"$set": {"point_id": point_id}}, upsert=True)
     await db.point_overrides.delete_one({"point_id": point_id})
+    _DELETED.add(point_id)
     _OVERRIDES.pop(point_id, None)
-    return base
+    return {"ok": True, "deleted": point_id}
 
 
 @api_router.get("/geocode")
