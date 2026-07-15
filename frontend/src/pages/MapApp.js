@@ -280,7 +280,7 @@ export default function MapApp() {
               <Package className="h-3.5 w-3.5 text-black" strokeWidth={2.5} />
             </div>
             <div>
-              <h1 className="font-head text-lg font-semibold leading-none tracking-tight text-[#14161C]">
+              <h1 className="whitespace-nowrap font-head text-lg font-semibold leading-none tracking-tight text-[#14161C]">
                 Relay Dip
               </h1>
               <p className="text-[11px] text-gray-400">Trouver mon point relais ou locker</p>
@@ -309,11 +309,12 @@ export default function MapApp() {
                   logout();
                   setTab("all");
                 }}
-                aria-label="Déconnexion"
+                aria-label="Se déconnecter"
                 data-testid="logout-btn"
-                className="rounded-full bg-black/5 p-2 hover:bg-black/10 transition-[background-color]"
+                className="flex items-center gap-1.5 rounded-full bg-black/5 px-3 py-1.5 text-xs font-semibold text-[#14161C] hover:bg-black/10 transition-[background-color]"
               >
-                <LogOut className="h-4 w-4" />
+                <LogOut className="h-3.5 w-3.5" />
+                Se déconnecter
               </button>
             </div>
           ) : (
