@@ -7,6 +7,23 @@ export const api = axios.create({
   withCredentials: true,
 });
 
+let onUnauthorized = null;
+export function setUnauthorizedHandler(fn) {
+  onUnauthorized = fn;
+}
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const url = error.config?.url || "";
+    const isAuthProbe = url.includes("/auth/me") || url.includes("/auth/login");
+    if (error.response?.status === 401 && !isAuthProbe && onUnauthorized) {
+      onUnauthorized();
+    }
+    return Promise.reject(error);
+  }
+);
+
 export function formatApiError(detail) {
   if (detail == null) return "Une erreur est survenue. Réessayez.";
   if (typeof detail === "string") return detail;

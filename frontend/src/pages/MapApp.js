@@ -25,7 +25,7 @@ import { toast } from "sonner";
 import { Plus, KeyRound } from "lucide-react";
 
 export default function MapApp() {
-  const { user, favorites, logout } = useAuth();
+  const { user, favorites, logout, expiredTick } = useAuth();
   const [carriers, setCarriers] = useState([]);
   const [active, setActive] = useState(new Set());
   const [query, setQuery] = useState("");
@@ -56,6 +56,15 @@ export default function MapApp() {
   useEffect(() => {
     api.get("/carriers").then(({ data }) => setCarriers(data));
   }, []);
+
+  useEffect(() => {
+    if (expiredTick > 0) {
+      setFormPoint(undefined);
+      setShowChangePwd(false);
+      setSelected(null);
+      setShowAuth(true);
+    }
+  }, [expiredTick]);
 
   const fetchPoints = useCallback(async () => {
     if (liveMode) {

@@ -1,11 +1,13 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { api } from "@/lib/api";
+import { api, setUnauthorizedHandler } from "@/lib/api";
+import { toast } from "sonner";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null); // null = checking
   const [favorites, setFavorites] = useState([]);
+  const [expiredTick, setExpiredTick] = useState(0);
 
   const refreshFavorites = useCallback(async () => {
     try {
@@ -14,6 +16,19 @@ export function AuthProvider({ children }) {
     } catch {
       setFavorites([]);
     }
+  }, []);
+
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      setUser((prev) => {
+        if (prev) {
+          toast.error("Session expirée. Veuillez vous reconnecter.");
+          setExpiredTick((t) => t + 1);
+        }
+        return false;
+      });
+      setFavorites([]);
+    });
   }, []);
 
   useEffect(() => {
@@ -51,7 +66,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, favorites, onAuthed, logout, toggleFavorite, refreshFavorites }}
+      value={{ user, favorites, onAuthed, logout, toggleFavorite, refreshFavorites, expiredTick }}
     >
       {children}
     </AuthContext.Provider>
