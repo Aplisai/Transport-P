@@ -308,7 +308,9 @@ export default function MapApp() {
                 aria-label="Modifier mon mot de passe"
                 title="Modifier mon mot de passe"
                 data-testid="change-password-btn"
-                className="flex items-center gap-1.5 rounded-full bg-black/5 px-2.5 py-1.5 text-xs font-semibold text-[#14161C] hover:bg-black/10 transition-[background-color]"
+                className={`items-center gap-1.5 rounded-full bg-black/5 px-2.5 py-1.5 text-xs font-semibold text-[#14161C] hover:bg-black/10 transition-[background-color] ${
+                  isAdmin ? "flex" : "hidden"
+                }`}
               >
                 <KeyRound className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Mot de passe</span>
