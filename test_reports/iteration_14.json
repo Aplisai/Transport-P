@@ -1,0 +1,42 @@
+{
+  "summary": "Iteration 14 — validated the CLIENT-SIDE filtering refactor for Relay Dip. All 8 requested scenarios pass end-to-end from the deployed public URL. Confirmed via network interception that ONLY ONE GET /api/points is fired at mount (plus /api/carriers and /api/auth/me). Filters (carrier chips, type, search, radius), search-suggest selection, and admin CRUD callbacks all operate on the in-memory allPoints state without re-fetching /api/points. Admin CRUD regressions (add/edit/delete) reflect immediately in the results count (4127 → 4128 → 4127) and in the point-detail modal, still without any additional GET /api/points. Auth persists after full page reload; logout hides admin UI.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_scenarios_verified": {
+    "initial_load_single_points_call": "Mount fires exactly 3 API calls: GET /api/carriers, GET /api/points, GET /api/auth/me. Results count reads '4127 points relais'. Map shows France-wide clusters, list is truncated to 300 items with 'list-truncation-note' — PASS",
+    "carrier_filter_chronopost_client_side": "Click carrier-filter-chronopost → count '4127 → 927' with ZERO network requests during toggle. Re-click deselects (count back to 4127) still zero network — PASS",
+    "carrier_multi_or_cumulative": "carrier-filter-mondial_relay → 957; +carrier-filter-chronopost → 1680 (correct OR union), still zero network requests — PASS",
+    "type_filter_combined_with_carrier": "With chronopost active + type-filter-locker → 135. type-filter-all restores. Zero network requests during toggles — PASS",
+    "search_autocomplete_client_filter": "Typing 'Lyon' in search-input opens search-suggestions dropdown (4 suggest-item entries). Selecting suggest-item-69001 recenters map (flyTo) and filters list client-side to 113 points relais. Only /api/suggest?q=Lyon fired; NO /api/points refetch — PASS",
+    "nearby_geocode_and_radius_slider": "tab-nearby → fill nearby-address-input '10 rue de Rivoli, Paris' → nearby-address-btn triggers GET /api/geocode. userLoc set, list sorted by distance, radius-value 20 km → 566 points. Slider to 50 km → 655 points, client-side, zero /api/points refetch — PASS",
+    "point_selection_opens_detail": "Clicking a point-card-* opens point-detail modal (flyTarget set for map). Reactive — PASS",
+    "favorites_guest_prompts_login": "fav-btn-* click as guest shows toast 'Connectez-vous pour enregistrer vos favoris' and opens auth-modal — PASS",
+    "admin_login_shows_admin_ui": "admin@relaispoint.fr/admin123 → header-add-point-btn visible, change-password-btn visible (admin-only) — PASS",
+    "admin_add_immediate": "header-add-point-btn → point-form → fill fields → form-save-btn → count 4127→4128 instantly, single POST /api/admin/points, NO GET /api/points refetch, point-detail auto-opens on the new point — PASS",
+    "admin_edit_immediate": "detail-edit-btn → change form-name → form-save-btn → point-detail text updated with new name, single PUT /api/admin/points/{id}, NO GET /api/points refetch — PASS",
+    "admin_delete_immediate": "detail-delete-btn → detail-delete-confirm-btn → count returns to baseline 4127, single DELETE /api/admin/points/{id}, NO GET /api/points refetch — PASS",
+    "auth_persists_on_reload": "After full page reload, header-add-point-btn is still visible (cookie/token restored) — PASS",
+    "logout_hides_admin_ui": "logout-btn → open-auth-btn returns, header-add-point-btn gone — PASS"
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_14.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "MapApp.js: points useMemo (l.98-123) correctly recomputes distance only when userLoc set; filter is O(N) over 4127 items which is fine at this size. Good.",
+    "MapApp.js:266 listPoints = visiblePoints.slice(0, 300) — matches spec (300 max). truncation note only shown for tab!=='nearby' which makes sense because nearby is already radius-limited.",
+    "MapApp.js:701-717 onSaved/onDeleted callbacks correctly patch allPoints in place — this is what enables immediate carte/liste updates without a refetch.",
+    "PointCard.js is exported as React.memo(PointCard) — good, prevents unnecessary re-renders across 300 list items when filters flip.",
+    "MapView.js ClusterLayer rebuilds when the memoized 'points' prop identity changes — this is intentional and required so cluster markers reflect the active filter.",
+    "Backend GET /api/points/{id} still doesn't honor _DELETED (carried from iter13 minor). Not exercised by this refactor since the frontend never fetches by id.",
+    "Minor: mount fires /api/carriers, /api/points, /api/auth/me concurrently (good). If /api/auth/me is 401 for guests it logs 'Failed to load resource 401' in console — expected behavior, not a bug."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested this iteration (as requested)", "frontend": "100% (14/14 scenarios pass)"},
+  "test_credentials": "Admin admin@relaispoint.fr / admin123 works — persists on reload via httpOnly cookie.",
+  "seed_data_creation": "Created and deleted one transient custom point (name TEST_ITER14_<ts>) during admin CRUD regression. Final state is back to baseline (4127 points, no orphan cust-* remaining).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Client-side filter refactor verified. Interception counts: initial mount = 3 API calls (/api/carriers, /api/points, /api/auth/me); every filter toggle/search/radius change = 0 API calls. Admin CRUD writes to /api/admin/points ONCE each and mutates in-memory allPoints via onSaved/onDeleted (no /api/points refetch). Testids used: carrier-filter-{id}, type-filter-{all|relais|locker}, search-input, search-suggestions, suggest-item-{postal}, tab-{all|nearby|favorites}, nearby-address-input, nearby-address-btn, radius-slider, radius-value, results-count, point-card-*, point-detail, fav-btn-*, header-add-point-btn, point-form, form-{name,address,postal,city,lat,lng,save-btn,delete-btn,delete-confirm-btn}, detail-edit-btn, detail-delete-btn, detail-delete-confirm-btn, logout-btn, open-auth-btn, change-password-btn, auth-modal, auth-email-input, auth-password-input, auth-submit-btn. No new bugs found; refactor is production-ready.",
+  "rca_of_the_issue": "N/A — refactor is functioning as specified. Confirmed no /api/points refetch on any filter/search/CRUD event."
+}

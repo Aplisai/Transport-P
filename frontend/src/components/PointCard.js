@@ -1,8 +1,9 @@
+import { memo } from "react";
 import { Heart, MapPin, Clock, Phone, Navigation2, Box, Store } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 
-export default function PointCard({ point, active, onSelect, onRequireAuth, index }) {
+function PointCard({ point, active, onSelect, onRequireAuth, index }) {
   const { user, favorites, toggleFavorite } = useAuth();
   const isFav = favorites.includes(point.id);
 
@@ -127,3 +128,5 @@ export default function PointCard({ point, active, onSelect, onRequireAuth, inde
     </div>
   );
 }
+
+export default memo(PointCard);

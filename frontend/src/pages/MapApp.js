@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import {
   Package,
   Search,
@@ -24,12 +24,30 @@ import AuthModal from "@/components/AuthModal";
 import { toast } from "sonner";
 import { Plus, KeyRound } from "lucide-react";
 
+const _norm = (s) =>
+  (s || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+const _haversine = (lat1, lng1, lat2, lng2) => {
+  const R = 6371;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 100) / 100;
+};
+
 export default function MapApp() {
   const { user, favorites, logout, expiredTick } = useAuth();
   const [carriers, setCarriers] = useState([]);
   const [active, setActive] = useState(new Set());
   const [query, setQuery] = useState("");
-  const [points, setPoints] = useState([]);
+  const [allPoints, setAllPoints] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState(null);
   const [formPoint, setFormPoint] = useState(undefined); // undefined=fermé, null=création, objet=édition
@@ -38,7 +56,7 @@ export default function MapApp() {
   const [flyTarget, setFlyTarget] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
   const [showChangePwd, setShowChangePwd] = useState(false);
-  const [tab, setTab] = useState("all"); // all | favorites
+  const [tab, setTab] = useState("all"); // all | favorites | nearby
   const [sheetOpen, setSheetOpen] = useState(false);
   const [locating, setLocating] = useState(false);
   const [ptype, setPtype] = useState("all"); // all | relais | locker
@@ -47,11 +65,7 @@ export default function MapApp() {
   const [geocoding, setGeocoding] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggest, setShowSuggest] = useState(false);
-  const [source, setSource] = useState("demo"); // demo | osm | mr
-  const [liveMessage, setLiveMessage] = useState("");
-  const liveMode = source !== "demo";
   const suggestRef = useRef(null);
-  const debounceRef = useRef(null);
 
   useEffect(() => {
     api.get("/carriers").then(({ data }) => setCarriers(data));
@@ -66,64 +80,47 @@ export default function MapApp() {
     }
   }, [expiredTick]);
 
-  const fetchPoints = useCallback(async () => {
-    if (liveMode) {
-      if (!query.trim() && !userLoc) {
-        setPoints([]);
-        setLiveMessage(
-          source === "mr"
-            ? "Recherchez une ville/code postal ou activez « Ma position » pour charger les points Mondial Relay."
-            : "Recherchez une ville/code postal ou activez « Ma position » pour charger les points réels."
-        );
-        return;
-      }
-      setLoading(true);
-      setLiveMessage("");
-      const endpoint = source === "mr" ? "/mondialrelay/points" : "/live/points";
-      const params = { radius: Math.min(radius, 25) };
-      if (query.trim()) params.q = query.trim();
-      if (userLoc) {
-        params.lat = userLoc.lat;
-        params.lng = userLoc.lng;
-      }
-      if (source === "osm" && active.size) params.carriers = [...active].join(",");
-      if (ptype !== "all") params.ptype = ptype;
-      try {
-        const { data } = await api.get(endpoint, { params });
-        setPoints(data.points || []);
-        if (data.center) setFlyTarget({ ...data.center, zoom: 12 });
-        if (data.message) setLiveMessage(data.message);
-        else if (!data.points?.length) setLiveMessage("Aucun point trouvé dans cette zone.");
-      } catch {
-        setPoints([]);
-        setLiveMessage("Service momentanément indisponible. Réessayez.");
-      } finally {
-        setLoading(false);
-      }
-      return;
-    }
+  const loadPoints = useCallback(async () => {
     setLoading(true);
-    const params = {};
-    if (active.size) params.carriers = [...active].join(",");
-    if (query.trim()) params.q = query.trim();
-    if (ptype !== "all") params.ptype = ptype;
-    if (userLoc) {
-      params.lat = userLoc.lat;
-      params.lng = userLoc.lng;
-    }
     try {
-      const { data } = await api.get("/points", { params });
-      setPoints(data);
+      const { data } = await api.get("/points");
+      setAllPoints(data);
     } finally {
       setLoading(false);
     }
-  }, [active, query, userLoc, ptype, liveMode, source, radius]);
+  }, []);
 
   useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(fetchPoints, 300);
-    return () => clearTimeout(debounceRef.current);
-  }, [fetchPoints]);
+    loadPoints();
+  }, [loadPoints]);
+
+  // Filtrage 100% côté client -> instantané, aucun appel réseau au changement de filtre
+  const points = useMemo(() => {
+    const qRaw = query.trim();
+    const q = qRaw ? _norm(qRaw) : null;
+    let res = allPoints.filter((p) => {
+      if (active.size) {
+        const cs = p.carriers && p.carriers.length ? p.carriers : [p.carrier];
+        if (!cs.some((c) => active.has(c))) return false;
+      }
+      if (ptype !== "all" && (p.type || "relais") !== ptype) return false;
+      if (q) {
+        if (
+          !_norm(p.city).includes(q) &&
+          !(p.postal_code || "").includes(qRaw) &&
+          !_norm(p.name).includes(q)
+        )
+          return false;
+      }
+      return true;
+    });
+    if (userLoc) {
+      res = res
+        .map((p) => ({ ...p, distance: _haversine(userLoc.lat, userLoc.lng, p.lat, p.lng) }))
+        .sort((a, b) => a.distance - b.distance);
+    }
+    return res;
+  }, [allPoints, active, ptype, query, userLoc]);
 
   const toggleCarrier = (id) => {
     setActive((prev) => {
@@ -202,38 +199,30 @@ export default function MapApp() {
     setSheetOpen(true);
   }, []);
 
-  const runSearch = async (overrideQ, flyTo) => {
+  const runSearch = (overrideQ, flyTo) => {
     setTab("all");
     setShowSuggest(false);
     const qv = overrideQ !== undefined ? overrideQ : query;
     if (overrideQ !== undefined) setQuery(overrideQ);
-    if (flyTo) setFlyTarget({ lat: flyTo.lat, lng: flyTo.lng, zoom: 12 });
-    if (liveMode) {
-      // en mode réel, le fetch (débounce) se déclenche via le changement de query
+    if (flyTo) {
+      setFlyTarget({ lat: flyTo.lat, lng: flyTo.lng, zoom: 12 });
+      setSheetOpen(true);
       return;
     }
-    setLoading(true);
-    const params = {};
-    if (active.size) params.carriers = [...active].join(",");
-    if (qv.trim()) params.q = qv.trim();
-    if (ptype !== "all") params.ptype = ptype;
-    if (userLoc) {
-      params.lat = userLoc.lat;
-      params.lng = userLoc.lng;
-    }
-    try {
-      const { data } = await api.get("/points", { params });
-      setPoints(data);
-      if (flyTo) {
-        setSheetOpen(true);
-      } else if (qv.trim() && data.length) {
-        setFlyTarget({ lat: data[0].lat, lng: data[0].lng, zoom: 12 });
-        setSheetOpen(true);
-      } else if (qv.trim() && !data.length) {
-        toast.info("Aucun point relais trouvé pour cette recherche");
-      }
-    } finally {
-      setLoading(false);
+    const qn = qv.trim();
+    if (!qn) return;
+    const qnn = _norm(qn);
+    const match = allPoints.find(
+      (p) =>
+        _norm(p.city).includes(qnn) ||
+        (p.postal_code || "").includes(qn) ||
+        _norm(p.name).includes(qnn)
+    );
+    if (match) {
+      setFlyTarget({ lat: match.lat, lng: match.lng, zoom: 12 });
+      setSheetOpen(true);
+    } else {
+      toast.info("Aucun point relais trouvé pour cette recherche");
     }
   };
 
@@ -268,17 +257,13 @@ export default function MapApp() {
     setShowAuth(true);
   }, []);
 
-  const withinRadius = userLoc
-    ? points.filter((p) => p.distance != null && p.distance <= radius)
-    : [];
-
-  const visiblePoints =
-    tab === "favorites"
-      ? points.filter((p) => favorites.includes(p.id))
-      : tab === "nearby"
-      ? withinRadius
-      : points;
-  const listPoints = visiblePoints.slice(0, 300);
+  const visiblePoints = useMemo(() => {
+    if (tab === "favorites") return points.filter((p) => favorites.includes(p.id));
+    if (tab === "nearby")
+      return userLoc ? points.filter((p) => p.distance != null && p.distance <= radius) : [];
+    return points;
+  }, [tab, points, favorites, userLoc, radius]);
+  const listPoints = useMemo(() => visiblePoints.slice(0, 300), [visiblePoints]);
 
   const Panel = (
     <div className="flex h-full flex-col bg-white">
@@ -535,34 +520,6 @@ export default function MapApp() {
           {(loading || geocoding) && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
         </div>
 
-        {liveMode && (
-          <div
-            data-testid="live-banner"
-            className={`mb-3 flex items-start gap-2 rounded-xl border px-3 py-2.5 text-xs text-[#14161C] ${
-              source === "mr"
-                ? "border-[#FF3366]/40 bg-[#FF3366]/10"
-                : "border-[#00E676]/40 bg-[#00E676]/10"
-            }`}
-          >
-            <MapPin
-              className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${
-                source === "mr" ? "text-[#FF3366]" : "text-[#00A152]"
-              }`}
-            />
-            <span>
-              <b>
-                {source === "mr"
-                  ? "Mondial Relay (API officielle)."
-                  : "Données réelles (OpenStreetMap)."}
-              </b>{" "}
-              {liveMessage ||
-                (source === "mr"
-                  ? "Vrais points relais Mondial Relay autour du lieu recherché."
-                  : "Points relais et lockers réels autour du lieu recherché (rayon max 25 km).")}
-            </span>
-          </div>
-        )}
-
         {tab === "nearby" && (
           <div
             className="mb-3 space-y-3 rounded-xl border border-black/10 bg-white p-3"
@@ -730,7 +687,7 @@ export default function MapApp() {
           isAdmin={isAdmin}
           onEdit={(p) => setFormPoint(p)}
           onDeleted={(id) => {
-            setPoints((prev) => prev.filter((p) => p.id !== id));
+            setAllPoints((prev) => prev.filter((p) => p.id !== id));
             setSelected(null);
           }}
           onClose={() => setSelected(null)}
@@ -742,7 +699,7 @@ export default function MapApp() {
           point={formPoint}
           carriersInfo={carriers}
           onSaved={(saved) => {
-            setPoints((prev) => {
+            setAllPoints((prev) => {
               const exists = prev.some((p) => p.id === saved.id);
               return exists ? prev.map((p) => (p.id === saved.id ? saved : p)) : [saved, ...prev];
             });
@@ -753,7 +710,7 @@ export default function MapApp() {
             }
           }}
           onDeleted={(id) => {
-            setPoints((prev) => prev.filter((p) => p.id !== id));
+            setAllPoints((prev) => prev.filter((p) => p.id !== id));
             if (selected && selected.id === id) setSelected(null);
           }}
           onClose={() => setFormPoint(undefined)}
