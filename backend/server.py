@@ -712,9 +712,8 @@ async def startup():
             "name": "Admin", "role": "admin", "favorites": [],
             "created_at": datetime.now(timezone.utc).isoformat()})
         logger.info("Admin créé: %s", admin_email)
-    elif not verify_password(admin_pw, existing["password_hash"]):
-        await db.users.update_one({"email": admin_email},
-                                  {"$set": {"password_hash": hash_password(admin_pw)}})
+    elif existing.get("role") != "admin":
+        await db.users.update_one({"email": admin_email}, {"$set": {"role": "admin"}})
     # Charger les modifications admin en mémoire
     async for ov in db.point_overrides.find():
         _OVERRIDES[ov["point_id"]] = {
