@@ -16,8 +16,17 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     const url = error.config?.url || "";
-    const isAuthProbe = url.includes("/auth/me") || url.includes("/auth/login");
-    if (error.response?.status === 401 && !isAuthProbe && onUnauthorized) {
+    const method = (error.config?.method || "get").toLowerCase();
+    // Appels d'auth (login/register/me/forgot/reset) et lecture de favoris en
+    // arrière-plan ne doivent jamais déclencher une déconnexion "session expirée".
+    const isAuthEndpoint = url.includes("/auth/");
+    const isBackgroundFavRead = url.includes("/favorites") && method === "get";
+    if (
+      error.response?.status === 401 &&
+      !isAuthEndpoint &&
+      !isBackgroundFavRead &&
+      onUnauthorized
+    ) {
       onUnauthorized();
     }
     return Promise.reject(error);
