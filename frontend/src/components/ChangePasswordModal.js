@@ -30,7 +30,9 @@ export default function ChangePasswordModal({ onClose }) {
       toast.success("Mot de passe modifié avec succès");
       onClose();
     } catch (err) {
-      toast.error(formatApiError(err.response?.data?.detail) || "Échec de la modification");
+      if (err.response?.status !== 401) {
+        toast.error(formatApiError(err.response?.data?.detail) || "Échec de la modification");
+      }
     } finally {
       setSaving(false);
     }

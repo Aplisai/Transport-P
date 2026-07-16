@@ -76,7 +76,9 @@ export default function PointForm({ point, carriersInfo = [], onSaved, onDeleted
       onSaved && onSaved(data);
       onClose();
     } catch (err) {
-      toast.error(formatApiError(err.response?.data?.detail) || "Échec de l'enregistrement");
+      if (err.response?.status !== 401) {
+        toast.error(formatApiError(err.response?.data?.detail) || "Échec de l'enregistrement");
+      }
     } finally {
       setSaving(false);
     }
@@ -90,7 +92,9 @@ export default function PointForm({ point, carriersInfo = [], onSaved, onDeleted
       onDeleted && onDeleted(point.id);
       onClose();
     } catch (err) {
-      toast.error(formatApiError(err.response?.data?.detail) || "Échec de la suppression");
+      if (err.response?.status !== 401) {
+        toast.error(formatApiError(err.response?.data?.detail) || "Échec de la suppression");
+      }
     } finally {
       setDeleting(false);
     }

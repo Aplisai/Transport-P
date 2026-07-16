@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Package, Loader2, Eye, EyeOff } from "lucide-react";
 import { api, formatApiError } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
@@ -6,6 +6,9 @@ import { toast } from "sonner";
 
 export default function AuthModal({ onClose }) {
   const { onAuthed } = useAuth();
+  useEffect(() => {
+    toast.dismiss();
+  }, []);
   const [mode, setMode] = useState("login"); // login | register | forgot | reset
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

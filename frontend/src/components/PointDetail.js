@@ -47,7 +47,9 @@ export default function PointDetail({ point, carriersInfo = [], isAdmin = false,
       onDeleted && onDeleted(point.id);
       onClose();
     } catch (err) {
-      toast.error(formatApiError(err.response?.data?.detail) || "Échec de la suppression");
+      if (err.response?.status !== 401) {
+        toast.error(formatApiError(err.response?.data?.detail) || "Échec de la suppression");
+      }
     } finally {
       setDeleting(false);
     }
