@@ -476,10 +476,63 @@ async def admin_delete_point(point_id: str, admin: dict = Depends(require_admin)
     return {"ok": True, "deleted": point_id}
 
 
+@api_router.get("/address-suggest")
+def address_suggest(q: str, limit: int = 6):
+    """Autocomplétion d'adresse via l'API Adresse (BAN, data.gouv.fr)."""
+    if not q or len(q.strip()) < 3:
+        return []
+    try:
+        r = requests.get(
+            "https://api-adresse.data.gouv.fr/search/",
+            params={"q": q.strip(), "limit": limit, "autocomplete": 1},
+            headers={"User-Agent": "RelayDip/1.0"},
+            timeout=8,
+        )
+        data = r.json()
+    except Exception as e:
+        logger.warning("Address-suggest error: %s", e)
+        return []
+    out = []
+    for f in data.get("features", []):
+        try:
+            p = f.get("properties", {})
+            coords = f.get("geometry", {}).get("coordinates", [])
+            out.append({
+                "label": p.get("label", ""),
+                "address": p.get("name", "") if p.get("type") != "municipality" else "",
+                "postal_code": p.get("postcode", ""),
+                "city": p.get("city", ""),
+                "lat": float(coords[1]),
+                "lng": float(coords[0]),
+            })
+        except (KeyError, ValueError, TypeError, IndexError):
+            continue
+    return out
+
+
 @api_router.get("/geocode")
 def geocode(q: str):
     if not q or not q.strip():
         return {"lat": None}
+    # 1) API Adresse (BAN) — fiable pour la France
+    try:
+        r = requests.get(
+            "https://api-adresse.data.gouv.fr/search/",
+            params={"q": q.strip(), "limit": 1},
+            headers={"User-Agent": "RelayDip/1.0"},
+            timeout=8,
+        )
+        feats = r.json().get("features", [])
+        if feats:
+            c = feats[0]["geometry"]["coordinates"]
+            return {
+                "lat": float(c[1]),
+                "lng": float(c[0]),
+                "label": feats[0]["properties"].get("label", q),
+            }
+    except Exception as e:
+        logger.warning("Geocode (BAN) error: %s", e)
+    # 2) Repli Nominatim
     try:
         r = requests.get(
             "https://nominatim.openstreetmap.org/search",
@@ -490,7 +543,7 @@ def geocode(q: str):
         data = r.json()
     except Exception as e:
         logger.warning("Geocode error: %s", e)
-        raise HTTPException(status_code=502, detail="Service de géocodage indisponible")
+        return {"lat": None}
     if not data:
         return {"lat": None}
     try:

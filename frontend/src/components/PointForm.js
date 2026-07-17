@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { X, Save, Trash2, Loader2, Plus, Store, Box } from "lucide-react";
+import { useState, useRef } from "react";
+import { X, Save, Trash2, Loader2, Plus, Store, Box, MapPin } from "lucide-react";
 import { api, formatApiError } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -39,6 +39,44 @@ export default function PointForm({ point, carriersInfo = [], onSaved, onDeleted
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [addrSug, setAddrSug] = useState([]);
+  const [showAddrSug, setShowAddrSug] = useState(false);
+  const [searchingAddr, setSearchingAddr] = useState(false);
+  const addrDebounce = useRef(null);
+
+  const onAddressChange = (val) => {
+    setAddress(val);
+    if (addrDebounce.current) clearTimeout(addrDebounce.current);
+    if (val.trim().length < 3) {
+      setAddrSug([]);
+      setShowAddrSug(false);
+      return;
+    }
+    setSearchingAddr(true);
+    addrDebounce.current = setTimeout(async () => {
+      try {
+        const q = [val.trim(), postalCode.trim(), city.trim()].filter(Boolean).join(" ");
+        const { data } = await api.get("/address-suggest", { params: { q } });
+        setAddrSug(data);
+        setShowAddrSug(data.length > 0);
+      } catch {
+        setAddrSug([]);
+        setShowAddrSug(false);
+      } finally {
+        setSearchingAddr(false);
+      }
+    }, 350);
+  };
+
+  const pickAddress = (s) => {
+    if (s.address) setAddress(s.address);
+    if (s.postal_code) setPostalCode(s.postal_code);
+    if (s.city) setCity(s.city);
+    setLat(String(s.lat));
+    setLng(String(s.lng));
+    setShowAddrSug(false);
+    setAddrSug([]);
+  };
 
   const toggleCarrier = (id) => {
     setCarriers((prev) => {
@@ -215,10 +253,44 @@ export default function PointForm({ point, carriersInfo = [], onSaved, onDeleted
             </div>
           </div>
 
-          {/* Address */}
-          <div>
+          {/* Address with autocomplete */}
+          <div className="relative">
             <label className={labelCls}>Adresse</label>
-            <input data-testid="form-address" value={address} onChange={(e) => setAddress(e.target.value)} className={inputCls} placeholder="Ex : 12 rue de la Paix" />
+            <div className="relative">
+              <input
+                data-testid="form-address"
+                value={address}
+                onChange={(e) => onAddressChange(e.target.value)}
+                onFocus={() => addrSug.length && setShowAddrSug(true)}
+                onBlur={() => setTimeout(() => setShowAddrSug(false), 180)}
+                autoComplete="off"
+                className={inputCls}
+                placeholder="Commencez à taper, ex : 12 rue de la Paix…"
+              />
+              {searchingAddr && (
+                <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-gray-400" />
+              )}
+            </div>
+            {showAddrSug && addrSug.length > 0 && (
+              <div
+                data-testid="addr-suggestions"
+                className="absolute z-30 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-black/10 bg-white shadow-[0_12px_30px_rgba(0,0,0,0.15)] rp-scroll"
+              >
+                {addrSug.map((s, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    data-testid={`addr-sug-${i}`}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => pickAddress(s)}
+                    className="flex w-full items-start gap-2 border-b border-black/5 px-3 py-2 text-left text-xs last:border-0 hover:bg-black/5 transition-[background-color]"
+                  >
+                    <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#FF3366]" />
+                    <span className="text-[#14161C]">{s.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className="flex gap-2">
             <div className="w-1/3">
