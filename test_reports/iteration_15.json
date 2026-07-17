@@ -1,0 +1,40 @@
+{
+  "summary": "Iteration 15 — Authentication regression after admin password reset to 'admin123'. All 4 requested scenarios PASS end-to-end via public URL. Backend curl checks and Playwright UI checks agree: POST /api/auth/login with admin@relaispoint.fr/admin123 returns 200 + sets httpOnly cookie; GET /api/auth/me with cookie returns 200 (admin role); login with wrong password returns 401 with exact message 'Email ou mot de passe incorrect' (NOT 'Session expirée'); after successful login the modal closes, toast 'Connexion réussie' appears, and admin controls (header-add-point-btn, change-password-btn, logout-btn) are visible. Session persists after full page reload (cookie restore). Logout hides admin UI; re-login works. User's 4 custom points (Intermarche, Loker Lidl Léon Blum, Locker Super-U, Tabac du Lavoir Pirey) are intact — results-count reads '4 points relais'. No points were created or deleted during testing.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/auth/login and /api/auth/me", "issue": "Response body exposes MongoDB '_id' (e.g. '_id':'6a5502e1a4db760b1fb051df'). Should exclude '_id' from serialized user payload (project only id/email/name/role). Not blocking auth but a code-quality/security hygiene item."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_scenarios_verified": {
+    "1_admin_login_success": "PASS — click open-auth-btn → fill admin@relaispoint.fr/admin123 → auth-submit-btn → toast 'Connexion réussie' visible, modal closes, header-add-point-btn + change-password-btn + logout-btn all visible.",
+    "2_session_persistence_on_reload": "PASS — page.reload() → header-add-point-btn and logout-btn still visible; results-count still '4 points relais'; /api/auth/me returns 200 (verified via curl too).",
+    "3_wrong_password_shows_correct_error": "PASS — bad password kept modal open, body contained 'Email ou mot de passe incorrect', did NOT contain 'Session expirée'. Backend returned HTTP 401 with detail exactly that string.",
+    "4_logout_then_relogin": "PASS — logout-btn hides admin UI and restores open-auth-btn; re-login with admin123 succeeds and admin UI reappears."
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_15.json"
+  ],
+  "action_items": [
+    "(Minor / optional) Strip MongoDB '_id' from /api/auth/login and /api/auth/me response payloads. Currently backend returns both 'id' fields but also raw '_id' string. Doesn't affect functionality but leaks internal id and violates the project guideline 'Always exclude mongodb ObjectId _id'."
+  ],
+  "critical_code_review_comments": [
+    "Auth flow is solid: bcrypt verify, httpOnly cookie + Bearer fallback, samesite=none/secure — matches playbook.",
+    "AuthContext / api.js interceptor correctly excludes /auth/ endpoints from the 'Session expirée' path, so a 401 from POST /api/auth/login now surfaces as the specific 'Email ou mot de passe incorrect' toast — fix from previous iterations still holding.",
+    "Startup seed creates admin only if missing — password reset done directly in MongoDB is preserved across restarts, as intended.",
+    "Minor: /api/auth/me response still contains '_id' along with 'id'. Recommend response_model with exclude to enforce."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (3/3 curl checks — login 200, /me 200, wrong-pwd 401 with correct message)", "frontend": "100% (4/4 requested scenarios)"},
+  "test_credentials": "Admin admin@relaispoint.fr / admin123 — confirmed working.",
+  "seed_data_creation": "None. No points were created or deleted. The 4 user custom points remain intact.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Auth is fully functional after the password reset. Testids used: open-auth-btn, auth-email-input, auth-password-input, auth-submit-btn, header-add-point-btn, change-password-btn, logout-btn, results-count. Wrong-password error message assertion string: 'Email ou mot de passe incorrect' (must NOT be 'Session expirée'). Public URL from REACT_APP_BACKEND_URL. Only remaining minor is _id leakage in auth responses.",
+  "rca_of_the_issue": "Root cause of the original user complaint 'Je n'arrive pas à me connecter' was a lost/modified admin password (external to the app). Main agent reset the bcrypt hash in MongoDB to correspond to 'admin123'. Verification confirms login succeeds end-to-end, session persists via httpOnly cookie, and error path for wrong credentials returns the correct localized message without triggering the global 'Session expirée' handler."
+}
