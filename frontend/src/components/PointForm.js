@@ -49,9 +49,32 @@ export default function PointForm({ point, carriersInfo = [], onSaved, onDeleted
 
   const submit = async (e) => {
     e.preventDefault();
-    if (lat === "" || lng === "" || isNaN(parseFloat(lat)) || isNaN(parseFloat(lng))) {
-      toast.error("Latitude et longitude sont obligatoires");
-      return;
+    let latN = parseFloat(lat);
+    let lngN = parseFloat(lng);
+    // Coordonnées manquantes -> géocodage automatique depuis l'adresse
+    if (isNaN(latN) || isNaN(lngN)) {
+      const addr = [address.trim(), postalCode.trim(), city.trim()].filter(Boolean).join(", ");
+      if (addr) {
+        setSaving(true);
+        try {
+          const { data } = await api.get("/geocode", { params: { q: `${addr}, France` } });
+          if (data.lat != null) {
+            latN = data.lat;
+            lngN = data.lng;
+            setLat(String(data.lat));
+            setLng(String(data.lng));
+          }
+        } catch {
+          /* ignore, message ci-dessous */
+        }
+        setSaving(false);
+      }
+      if (isNaN(latN) || isNaN(lngN)) {
+        toast.error(
+          "Impossible de localiser l'adresse. Renseignez une adresse plus précise (rue, code postal, ville) ou saisissez la latitude/longitude."
+        );
+        return;
+      }
     }
     const carrierList = carriers.includes(carrier) ? carriers : [carrier, ...carriers];
     const payload = {
@@ -63,8 +86,8 @@ export default function PointForm({ point, carriersInfo = [], onSaved, onDeleted
       postal_code: postalCode.trim(),
       city: city.trim(),
       phone: phone.trim(),
-      lat: parseFloat(lat),
-      lng: parseFloat(lng),
+      lat: latN,
+      lng: lngN,
       hours: { "lun-ven": hLunVen.trim(), sam: hSam.trim(), dim: hDim.trim() },
     };
     setSaving(true);
@@ -215,14 +238,19 @@ export default function PointForm({ point, carriersInfo = [], onSaved, onDeleted
           </div>
 
           {/* Coordinates */}
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <label className={labelCls}>Latitude *</label>
-              <input data-testid="form-lat" type="number" step="0.000001" value={lat} onChange={(e) => setLat(e.target.value)} className={inputCls} placeholder="48.8566" />
-            </div>
-            <div className="flex-1">
-              <label className={labelCls}>Longitude *</label>
-              <input data-testid="form-lng" type="number" step="0.000001" value={lng} onChange={(e) => setLng(e.target.value)} className={inputCls} placeholder="2.3522" />
+          <div>
+            <p className="mb-1 text-[11px] text-gray-400">
+              Coordonnées GPS — laissez vide pour un calcul automatique depuis l'adresse
+            </p>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className={labelCls}>Latitude</label>
+                <input data-testid="form-lat" type="number" step="0.000001" value={lat} onChange={(e) => setLat(e.target.value)} className={inputCls} placeholder="Auto depuis l'adresse" />
+              </div>
+              <div className="flex-1">
+                <label className={labelCls}>Longitude</label>
+                <input data-testid="form-lng" type="number" step="0.000001" value={lng} onChange={(e) => setLng(e.target.value)} className={inputCls} placeholder="Auto depuis l'adresse" />
+              </div>
             </div>
           </div>
 
