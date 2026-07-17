@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { X, Save, Trash2, Loader2, Plus, Store, Box, MapPin } from "lucide-react";
 import { api, formatApiError } from "@/lib/api";
 import { toast } from "sonner";
+import MicButton from "@/components/MicButton";
 
 const CODES = {
   mondial_relay: "MR",
@@ -163,6 +164,8 @@ export default function PointForm({ point, carriersInfo = [], onSaved, onDeleted
 
   const inputCls =
     "w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm outline-none focus:border-black/40 transition-[border-color]";
+  const micInputCls =
+    "w-full rounded-lg border border-black/10 bg-white px-3 py-2 pr-10 text-sm outline-none focus:border-black/40 transition-[border-color]";
   const labelCls = "mb-1 block text-[11px] font-medium text-gray-500";
 
   return (
@@ -187,7 +190,10 @@ export default function PointForm({ point, carriersInfo = [], onSaved, onDeleted
           {/* Name */}
           <div>
             <label className={labelCls}>Nom du point</label>
-            <input data-testid="form-name" value={name} onChange={(e) => setName(e.target.value)} className={inputCls} placeholder="Ex : Tabac Presse du Centre" />
+            <div className="relative">
+              <input data-testid="form-name" value={name} onChange={(e) => setName(e.target.value)} className={micInputCls} placeholder="Ex : Tabac Presse du Centre" />
+              <MicButton testid="mic-name" onResult={(t) => setName(t)} />
+            </div>
           </div>
 
           {/* Type */}
@@ -264,12 +270,13 @@ export default function PointForm({ point, carriersInfo = [], onSaved, onDeleted
                 onFocus={() => addrSug.length && setShowAddrSug(true)}
                 onBlur={() => setTimeout(() => setShowAddrSug(false), 180)}
                 autoComplete="off"
-                className={inputCls}
+                className={micInputCls}
                 placeholder="Commencez à taper, ex : 12 rue de la Paix…"
               />
-              {searchingAddr && (
-                <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-gray-400" />
-              )}
+              {searchingAddr ? (
+                <Loader2 className="absolute right-9 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-gray-400" />
+              ) : null}
+              <MicButton testid="mic-address" onResult={(t) => onAddressChange(t)} />
             </div>
             {showAddrSug && addrSug.length > 0 && (
               <div
@@ -295,18 +302,27 @@ export default function PointForm({ point, carriersInfo = [], onSaved, onDeleted
           <div className="flex gap-2">
             <div className="w-1/3">
               <label className={labelCls}>Code postal</label>
-              <input data-testid="form-postal" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} className={inputCls} placeholder="75001" />
+              <div className="relative">
+                <input data-testid="form-postal" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} className={micInputCls} placeholder="75001" />
+                <MicButton testid="mic-postal" onResult={(t) => setPostalCode(t.replace(/\D/g, ""))} />
+              </div>
             </div>
             <div className="flex-1">
               <label className={labelCls}>Ville</label>
-              <input data-testid="form-city" value={city} onChange={(e) => setCity(e.target.value)} className={inputCls} placeholder="Paris" />
+              <div className="relative">
+                <input data-testid="form-city" value={city} onChange={(e) => setCity(e.target.value)} className={micInputCls} placeholder="Paris" />
+                <MicButton testid="mic-city" onResult={(t) => setCity(t)} />
+              </div>
             </div>
           </div>
 
           {/* Phone */}
           <div>
             <label className={labelCls}>Téléphone</label>
-            <input data-testid="form-phone" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputCls} placeholder="01 23 45 67 89" />
+            <div className="relative">
+              <input data-testid="form-phone" value={phone} onChange={(e) => setPhone(e.target.value)} className={micInputCls} placeholder="01 23 45 67 89" />
+              <MicButton testid="mic-phone" onResult={(t) => setPhone(t)} />
+            </div>
           </div>
 
           {/* Coordinates */}
@@ -332,15 +348,24 @@ export default function PointForm({ point, carriersInfo = [], onSaved, onDeleted
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <span className="w-28 shrink-0 text-xs text-gray-500">Lundi – Vendredi</span>
-                <input data-testid="form-hours-lunven" value={hLunVen} onChange={(e) => setHLunVen(e.target.value)} className={inputCls} placeholder="09h00 – 19h00" />
+                <div className="relative flex-1">
+                  <input data-testid="form-hours-lunven" value={hLunVen} onChange={(e) => setHLunVen(e.target.value)} className={micInputCls} placeholder="09h00 – 19h00" />
+                  <MicButton testid="mic-hours-lunven" onResult={(t) => setHLunVen(t)} />
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-28 shrink-0 text-xs text-gray-500">Samedi</span>
-                <input data-testid="form-hours-sam" value={hSam} onChange={(e) => setHSam(e.target.value)} className={inputCls} placeholder="09h00 – 12h00" />
+                <div className="relative flex-1">
+                  <input data-testid="form-hours-sam" value={hSam} onChange={(e) => setHSam(e.target.value)} className={micInputCls} placeholder="09h00 – 12h00" />
+                  <MicButton testid="mic-hours-sam" onResult={(t) => setHSam(t)} />
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-28 shrink-0 text-xs text-gray-500">Dimanche</span>
-                <input data-testid="form-hours-dim" value={hDim} onChange={(e) => setHDim(e.target.value)} className={inputCls} placeholder="Fermé" />
+                <div className="relative flex-1">
+                  <input data-testid="form-hours-dim" value={hDim} onChange={(e) => setHDim(e.target.value)} className={micInputCls} placeholder="Fermé" />
+                  <MicButton testid="mic-hours-dim" onResult={(t) => setHDim(t)} />
+                </div>
               </div>
             </div>
           </div>

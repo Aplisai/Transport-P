@@ -7,6 +7,7 @@ import math
 import logging
 import unicodedata
 import secrets
+import tempfile
 import requests
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Annotated
@@ -20,13 +21,14 @@ def _norm(s: str) -> str:
 import jwt
 import bcrypt
 from bson import ObjectId
-from fastapi import FastAPI, APIRouter, Request, Response, HTTPException, Depends
+from fastapi import FastAPI, APIRouter, Request, Response, HTTPException, Depends, UploadFile, File
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr, Field, BeforeValidator, ConfigDict
 
 from relay_data import POINTS as _DEMO_POINTS, CARRIERS
+from emergentintegrations.llm.openai import OpenAISpeechToText
 
 # Jeu de données de démo activable/désactivable. Si désactivé, l'application
 # démarre vide et n'affiche que les points ajoutés manuellement par l'admin.
@@ -508,6 +510,36 @@ def address_suggest(q: str, limit: int = 6):
         except (KeyError, ValueError, TypeError, IndexError):
             continue
     return out
+
+
+@api_router.post("/transcribe")
+async def transcribe_audio(audio: UploadFile = File(...), user: dict = Depends(get_current_user)):
+    content = await audio.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Audio vide")
+    if len(content) > 25 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Fichier audio trop volumineux (max 25 Mo)")
+    suffix = ".webm"
+    fn = (audio.filename or "").lower()
+    for ext in (".webm", ".mp3", ".wav", ".m4a", ".mp4", ".mpeg", ".mpga"):
+        if fn.endswith(ext):
+            suffix = ext
+            break
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+            tmp.write(content)
+            tmp_path = tmp.name
+        stt = OpenAISpeechToText(api_key=os.environ["EMERGENT_LLM_KEY"])
+        with open(tmp_path, "rb") as f:
+            resp = await stt.transcribe(file=f, model="whisper-1", language="fr", response_format="json")
+        return {"text": (getattr(resp, "text", "") or "").strip()}
+    except Exception as e:
+        logger.warning("Transcribe error: %s", e)
+        raise HTTPException(status_code=502, detail="Échec de la transcription vocale")
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
 
 @api_router.get("/geocode")

@@ -46,6 +46,18 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 - PointCard en React.memo; visiblePoints/listPoints mémoïsés → sélection/favoris réactifs, plus de reconstruction des marqueurs à chaque rendu.
 - Code mort retiré (mode live/osm/mr).
 
+## Saisie vocale (2026-07-17)
+- **OpenAI Whisper** (whisper-1) via clé universelle EMERGENT_LLM_KEY. Endpoint `POST /api/transcribe` (authentifié, multipart `audio`, langue fr, max 25 Mo) → `{text}`.
+- Composant `MicButton.js` (MediaRecorder navigateur → blob webm → /transcribe). Intégré à TOUS les champs texte du formulaire d'ajout/édition: nom, adresse (déclenche aussi l'autocomplétion), code postal, ville, téléphone, horaires lun-ven/sam/dim (8 micros).
+- Testé backend (401 sans auth, transcription avec auth). Test voix réelle à faire par l'utilisateur (le micro navigateur n'est pas testable en automatisation).
+
+## Autocomplétion d'adresse (2026-07-17)
+- API Adresse gouvernementale (BAN, api-adresse.data.gouv.fr) — gratuite, sans clé, fiable (remplace Nominatim qui renvoyait 429). Endpoint `GET /api/address-suggest` (champs structurés) + `GET /api/geocode` (BAN puis repli Nominatim).
+- Formulaire: saisie d'adresse → suggestions → remplissage auto adresse/CP/ville/coordonnées. Coordonnées GPS optionnelles (géocodage auto depuis l'adresse au save).
+
+## Données
+- `DEMO_POINTS_ENABLED=false` dans backend/.env → l'app démarre vide, l'admin ajoute ses propres points. Réversible.
+
 ## Backlog / Next
 - P1: Envoi réel d'email pour « Mot de passe oublié » (Resend ou SendGrid) — actuellement le token est affiché dans l'UI.
 - P2: Intégration des vraies API transporteurs (Mondial Relay, La Poste) — en attente clés/contrats officiels réels.
