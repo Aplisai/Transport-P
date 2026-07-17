@@ -26,7 +26,12 @@ from starlette.middleware.gzip import GZipMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr, Field, BeforeValidator, ConfigDict
 
-from relay_data import POINTS, CARRIERS
+from relay_data import POINTS as _DEMO_POINTS, CARRIERS
+
+# Jeu de données de démo activable/désactivable. Si désactivé, l'application
+# démarre vide et n'affiche que les points ajoutés manuellement par l'admin.
+_DEMO_ENABLED = os.environ.get("DEMO_POINTS_ENABLED", "true").lower() != "false"
+POINTS = _DEMO_POINTS if _DEMO_ENABLED else []
 
 # ---------------------------------------------------------------- DB
 mongo_url = os.environ['MONGO_URL']
@@ -260,8 +265,24 @@ def suggest(q: str, limit: int = 8):
         return []
     raw = q.strip()
     ql = _norm(raw)
+    # Index des localités uniques construit à la volée sur les points effectifs
+    # (démo + points ajoutés par l'admin), pour rester à jour.
+    seen = set()
+    locs = []
+    for p in _effective_points():
+        key = (p.get("city"), p.get("postal_code"))
+        if key in seen:
+            continue
+        seen.add(key)
+        locs.append({
+            "city": p.get("city", ""),
+            "postal_code": p.get("postal_code", ""),
+            "lat": p["lat"],
+            "lng": p["lng"],
+            "label": f"{p.get('city', '')} ({p.get('postal_code', '')})",
+        })
     res = []
-    for loc in _LOCS:
+    for loc in locs:
         city_n = _norm(loc["city"])
         if city_n.startswith(ql) or ql in city_n or loc["postal_code"].startswith(raw):
             res.append(loc)
