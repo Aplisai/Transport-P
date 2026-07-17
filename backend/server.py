@@ -8,6 +8,7 @@ import logging
 import unicodedata
 import secrets
 import tempfile
+import uuid
 import requests
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Annotated
@@ -88,6 +89,7 @@ class PointFullIn(BaseModel):
     lat: float
     lng: float
     hours: Optional[dict] = None
+    photo: Optional[str] = None
 
 class PointPatchIn(BaseModel):
     name: Optional[str] = None
@@ -101,6 +103,7 @@ class PointPatchIn(BaseModel):
     lat: Optional[float] = None
     lng: Optional[float] = None
     hours: Optional[dict] = None
+    photo: Optional[str] = None
 
 # ---------------------------------------------------------------- Auth helpers
 def hash_password(password: str) -> str:
@@ -301,6 +304,93 @@ async def get_carriers():
     return [{"id": k, "name": v["name"], "color": v["color"]} for k, v in CARRIERS.items()]
 
 
+# ---- Stockage d'objets (photos des points) ----
+_STORAGE_URL = "https://integrations.emergentagent.com/objstore/api/v1/storage"
+_APP_NAME = "relaydip"
+_STORAGE_KEY = None
+_IMG_MIME = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp", "gif": "image/gif"}
+
+
+def init_storage():
+    global _STORAGE_KEY
+    if _STORAGE_KEY:
+        return _STORAGE_KEY
+    resp = requests.post(f"{_STORAGE_URL}/init",
+                         json={"emergent_key": os.environ["EMERGENT_LLM_KEY"]}, timeout=30)
+    resp.raise_for_status()
+    _STORAGE_KEY = resp.json()["storage_key"]
+    return _STORAGE_KEY
+
+
+def put_object(path: str, data: bytes, content_type: str) -> dict:
+    key = init_storage()
+    resp = requests.put(f"{_STORAGE_URL}/objects/{path}",
+                        headers={"X-Storage-Key": key, "Content-Type": content_type},
+                        data=data, timeout=120)
+    if resp.status_code == 403:
+        # clé expirée -> réinitialiser
+        global _STORAGE_KEY
+        _STORAGE_KEY = None
+        key = init_storage()
+        resp = requests.put(f"{_STORAGE_URL}/objects/{path}",
+                            headers={"X-Storage-Key": key, "Content-Type": content_type},
+                            data=data, timeout=120)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def get_object(path: str):
+    key = init_storage()
+    resp = requests.get(f"{_STORAGE_URL}/objects/{path}",
+                        headers={"X-Storage-Key": key}, timeout=60)
+    if resp.status_code == 403:
+        global _STORAGE_KEY
+        _STORAGE_KEY = None
+        key = init_storage()
+        resp = requests.get(f"{_STORAGE_URL}/objects/{path}",
+                            headers={"X-Storage-Key": key}, timeout=60)
+    resp.raise_for_status()
+    return resp.content, resp.headers.get("Content-Type", "application/octet-stream")
+
+
+@api_router.post("/admin/upload-photo")
+async def upload_photo(file: UploadFile = File(...), admin: dict = Depends(require_admin)):
+    ext = (file.filename or "").rsplit(".", 1)[-1].lower() if "." in (file.filename or "") else "jpg"
+    if ext not in _IMG_MIME:
+        raise HTTPException(status_code=400, detail="Format d'image non supporté (jpg, png, webp)")
+    data = await file.read()
+    if len(data) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image trop volumineuse (max 8 Mo)")
+    path = f"{_APP_NAME}/points/{uuid.uuid4().hex}.{ext}"
+    content_type = _IMG_MIME[ext]
+    try:
+        result = put_object(path, data, content_type)
+    except Exception as e:
+        logger.warning("Upload photo error: %s", e)
+        raise HTTPException(status_code=502, detail="Échec de l'envoi de l'image")
+    stored_path = result["path"]
+    await db.files.insert_one({
+        "storage_path": stored_path,
+        "content_type": content_type,
+        "original_filename": file.filename,
+        "size": result.get("size"),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    return {"url": f"/api/files/{stored_path}", "path": stored_path}
+
+
+@api_router.get("/files/{path:path}")
+async def serve_file(path: str):
+    record = await db.files.find_one({"storage_path": path})
+    try:
+        data, content_type = get_object(path)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Fichier introuvable")
+    ct = record.get("content_type") if record else content_type
+    return Response(content=data, media_type=ct,
+                    headers={"Cache-Control": "public, max-age=86400"})
+
+
 # ---- Couche données administrateur (CRUD complet) ----
 # _OVERRIDES: modifications de champs sur les points statiques
 # _DELETED: ids de points statiques masqués
@@ -310,7 +400,7 @@ _DELETED = set()
 _CUSTOM = {}
 
 _EDITABLE = ["name", "type", "carrier", "carriers", "address", "postal_code",
-             "city", "phone", "lat", "lng", "hours"]
+             "city", "phone", "lat", "lng", "hours", "photo"]
 
 
 def _carrier_fields(carrier):
@@ -409,6 +499,7 @@ async def admin_create_point(data: PointFullIn, admin: dict = Depends(require_ad
         "lng": round(data.lng, 6),
         "phone": data.phone or "",
         "hours": _normalize_hours(data.hours),
+        "photo": data.photo or "",
         "custom": True,
     }
     await db.custom_points.update_one({"id": pid}, {"$set": point}, upsert=True)
@@ -442,6 +533,8 @@ async def admin_update_point(point_id: str, data: PointPatchIn, admin: dict = De
         fields["lng"] = round(data.lng, 6)
     if data.hours is not None:
         fields["hours"] = _normalize_hours(data.hours)
+    if data.photo is not None:
+        fields["photo"] = data.photo
 
     if point_id in _CUSTOM:  # point créé par admin → édition directe
         pt = dict(_CUSTOM[point_id])
@@ -807,6 +900,11 @@ async def root():
 # ---------------------------------------------------------------- Startup
 @app.on_event("startup")
 async def startup():
+    try:
+        init_storage()
+        logger.info("Stockage d'objets initialisé")
+    except Exception as e:
+        logger.error("Init stockage échouée: %s", e)
     await db.users.create_index("email", unique=True)
     await db.password_reset_tokens.create_index("expires_at", expireAfterSeconds=3600)
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@relaispoint.fr").lower()

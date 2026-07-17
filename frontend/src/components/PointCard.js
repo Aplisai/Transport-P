@@ -38,6 +38,13 @@ function PointCard({ point, active, onSelect, onRequireAuth, index }) {
       }`}
     >
       <div className="flex items-start gap-3">
+        {point.photo && (
+          <img
+            src={`${process.env.REACT_APP_BACKEND_URL}${point.photo}`}
+            alt=""
+            className="h-12 w-12 shrink-0 rounded-lg object-cover"
+          />
+        )}
         <span
           className="mt-1 h-3 w-3 shrink-0 rounded-full"
           style={{ background: point.color, boxShadow: `0 0 8px ${point.color}` }}

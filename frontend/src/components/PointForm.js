@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { X, Save, Trash2, Loader2, Plus, Store, Box, MapPin } from "lucide-react";
+import { X, Save, Trash2, Loader2, Plus, Store, Box, MapPin, Camera } from "lucide-react";
 import { api, formatApiError } from "@/lib/api";
 import { toast } from "sonner";
 import MicButton from "@/components/MicButton";
@@ -15,6 +15,8 @@ const CODES = {
   vinted_go: "VG",
   amazon: "AZ",
 };
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
 export default function PointForm({ point, carriersInfo = [], onSaved, onDeleted, onClose }) {
   const isEdit = !!point;
@@ -37,6 +39,8 @@ export default function PointForm({ point, carriersInfo = [], onSaved, onDeleted
   const [hLunVen, setHLunVen] = useState(point?.hours?.["lun-ven"] || "");
   const [hSam, setHSam] = useState(point?.hours?.sam || "");
   const [hDim, setHDim] = useState(point?.hours?.dim || "");
+  const [photo, setPhoto] = useState(point?.photo || "");
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -77,6 +81,31 @@ export default function PointForm({ point, carriersInfo = [], onSaved, onDeleted
     setLng(String(s.lng));
     setShowAddrSug(false);
     setAddrSug([]);
+  };
+
+  const uploadPhoto = async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > 8 * 1024 * 1024) {
+      toast.error("Image trop volumineuse (max 8 Mo)");
+      return;
+    }
+    setUploadingPhoto(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", f);
+      const { data } = await api.post("/admin/upload-photo", fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setPhoto(data.url);
+      toast.success("Photo ajoutée");
+    } catch (err) {
+      if (err.response?.status !== 401)
+        toast.error(formatApiError(err.response?.data?.detail) || "Échec de l'envoi de la photo");
+    } finally {
+      setUploadingPhoto(false);
+      e.target.value = "";
+    }
   };
 
   const toggleCarrier = (id) => {
@@ -128,6 +157,7 @@ export default function PointForm({ point, carriersInfo = [], onSaved, onDeleted
       lat: latN,
       lng: lngN,
       hours: { "lun-ven": hLunVen.trim(), sam: hSam.trim(), dim: hDim.trim() },
+      photo: photo || "",
     };
     setSaving(true);
     try {
@@ -194,6 +224,51 @@ export default function PointForm({ point, carriersInfo = [], onSaved, onDeleted
               <input data-testid="form-name" value={name} onChange={(e) => setName(e.target.value)} className={micInputCls} placeholder="Ex : Tabac Presse du Centre" />
               <MicButton testid="mic-name" onResult={(t) => setName(t)} />
             </div>
+          </div>
+
+          {/* Photo */}
+          <div>
+            <label className={labelCls}>Photo du point</label>
+            {photo ? (
+              <div className="relative overflow-hidden rounded-xl border border-black/10" data-testid="photo-preview">
+                <img
+                  src={`${BACKEND_URL}${photo}`}
+                  alt="Point relais"
+                  className="h-40 w-full object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => setPhoto("")}
+                  data-testid="photo-remove"
+                  aria-label="Retirer la photo"
+                  className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 transition-[background-color]"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <label
+                data-testid="photo-upload-label"
+                className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-black/20 bg-black/[0.02] py-6 text-center transition-[background-color] hover:bg-black/[0.05]"
+              >
+                {uploadingPhoto ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+                ) : (
+                  <Camera className="h-5 w-5 text-gray-400" />
+                )}
+                <span className="text-xs font-medium text-gray-500">
+                  {uploadingPhoto ? "Envoi en cours…" : "Ajouter une photo (JPG, PNG, WebP)"}
+                </span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={uploadPhoto}
+                  disabled={uploadingPhoto}
+                  data-testid="photo-input"
+                  className="hidden"
+                />
+              </label>
+            )}
           </div>
 
           {/* Type */}

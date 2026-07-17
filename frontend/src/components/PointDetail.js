@@ -184,6 +184,15 @@ export default function PointDetail({ point, carriersInfo = [], isAdmin = false,
             {point.name}
           </h2>
 
+          {point.photo && (
+            <img
+              src={`${process.env.REACT_APP_BACKEND_URL}${point.photo}`}
+              alt={point.name}
+              data-testid="detail-photo"
+              className="mt-3 h-44 w-full rounded-xl border border-black/10 object-cover"
+            />
+          )}
+
           {point.distance != null && (
             <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-black/5 px-2.5 py-1 text-xs text-gray-600">
               <Navigation2 className="h-3.5 w-3.5" /> à {point.distance} km

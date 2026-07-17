@@ -46,6 +46,11 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 - PointCard en React.memo; visiblePoints/listPoints mémoïsés → sélection/favoris réactifs, plus de reconstruction des marqueurs à chaque rendu.
 - Code mort retiré (mode live/osm/mr).
 
+## Photos des points (2026-07-17)
+- **Stockage d'objets Emergent** (clé EMERGENT_LLM_KEY). Endpoints: `POST /api/admin/upload-photo` (admin, image jpg/png/webp, max 8 Mo) → `{url}`; `GET /api/files/{path}` (public, sert l'image, cache 24h). Réfs stockées dans `db.files`. Champ `photo` ajouté à PointFullIn/PointPatchIn et `_EDITABLE`, persisté sur le point.
+- Frontend: champ « Photo » dans PointForm (upload + aperçu + retrait), affichage dans PointDetail (bannière) et vignette dans PointCard. URL = `REACT_APP_BACKEND_URL + point.photo`.
+- Testé end-to-end (upload → aperçu → point créé → photo affichée dans la fiche).
+
 ## Saisie vocale (2026-07-17)
 - **OpenAI Whisper** (whisper-1) via clé universelle EMERGENT_LLM_KEY. Endpoint `POST /api/transcribe` (authentifié, multipart `audio`, langue fr, max 25 Mo) → `{text}`.
 - Composant `MicButton.js` (MediaRecorder navigateur → blob webm → /transcribe). Intégré à TOUS les champs texte du formulaire d'ajout/édition: nom, adresse (déclenche aussi l'autocomplétion), code postal, ville, téléphone, horaires lun-ven/sam/dim (8 micros).
