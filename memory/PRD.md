@@ -37,7 +37,14 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 - DELETE /api/admin/points/{id} — supprimer définitivement (custom + statique)
 
 ## Auth
-- POST /api/auth/change-password (authentifié) — {current_password, new_password ≥6}. Vérifie l'ancien mot de passe (bcrypt) puis met à jour. UI: bouton « Mot de passe » dans l'en-tête (composant ChangePasswordModal.js).
+- POST /api/auth/change-password (authentifié) — {current_password, new_password ≥6}. Vérifie l'ancien mot de passe (bcrypt) puis met à jour. UI: bouton « Mot de passe » dans l'en-tête (admin uniquement, ChangePasswordModal.js).
+- Démarrage: ne réinitialise PLUS le mot de passe admin (crée seulement s'il n'existe pas) → changements persistants.
+- Session expirée gérée globalement (intercepteur api.js): reconnexion proposée; les appels d'arrière-plan (/favorites GET, /auth/*) ne déconnectent jamais.
+
+## Performance (2026-07-16)
+- Filtrage 100% CÔTÉ CLIENT: GET /api/points UNE seule fois au chargement (état `allPoints`), puis transporteur/type/recherche/distance filtrés en mémoire via useMemo (aucun appel réseau au changement de filtre). `_norm` (accents) + `_haversine` client.
+- PointCard en React.memo; visiblePoints/listPoints mémoïsés → sélection/favoris réactifs, plus de reconstruction des marqueurs à chaque rendu.
+- Code mort retiré (mode live/osm/mr).
 
 ## Backlog / Next
 - P1: Envoi réel d'email pour « Mot de passe oublié » (Resend ou SendGrid) — actuellement le token est affiché dans l'UI.
