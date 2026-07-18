@@ -698,6 +698,7 @@ export default function MapApp() {
         <PointForm
           point={formPoint}
           carriersInfo={carriers}
+          existingPoints={allPoints}
           onSaved={(saved) => {
             setAllPoints((prev) => {
               const exists = prev.some((p) => p.id === saved.id);

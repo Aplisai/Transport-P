@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { X, Save, Trash2, Loader2, Plus, Store, Box, MapPin, Camera } from "lucide-react";
+import { X, Save, Trash2, Loader2, Plus, Store, Box, MapPin, Camera, AlertTriangle } from "lucide-react";
 import { api, formatApiError } from "@/lib/api";
 import { toast } from "sonner";
 import MicButton from "@/components/MicButton";
@@ -18,7 +18,15 @@ const CODES = {
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
-export default function PointForm({ point, carriersInfo = [], onSaved, onDeleted, onClose }) {
+const _normStr = (s) =>
+  (s || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+
+export default function PointForm({ point, carriersInfo = [], existingPoints = [], onSaved, onDeleted, onClose }) {
   const isEdit = !!point;
   const [name, setName] = useState(point?.name || "");
   const [type, setType] = useState(point?.type || "relais");
@@ -44,6 +52,8 @@ export default function PointForm({ point, carriersInfo = [], onSaved, onDeleted
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [dupWarning, setDupWarning] = useState(null);
+  const [dupConfirmed, setDupConfirmed] = useState(false);
   const [addrSug, setAddrSug] = useState([]);
   const [showAddrSug, setShowAddrSug] = useState(false);
   const [searchingAddr, setSearchingAddr] = useState(false);
@@ -51,6 +61,8 @@ export default function PointForm({ point, carriersInfo = [], onSaved, onDeleted
 
   const onAddressChange = (val) => {
     setAddress(val);
+    setDupWarning(null);
+    setDupConfirmed(false);
     if (addrDebounce.current) clearTimeout(addrDebounce.current);
     if (val.trim().length < 3) {
       setAddrSug([]);
@@ -81,6 +93,8 @@ export default function PointForm({ point, carriersInfo = [], onSaved, onDeleted
     setLng(String(s.lng));
     setShowAddrSug(false);
     setAddrSug([]);
+    setDupWarning(null);
+    setDupConfirmed(false);
   };
 
   const uploadPhoto = async (e) => {
@@ -115,8 +129,8 @@ export default function PointForm({ point, carriersInfo = [], onSaved, onDeleted
     });
   };
 
-  const submit = async (e) => {
-    e.preventDefault();
+  const submit = async (e, force = false) => {
+    if (e) e.preventDefault();
     let latN = parseFloat(lat);
     let lngN = parseFloat(lng);
     // Coordonnées manquantes -> géocodage automatique depuis l'adresse
@@ -141,6 +155,24 @@ export default function PointForm({ point, carriersInfo = [], onSaved, onDeleted
         toast.error(
           "Impossible de localiser l'adresse. Renseignez une adresse plus précise (rue, code postal, ville) ou saisissez la latitude/longitude."
         );
+        return;
+      }
+    }
+    // Détection de doublon d'adresse (sauf si l'admin a confirmé)
+    if (!force && !dupConfirmed) {
+      const na = _normStr(address);
+      const pc = postalCode.trim();
+      const dup = existingPoints.find((p) => {
+        if (isEdit && point && p.id === point.id) return false;
+        const sameAddr = na && pc && _normStr(p.address) === na && String(p.postal_code || "").trim() === pc;
+        const closeCoord =
+          p.lat != null &&
+          Math.abs(p.lat - latN) < 0.0004 &&
+          Math.abs(p.lng - lngN) < 0.0004;
+        return sameAddr || closeCoord;
+      });
+      if (dup) {
+        setDupWarning(dup);
         return;
       }
     }
@@ -444,6 +476,47 @@ export default function PointForm({ point, carriersInfo = [], onSaved, onDeleted
               </div>
             </div>
           </div>
+
+          {/* Duplicate address warning */}
+          {dupWarning && (
+            <div
+              data-testid="dup-warning"
+              className="rounded-xl border border-[#FFCC00]/70 bg-[#FFCC00]/15 p-3"
+            >
+              <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-[#8a6d00]">
+                <AlertTriangle className="h-4 w-4" /> Adresse déjà utilisée
+              </p>
+              <p className="mb-2 text-xs text-[#14161C]">
+                Un point existe déjà à cette adresse :{" "}
+                <b>{dupWarning.name || "Sans nom"}</b>
+                {dupWarning.address ? ` — ${dupWarning.address}` : ""}
+                {dupWarning.postal_code ? `, ${dupWarning.postal_code}` : ""}
+                {dupWarning.city ? ` ${dupWarning.city}` : ""}. Voulez-vous quand même l'ajouter ?
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  data-testid="dup-confirm-btn"
+                  onClick={() => {
+                    setDupConfirmed(true);
+                    setDupWarning(null);
+                    submit(null, true);
+                  }}
+                  className="flex-1 rounded-full bg-[#14161C] py-2 text-xs font-semibold text-white hover:bg-[#2a2d36] transition-[background-color]"
+                >
+                  Ajouter quand même
+                </button>
+                <button
+                  type="button"
+                  data-testid="dup-cancel-btn"
+                  onClick={() => setDupWarning(null)}
+                  className="rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-black/5 transition-[background-color]"
+                >
+                  Modifier l'adresse
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex gap-2 pt-2">
