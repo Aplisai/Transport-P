@@ -342,7 +342,7 @@ export default function MapApp() {
           {user ? (
             <div className="flex items-center gap-2">
               <span
-                className="hidden max-w-[90px] truncate text-xs text-gray-500 sm:inline"
+                className="max-w-[110px] truncate text-xs font-medium text-gray-600"
                 data-testid="user-name"
               >
                 {user.name}
