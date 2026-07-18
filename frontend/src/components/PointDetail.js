@@ -71,8 +71,11 @@ export default function PointDetail({ point, carriersInfo = [], isAdmin = false,
       onRequireAuth();
       return;
     }
-    await toggleFavorite(point.id);
-    toast.success(isFav ? "Retiré des favoris" : "Ajouté aux favoris");
+    const wasFav = isFav;
+    const ok = await toggleFavorite(point.id);
+    if (ok) {
+      toast.success(wasFav ? "Retiré des favoris" : "Ajouté aux favoris");
+    }
   };
 
   const handleRoute = () => {

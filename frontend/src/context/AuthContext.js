@@ -55,14 +55,18 @@ export function AuthProvider({ children }) {
 
   const toggleFavorite = async (pointId) => {
     if (!user) return false;
-    if (favorites.includes(pointId)) {
-      const { data } = await api.delete(`/favorites/${pointId}`);
-      setFavorites(data.favorites);
-    } else {
-      const { data } = await api.post("/favorites", { point_id: pointId });
-      setFavorites(data.favorites);
+    try {
+      if (favorites.includes(pointId)) {
+        const { data } = await api.delete(`/favorites/${pointId}`);
+        setFavorites(data.favorites);
+      } else {
+        const { data } = await api.post("/favorites", { point_id: pointId });
+        setFavorites(data.favorites);
+      }
+      return true;
+    } catch {
+      return false;
     }
-    return true;
   };
 
   return (

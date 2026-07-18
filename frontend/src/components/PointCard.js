@@ -13,8 +13,11 @@ function PointCard({ point, active, onSelect, onRequireAuth, index }) {
       onRequireAuth();
       return;
     }
-    await toggleFavorite(point.id);
-    toast.success(isFav ? "Retiré des favoris" : "Ajouté aux favoris");
+    const wasFav = isFav;
+    const ok = await toggleFavorite(point.id);
+    if (ok) {
+      toast.success(wasFav ? "Retiré des favoris" : "Ajouté aux favoris");
+    }
   };
 
   const handleRoute = (e) => {
