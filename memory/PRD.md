@@ -51,7 +51,13 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 - Frontend: champ « Photo » dans PointForm (upload + aperçu + retrait), affichage dans PointDetail (bannière) et vignette dans PointCard. URL = `REACT_APP_BACKEND_URL + point.photo`.
 - Testé end-to-end (upload → aperçu → point créé → photo affichée dans la fiche).
 
-## Saisie vocale (2026-07-17)
+## Statistiques & PWA & Déploiement (2026-07-18)
+- **Statistiques admin**: `POST /api/track/visit`, `POST /api/track/install`, `GET /api/admin/stats` (collection stats_daily). Frontend: tracking auto (1 visite/session + event appinstalled), bouton « Stats » (admin) + StatsModal (totaux + graphe 30 jours).
+- **PWA installable**: manifest.json, service-worker.js (cache app shell, network-first, ignore /api/), icônes (192/512/apple-touch), méta iOS/Android, enregistrement dans src/index.js.
+- **DHL & GLS** ajoutés (11 transporteurs). Autocomplétion d'adresse « Près de moi ». Libellé fiche = « Transporteurs pris en charge ».
+- **Déploiement PRÊT** (deployment_agent PASS): CORS lit CORS_ORIGINS (repli allow_origin_regex=".*" + credentials), requêtes startup bornées (.limit(50000)).
+
+## Statistiques (2026-07-17)
 - **OpenAI Whisper** (whisper-1) via clé universelle EMERGENT_LLM_KEY. Endpoint `POST /api/transcribe` (authentifié, multipart `audio`, langue fr, max 25 Mo) → `{text}`.
 - Composant `MicButton.js` (MediaRecorder navigateur → blob webm → /transcribe). Intégré à TOUS les champs texte du formulaire d'ajout/édition: nom, adresse (déclenche aussi l'autocomplétion), code postal, ville, téléphone, horaires lun-ven/sam/dim (8 micros).
 - Testé backend (401 sans auth, transcription avec auth). Test voix réelle à faire par l'utilisateur (le micro navigateur n'est pas testable en automatisation).
