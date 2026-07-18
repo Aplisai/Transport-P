@@ -511,7 +511,7 @@ export default function MapApp() {
       {/* Type filter */}
       <div className="border-b border-black/10 px-4 py-3">
         <p className="mb-2 text-[11px] uppercase tracking-wider text-gray-400">
-          Type de point
+          Choix de type de point
         </p>
         <div className="flex gap-1 rounded-full bg-black/5 p-1">
           {[
