@@ -51,6 +51,10 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 - Frontend: champ « Photo » dans PointForm (upload + aperçu + retrait), affichage dans PointDetail (bannière) et vignette dans PointCard. URL = `REACT_APP_BACKEND_URL + point.photo`.
 - Testé end-to-end (upload → aperçu → point créé → photo affichée dans la fiche).
 
+## Accueil mobile + Revue de code (2026-06-18)
+- **Panneau d'accueil par défaut**: sur mobile, `sheetOpen` initialisé à `true` (MapApp.js) → l'app s'ouvre directement sur le panneau (logo, recherche, connexion, onglets, filtres, liste) au-dessus de la carte, à chaque ouverture. Bouton « Voir la carte » pour accéder à la carte. Pas de bascule auto vers la carte après recherche. Bureau inchangé (panneau latéral déjà visible).
+- **Revue de code — faux positifs (non corrigés, sûrs)**: MD5 dans `mondial_relay.py` = algorithme de signature IMPOSÉ par l'API officielle Mondial Relay (ne pas remplacer par SHA-256). `random` dans `relay_data.py` = générateur de données démo DÉSACTIVÉ (`DEMO_POINTS_ENABLED=false`), pas une faille. Aucune comparaison `is <int>` présente dans le code.
+
 ## Statistiques & PWA & Déploiement (2026-07-18)
 - **Statistiques admin**: `POST /api/track/visit`, `POST /api/track/install`, `GET /api/admin/stats` (collection stats_daily). Frontend: tracking auto (1 visite/session + event appinstalled), bouton « Stats » (admin) + StatsModal (totaux + graphe 30 jours).
 - **PWA installable**: manifest.json, service-worker.js (cache app shell, network-first, ignore /api/), icônes (192/512/apple-touch), méta iOS/Android, enregistrement dans src/index.js.

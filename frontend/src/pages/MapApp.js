@@ -59,7 +59,7 @@ export default function MapApp() {
   const [showChangePwd, setShowChangePwd] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [tab, setTab] = useState("all"); // all | favorites | nearby
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(true);
   const [locating, setLocating] = useState(false);
   const [ptype, setPtype] = useState("all"); // all | relais | locker
   const [radius, setRadius] = useState(20); // km, 5-200
