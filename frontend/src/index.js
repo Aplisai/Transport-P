@@ -19,3 +19,10 @@ root.render(
     <App />
   </QueryClientProvider>,
 );
+
+// Enregistrement du service worker (PWA installable + cache app shell)
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/service-worker.js").catch(() => {});
+  });
+}
