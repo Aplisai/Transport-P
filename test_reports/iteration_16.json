@@ -1,0 +1,38 @@
+{
+  "summary": "Iteration 16 — Regression test after user_public() refactor (_id removed, only 'id' returned). Backend pytest suite (5/5 PASS) + Playwright end-to-end UI (all 4 requested scenarios PASS) confirm: (a) POST /api/auth/login returns 200 with body {id,email,name,role} and NO '_id'; (b) GET /api/auth/me returns 200 with same shape and NO '_id'; (c) admin@relaispoint.fr/admin123 login succeeds, toast 'Connexion réussie' visible, header-add-point-btn / change-password-btn / logout-btn all visible; (d) session persists on page reload (cookie httpOnly restore, /me = 200); (e) logout hides admin UI + restores open-auth-btn; (f) re-login works with the same credentials. Wrong password still returns 401 with 'Email ou mot de passe incorrect' (no 'Session expirée'). The 4 user custom points (Intermarche, Loker Lidl Léon Blum, Locker Super-U, Tabac du Lavoir Pirey) are intact — no create/delete performed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_scenarios_verified": {
+    "1_admin_login_success": "PASS — login body = {'id':'6a5502e1a4db760b1fb051df','email':'admin@relaispoint.fr','name':'Admin','role':'admin'}. Toast 'Connexion réussie' shown, modal closed, admin buttons visible.",
+    "2_session_persistence_on_reload": "PASS — after page.reload(), /api/auth/me returns 200 with same {id,email,name,role} body; header-add-point-btn + logout-btn still visible; '4 points relais' displayed.",
+    "3_id_not_underscore_id_in_responses": "PASS — both /auth/login and /auth/me responses contain 'id' key and DO NOT contain '_id' key (verified in both pytest and Playwright network capture).",
+    "4_logout_then_relogin": "PASS — logout-btn hides admin UI, open-auth-btn reappears, re-login succeeds and admin UI restored."
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_auth_regression.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "user_public() in server.py:150 now correctly projects only {id, email, name, role}. '_id' ObjectId leak is fixed for both /api/auth/login and /api/auth/me — matches project guideline 'Always exclude mongodb ObjectId _id'.",
+    "AuthContext / frontend does not depend on user._id (only user.role for isAdmin), so the change is backwards compatible.",
+    "No other regressions introduced by the refactor."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_auth_regression.py (new)"
+  ],
+  "success_rate": {"backend": "100% (5/5 pytest)", "frontend": "100% (4/4 UI scenarios)"},
+  "test_credentials": "Admin admin@relaispoint.fr / admin123 — confirmed working.",
+  "seed_data_creation": "None. No points created or deleted. User's 4 custom points intact.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Auth flow is fully validated post-refactor. Testids in use: open-auth-btn, auth-email-input, auth-password-input, auth-submit-btn, header-add-point-btn, change-password-btn, logout-btn. Assertion: response bodies of /api/auth/login and /api/auth/me must contain 'id' but NOT '_id'. Pytest file at /app/backend/tests/test_auth_regression.py can be re-run for future regression checks.",
+  "rca_of_the_issue": "N/A — this iteration was a regression check after main agent's fix. The minor issue reported in iteration_15 ('_id' leaked in auth responses) has been correctly resolved via user_public() now projecting explicit {id,email,name,role}."
+}

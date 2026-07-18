@@ -148,7 +148,7 @@ async def require_admin(user: dict = Depends(get_current_user)) -> dict:
 
 
 def user_public(user: dict) -> dict:
-    return {"_id": str(user["_id"]), "email": user["email"],
+    return {"id": str(user["_id"]), "email": user["email"],
             "name": user.get("name", ""), "role": user.get("role", "user")}
 
 def haversine(lat1, lng1, lat2, lng2) -> float:
