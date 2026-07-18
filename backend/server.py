@@ -913,11 +913,11 @@ async def get_point(point_id: str):
 @api_router.get("/favorites")
 async def list_favorites(user: dict = Depends(get_current_user)):
     fav_ids = set(user.get("favorites", []))
-    return [p for p in POINTS if p["id"] in fav_ids]
+    return [p for p in _effective_points() if p["id"] in fav_ids]
 
 @api_router.post("/favorites")
 async def add_favorite(data: FavoriteIn, user: dict = Depends(get_current_user)):
-    if not any(p["id"] == data.point_id for p in POINTS):
+    if not any(p["id"] == data.point_id for p in _effective_points()):
         raise HTTPException(status_code=404, detail="Point relais introuvable")
     await db.users.update_one({"_id": user["_id"]}, {"$addToSet": {"favorites": data.point_id}})
     updated = await db.users.find_one({"_id": user["_id"]})
