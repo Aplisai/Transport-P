@@ -204,9 +204,7 @@ export default function PointDetail({ point, carriersInfo = [], isAdmin = false,
           {/* Carriers handled — logos */}
           <div className="mt-4">
             <p className="mb-2 text-xs uppercase tracking-wider text-gray-400">
-              {point.type === "locker"
-                ? "Transporteur du locker"
-                : "Transporteurs pris en charge"}
+              Transporteurs pris en charge
             </p>
             <div className="flex flex-wrap gap-2" data-testid="detail-carriers">
               {handled.map((c) => (
