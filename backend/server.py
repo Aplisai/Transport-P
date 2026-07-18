@@ -955,23 +955,25 @@ async def startup():
     elif existing.get("role") != "admin":
         await db.users.update_one({"email": admin_email}, {"$set": {"role": "admin"}})
     # Charger les modifications admin en mémoire
-    async for ov in db.point_overrides.find():
+    async for ov in db.point_overrides.find().limit(50000):
         _OVERRIDES[ov["point_id"]] = {
             k: ov[k] for k in _EDITABLE if k in ov
         }
-    async for c in db.custom_points.find():
+    async for c in db.custom_points.find().limit(50000):
         c.pop("_id", None)
         _CUSTOM[c["id"]] = c
-    async for d in db.deleted_points.find():
+    async for d in db.deleted_points.find().limit(50000):
         _DELETED.add(d["point_id"])
     logger.info("Overrides: %d | Custom: %d | Deleted: %d",
                 len(_OVERRIDES), len(_CUSTOM), len(_DELETED))
 
 app.include_router(api_router)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+_CORS_ORIGINS = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.environ.get("FRONTEND_URL", "http://localhost:3000")],
+    allow_origins=_CORS_ORIGINS,
+    allow_origin_regex=None if _CORS_ORIGINS else ".*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
