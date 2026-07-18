@@ -20,9 +20,10 @@ import PointCard from "@/components/PointCard";
 import PointDetail from "@/components/PointDetail";
 import PointForm from "@/components/PointForm";
 import ChangePasswordModal from "@/components/ChangePasswordModal";
+import StatsModal from "@/components/StatsModal";
 import AuthModal from "@/components/AuthModal";
 import { toast } from "sonner";
-import { Plus, KeyRound } from "lucide-react";
+import { Plus, KeyRound, BarChart3 } from "lucide-react";
 
 const _norm = (s) =>
   (s || "")
@@ -56,6 +57,7 @@ export default function MapApp() {
   const [flyTarget, setFlyTarget] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
   const [showChangePwd, setShowChangePwd] = useState(false);
+  const [showStats, setShowStats] = useState(false);
   const [tab, setTab] = useState("all"); // all | favorites | nearby
   const [sheetOpen, setSheetOpen] = useState(false);
   const [locating, setLocating] = useState(false);
@@ -73,6 +75,17 @@ export default function MapApp() {
 
   useEffect(() => {
     api.get("/carriers").then(({ data }) => setCarriers(data));
+  }, []);
+
+  // Suivi d'audience: 1 visite par session + installations PWA
+  useEffect(() => {
+    if (!sessionStorage.getItem("rd_visit")) {
+      sessionStorage.setItem("rd_visit", "1");
+      api.post("/track/visit").catch(() => {});
+    }
+    const onInstalled = () => api.post("/track/install").catch(() => {});
+    window.addEventListener("appinstalled", onInstalled);
+    return () => window.removeEventListener("appinstalled", onInstalled);
   }, []);
 
   useEffect(() => {
@@ -335,6 +348,18 @@ export default function MapApp() {
               >
                 {user.name}
               </span>
+              {isAdmin && (
+                <button
+                  onClick={() => setShowStats(true)}
+                  aria-label="Statistiques"
+                  title="Statistiques d'audience"
+                  data-testid="stats-btn"
+                  className="flex items-center gap-1.5 rounded-full bg-black/5 px-2.5 py-1.5 text-xs font-semibold text-[#14161C] hover:bg-black/10 transition-[background-color]"
+                >
+                  <BarChart3 className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Stats</span>
+                </button>
+              )}
               <button
                 onClick={() => setShowChangePwd(true)}
                 aria-label="Modifier mon mot de passe"
@@ -746,6 +771,7 @@ export default function MapApp() {
 
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       {showChangePwd && <ChangePasswordModal onClose={() => setShowChangePwd(false)} />}
+      {showStats && <StatsModal onClose={() => setShowStats(false)} />}
       {selected && formPoint === undefined && (
         <PointDetail
           point={selected}

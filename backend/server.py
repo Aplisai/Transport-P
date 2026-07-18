@@ -304,6 +304,42 @@ async def get_carriers():
     return [{"id": k, "name": v["name"], "color": v["color"]} for k, v in CARRIERS.items()]
 
 
+# ---- Statistiques (visites & installations) ----
+def _today_str():
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
+@api_router.post("/track/visit")
+async def track_visit():
+    await db.stats_daily.update_one({"date": _today_str()}, {"$inc": {"visits": 1}}, upsert=True)
+    return {"ok": True}
+
+
+@api_router.post("/track/install")
+async def track_install():
+    await db.stats_daily.update_one({"date": _today_str()}, {"$inc": {"installs": 1}}, upsert=True)
+    return {"ok": True}
+
+
+@api_router.get("/admin/stats")
+async def admin_stats(days: int = 30, admin: dict = Depends(require_admin)):
+    docs = await db.stats_daily.find().to_list(1000)
+    by_date = {d["date"]: d for d in docs}
+    today = datetime.now(timezone.utc).date()
+    out = []
+    for i in range(days):
+        d = (today - timedelta(days=i)).strftime("%Y-%m-%d")
+        rec = by_date.get(d, {})
+        out.append({"date": d, "visits": rec.get("visits", 0), "installs": rec.get("installs", 0)})
+    return {
+        "days": out,
+        "total_visits": sum(d.get("visits", 0) for d in docs),
+        "total_installs": sum(d.get("installs", 0) for d in docs),
+        "today_visits": by_date.get(_today_str(), {}).get("visits", 0),
+        "today_installs": by_date.get(_today_str(), {}).get("installs", 0),
+    }
+
+
 # ---- Stockage d'objets (photos des points) ----
 _STORAGE_URL = "https://integrations.emergentagent.com/objstore/api/v1/storage"
 _APP_NAME = "relaydip"
