@@ -65,6 +65,10 @@ export default function MapApp() {
   const [geocoding, setGeocoding] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggest, setShowSuggest] = useState(false);
+  const [nearbySug, setNearbySug] = useState([]);
+  const [showNearbySug, setShowNearbySug] = useState(false);
+  const [nearbySearching, setNearbySearching] = useState(false);
+  const nearbyDebounce = useRef(null);
   const suggestRef = useRef(null);
 
   useEffect(() => {
@@ -198,6 +202,40 @@ export default function MapApp() {
     setFlyTarget({ lat: p.lat, lng: p.lng, zoom: 15 });
     setSheetOpen(true);
   }, []);
+
+  const onNearbyAddressChange = (val) => {
+    setAddress(val);
+    if (nearbyDebounce.current) clearTimeout(nearbyDebounce.current);
+    if (val.trim().length < 3) {
+      setNearbySug([]);
+      setShowNearbySug(false);
+      return;
+    }
+    setNearbySearching(true);
+    nearbyDebounce.current = setTimeout(async () => {
+      try {
+        const { data } = await api.get("/address-suggest", { params: { q: val.trim() } });
+        setNearbySug(data);
+        setShowNearbySug(data.length > 0);
+      } catch {
+        setNearbySug([]);
+        setShowNearbySug(false);
+      } finally {
+        setNearbySearching(false);
+      }
+    }, 350);
+  };
+
+  const pickNearby = (s) => {
+    setAddress(s.label);
+    const loc = { lat: s.lat, lng: s.lng };
+    setUserLoc(loc);
+    setFlyTarget({ ...loc, zoom: 13 });
+    setTab("nearby");
+    setShowNearbySug(false);
+    setNearbySug([]);
+    toast.success("Adresse localisée — points triés par distance");
+  };
 
   const runSearch = (overrideQ, flyTo) => {
     setTab("all");
@@ -544,14 +582,42 @@ export default function MapApp() {
               <span className="h-px flex-1 bg-black/10" />
             </div>
 
-            <form onSubmit={geocodeAddress} className="flex gap-2">
-              <input
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                data-testid="nearby-address-input"
-                placeholder="Ex : 10 rue de Rivoli, Paris"
-                className="min-w-0 flex-1 rounded-full bg-black/[0.03] border border-black/10 px-3 py-2 text-xs text-[#14161C] outline-none focus:border-black/30 focus:ring-2 focus:ring-black/10 transition-[border-color]"
-              />
+            <form onSubmit={geocodeAddress} className="relative flex gap-2">
+              <div className="relative min-w-0 flex-1">
+                <input
+                  value={address}
+                  onChange={(e) => onNearbyAddressChange(e.target.value)}
+                  onFocus={() => nearbySug.length && setShowNearbySug(true)}
+                  onBlur={() => setTimeout(() => setShowNearbySug(false), 180)}
+                  autoComplete="off"
+                  data-testid="nearby-address-input"
+                  placeholder="Ex : 10 rue de Rivoli, Paris"
+                  className="w-full rounded-full bg-black/[0.03] border border-black/10 px-3 py-2 pr-8 text-xs text-[#14161C] outline-none focus:border-black/30 focus:ring-2 focus:ring-black/10 transition-[border-color]"
+                />
+                {nearbySearching && (
+                  <Loader2 className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-gray-400" />
+                )}
+                {showNearbySug && nearbySug.length > 0 && (
+                  <div
+                    data-testid="nearby-suggestions"
+                    className="absolute left-0 right-0 z-30 mt-1 max-h-56 overflow-y-auto rounded-xl border border-black/10 bg-white shadow-[0_12px_30px_rgba(0,0,0,0.15)] rp-scroll"
+                  >
+                    {nearbySug.map((s, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        data-testid={`nearby-sug-${i}`}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => pickNearby(s)}
+                        className="flex w-full items-start gap-2 border-b border-black/5 px-3 py-2 text-left text-xs last:border-0 hover:bg-black/5 transition-[background-color]"
+                      >
+                        <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#FF3366]" />
+                        <span className="text-[#14161C]">{s.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <button
                 type="submit"
                 data-testid="nearby-address-btn"
