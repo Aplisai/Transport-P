@@ -51,6 +51,12 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 - Frontend: champ « Photo » dans PointForm (upload + aperçu + retrait), affichage dans PointDetail (bannière) et vignette dans PointCard. URL = `REACT_APP_BACKEND_URL + point.photo`.
 - Testé end-to-end (upload → aperçu → point créé → photo affichée dans la fiche).
 
+## FIX Auth iOS/PWA — token Bearer (2026-06-18)
+- **Problème**: sur iOS/Safari et PWA, le cookie `access_token` (SameSite=None, Secure) n'était pas conservé → toute requête authentifiée (POST /favorites) renvoyait 401 → déconnexion à chaque ajout de favori.
+- **Correctif (repli Bearer)**: `/auth/login` et `/auth/register` (server.py) renvoient désormais `token` dans le body. Frontend (`lib/api.js`): token stocké dans localStorage (`rd_token`), ajouté en en-tête `Authorization: Bearer` via intercepteur de requête axios; supprimé au logout et sur 401. `get_current_user` lisait déjà le Bearer en repli du cookie. Cookie conservé en parallèle.
+- Vérifié e2e: après suppression totale des cookies, l'ajout de favori fonctionne (cœur rouge), pas de déconnexion, aucune erreur JS.
+- Gestion propre des erreurs favoris (try/catch dans toggleFavorite + handleFav) → plus d'écran d'erreur rouge; en cas de 401, fenêtre de connexion affichée.
+
 ## Accueil mobile + Favoris (2026-06-18)
 - **Panneau d'accueil par défaut**: sur mobile, `sheetOpen=true` (MapApp.js) → l'app s'ouvre plein écran sur le panneau (logo, recherche, connexion, onglets, filtres, liste), plus aucune carte visible au-dessus. Bouton **« Afficher la carte »** pour révéler la carte à la demande (redevient « Liste (N) »). Bureau inchangé.
 - **Libellés**: « Transporteurs » → « Sélectionnez votre transporteur » ; « Type de point » → « Choix de type de point ».

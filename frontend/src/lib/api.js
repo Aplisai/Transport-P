@@ -1,10 +1,40 @@
 import axios from "axios";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const TOKEN_KEY = "rd_token";
+
+export function getToken() {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setToken(token) {
+  try {
+    if (token) localStorage.setItem(TOKEN_KEY, token);
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    /* stockage indisponible (mode privé) — on repose alors sur le cookie */
+  }
+}
 
 export const api = axios.create({
   baseURL: `${BACKEND_URL}/api`,
   withCredentials: true,
+});
+
+// Repli d'authentification: ajoute le token (localStorage) en en-tête
+// Authorization, indispensable sur iOS/Safari/PWA où le cookie SameSite=None
+// n'est pas conservé.
+api.interceptors.request.use((config) => {
+  const token = getToken();
+  if (token) {
+    config.headers = config.headers || {};
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 let onUnauthorized = null;
@@ -27,6 +57,7 @@ api.interceptors.response.use(
       !isBackgroundFavRead &&
       onUnauthorized
     ) {
+      setToken(null);
       onUnauthorized();
     }
     return Promise.reject(error);

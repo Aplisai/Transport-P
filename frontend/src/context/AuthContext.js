@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
-import { api, setUnauthorizedHandler } from "@/lib/api";
+import { api, setUnauthorizedHandler, setToken } from "@/lib/api";
 import { toast } from "sonner";
 
 const AuthContext = createContext(null);
@@ -43,12 +43,14 @@ export function AuthProvider({ children }) {
   }, [refreshFavorites]);
 
   const onAuthed = async (u) => {
+    if (u && u.token) setToken(u.token);
     setUser(u);
     await refreshFavorites();
   };
 
   const logout = async () => {
     await api.post("/auth/logout");
+    setToken(null);
     setUser(false);
     setFavorites([]);
   };

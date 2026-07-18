@@ -172,7 +172,7 @@ async def register(data: RegisterIn, response: Response):
     token = create_access_token(str(res.inserted_id), email)
     set_auth_cookie(response, token)
     doc["_id"] = res.inserted_id
-    return user_public(doc)
+    return {**user_public(doc), "token": token}
 
 @api_router.post("/auth/login")
 async def login(data: LoginIn, response: Response):
@@ -182,7 +182,7 @@ async def login(data: LoginIn, response: Response):
         raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
     token = create_access_token(str(user["_id"]), email)
     set_auth_cookie(response, token)
-    return user_public(user)
+    return {**user_public(user), "token": token}
 
 @api_router.post("/auth/logout")
 async def logout(response: Response):
