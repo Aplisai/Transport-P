@@ -14,6 +14,8 @@ const CODES = {
   colis_prive: "CP",
   vinted_go: "VG",
   amazon: "AZ",
+  dhl: "DHL",
+  gls: "GLS",
 };
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;

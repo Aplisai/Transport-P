@@ -14,6 +14,8 @@ const CODES = {
   colis_prive: "CP",
   vinted_go: "VG",
   amazon: "AZ",
+  dhl: "DHL",
+  gls: "GLS",
 };
 
 function CarrierLogo({ id, name, color }) {

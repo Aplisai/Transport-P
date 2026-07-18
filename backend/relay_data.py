@@ -11,6 +11,8 @@ CARRIERS = {
     "colis_prive": {"name": "Colis Privé", "color": "#A855F7"},
     "vinted_go": {"name": "Vinted Go", "color": "#09B1BA"},
     "amazon": {"name": "Amazon", "color": "#146EB4"},
+    "dhl": {"name": "DHL", "color": "#D4B106"},
+    "gls": {"name": "GLS", "color": "#1D4ED8"},
 }
 
 # Communes françaises: (nom, lat, lng, code postal, poids ~ taille de la ville)
@@ -117,6 +119,8 @@ LOCKER_LABELS = {
     "colis_prive": "Locker Colis Privé",
     "vinted_go": "Vinted Go Locker",
     "amazon": "Amazon Locker",
+    "dhl": "DHL Packstation",
+    "gls": "GLS Locker",
 }
 LOCKER_SPOTS = [
     "Parking Centre Commercial", "Gare SNCF", "Station-service Total",
