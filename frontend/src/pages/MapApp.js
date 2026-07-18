@@ -7,7 +7,6 @@ import {
   LogOut,
   Heart,
   List,
-  X,
   Loader2,
   Store,
   Box,
@@ -733,9 +732,17 @@ export default function MapApp() {
       <button
         onClick={() => setSheetOpen((s) => !s)}
         data-testid="sheet-toggle"
-        className="absolute bottom-5 left-1/2 z-[1100] -translate-x-1/2 rounded-full bg-[#14161C] px-5 py-3 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(0,0,0,0.25)] lg:hidden"
+        className="absolute bottom-5 left-1/2 z-[1100] flex -translate-x-1/2 items-center gap-2 rounded-full bg-[#14161C] px-5 py-3 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(0,0,0,0.25)] lg:hidden"
       >
-        {sheetOpen ? "Voir la carte" : `Liste (${visiblePoints.length})`}
+        {sheetOpen ? (
+          <>
+            <MapPin className="h-4 w-4" /> Afficher la carte
+          </>
+        ) : (
+          <>
+            <List className="h-4 w-4" /> Liste ({visiblePoints.length})
+          </>
+        )}
       </button>
 
       {/* Admin: Add point button */}
@@ -749,24 +756,14 @@ export default function MapApp() {
         </button>
       )}
 
-      {/* Mobile sheet */}
+      {/* Mobile sheet (plein écran) */}
       <div
-        className={`absolute inset-x-0 bottom-0 z-[1050] max-h-[82vh] rounded-t-2xl border-t border-black/10 bg-white shadow-[0_-8px_32px_rgba(0,0,0,0.12)] transition-transform duration-300 lg:hidden ${
+        className={`absolute inset-0 z-[1050] bg-white transition-transform duration-300 lg:hidden ${
           sheetOpen ? "translate-y-0" : "translate-y-full"
         }`}
         data-testid="mobile-sheet"
       >
-        <div className="flex items-center justify-between px-4 pt-3">
-          <div className="mx-auto h-1 w-10 rounded-full bg-black/15" />
-          <button
-            onClick={() => setSheetOpen(false)}
-            aria-label="Fermer"
-            className="absolute right-3 top-3 rounded-full bg-black/5 p-1.5"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="h-[76vh]">{Panel}</div>
+        <div className="h-full pb-16">{Panel}</div>
       </div>
 
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
