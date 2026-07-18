@@ -541,7 +541,7 @@ export default function MapApp() {
       {/* Filter chips */}
       <div className="border-b border-black/10 px-4 py-3">
         <p className="mb-2 text-[11px] uppercase tracking-wider text-gray-400">
-          Transporteurs
+          Sélectionnez votre transporteur
         </p>
         <div className="flex flex-wrap gap-2">
           {carriers.map((c) => {
