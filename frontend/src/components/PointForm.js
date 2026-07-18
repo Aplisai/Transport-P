@@ -394,7 +394,7 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
               >
                 {addrSug.map((s, i) => (
                   <button
-                    key={i}
+                    key={`${s.lat},${s.lng}`}
                     type="button"
                     data-testid={`addr-sug-${i}`}
                     onMouseDown={(e) => e.preventDefault()}

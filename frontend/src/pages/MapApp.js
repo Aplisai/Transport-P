@@ -628,7 +628,7 @@ export default function MapApp() {
                   >
                     {nearbySug.map((s, i) => (
                       <button
-                        key={i}
+                        key={`${s.lat},${s.lng}`}
                         type="button"
                         data-testid={`nearby-sug-${i}`}
                         onMouseDown={(e) => e.preventDefault()}
