@@ -105,8 +105,10 @@ export default function MapView({ points, userLocation, flyTarget, onSelect }) {
     >
       <ZoomControl position="topright" />
       <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-        attribution="&copy; OpenStreetMap &copy; CARTO"
+        url="https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png"
+        subdomains={["a", "b", "c"]}
+        maxZoom={20}
+        attribution='&copy; OpenStreetMap France | &copy; contributeurs OpenStreetMap'
       />
       <FlyController target={flyTarget} />
       {userLocation && (
