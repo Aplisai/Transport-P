@@ -205,7 +205,8 @@ class ChangePasswordIn(BaseModel):
     new_password: str = Field(min_length=6)
 
 class ProfileIn(BaseModel):
-    name: str = Field(min_length=1, max_length=80)
+    name: Optional[str] = Field(default=None, max_length=80)
+    email: Optional[EmailStr] = None
 
 @api_router.post("/auth/forgot-password")
 async def forgot_password(data: ForgotIn):
@@ -253,10 +254,21 @@ async def change_password(data: ChangePasswordIn, user: dict = Depends(get_curre
 
 @api_router.patch("/auth/profile")
 async def update_profile(data: ProfileIn, user: dict = Depends(get_current_user)):
-    name = data.name.strip()
-    if not name:
-        raise HTTPException(status_code=400, detail="Le nom ne peut pas être vide")
-    await db.users.update_one({"_id": user["_id"]}, {"$set": {"name": name}})
+    updates = {}
+    if data.name is not None:
+        name = data.name.strip()
+        if not name:
+            raise HTTPException(status_code=400, detail="Le nom ne peut pas être vide")
+        updates["name"] = name
+    if data.email is not None:
+        email = data.email.lower().strip()
+        existing = await db.users.find_one({"email": email})
+        if existing and str(existing["_id"]) != str(user["_id"]):
+            raise HTTPException(status_code=400, detail="Cet email est déjà utilisé")
+        updates["email"] = email
+    if not updates:
+        raise HTTPException(status_code=400, detail="Aucune modification fournie")
+    await db.users.update_one({"_id": user["_id"]}, {"$set": updates})
     updated = await db.users.find_one({"_id": user["_id"]})
     return user_public(updated)
 

@@ -53,9 +53,9 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 
 ## Modale « Mon compte » (2026-06-19)
 - Bouton **« Mon compte »** (sous le titre, tous écrans) → ouvre `AccountModal` avec 2 onglets:
-  - **Mon profil**: nom modifiable (PATCH `/api/auth/profile`), email + rôle en lecture seule.
-  - **Paramètres**: modifier mot de passe, statistiques (admin), se déconnecter.
-- Backend: `ProfileIn` + `PATCH /auth/profile` (auth requis, met à jour `name`). Contexte: `patchUser()` met à jour le nom localement. Vérifié e2e.
+  - **Mon profil**: nom modifiable + **adresse email modifiable** via bouton « Éditer » (PATCH `/api/auth/profile`, contrôle d'unicité), bouton « Modifier mon mot de passe » (ouvre ChangePasswordModal). Rôle retiré.
+  - **Paramètres**: statistiques (admin), se déconnecter.
+- Backend: `ProfileIn` (name/email optionnels) + `PATCH /auth/profile` (auth requis; email → unicité vérifiée). Contexte: `patchUser()`. Vérifié e2e (nom, email, unicité 400).
 
 ## FIX Auth iOS/PWA — token Bearer (2026-06-18)
 - **Problème**: sur iOS/Safari et PWA, le cookie `access_token` (SameSite=None, Secure) n'était pas conservé → toute requête authentifiée (POST /favorites) renvoyait 401 → déconnexion à chaque ajout de favori.
