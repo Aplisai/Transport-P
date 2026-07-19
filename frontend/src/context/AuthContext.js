@@ -58,6 +58,13 @@ export function AuthProvider({ children }) {
     setFavorites([]);
   };
 
+  const deleteAccount = async () => {
+    await api.delete("/auth/account");
+    setToken(null);
+    setUser(false);
+    setFavorites([]);
+  };
+
   const toggleFavorite = async (pointId) => {
     if (!user) return false;
     try {
@@ -76,7 +83,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, favorites, onAuthed, patchUser, logout, toggleFavorite, refreshFavorites, expiredTick }}
+      value={{ user, favorites, onAuthed, patchUser, logout, deleteAccount, toggleFavorite, refreshFavorites, expiredTick }}
     >
       {children}
     </AuthContext.Provider>

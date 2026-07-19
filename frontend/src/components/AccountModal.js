@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { X, User, Settings, Loader2, KeyRound, BarChart3, LogOut, Mail, Pencil, Check } from "lucide-react";
+import { X, User, Settings, Loader2, KeyRound, BarChart3, Mail, Pencil, Check, Palette, Trash2, AlertTriangle } from "lucide-react";
 import { api, formatApiError } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 
 export default function AccountModal({ onClose, onOpenChangePassword, onOpenStats, onLogout }) {
-  const { user, patchUser } = useAuth();
+  const { user, patchUser, deleteAccount } = useAuth();
   const isAdmin = user?.role === "admin";
   const [tab, setTab] = useState("profile");
   const [name, setName] = useState(user?.name || "");
@@ -14,6 +14,23 @@ export default function AccountModal({ onClose, onOpenChangePassword, onOpenStat
   const [email, setEmail] = useState(user?.email || "");
   const [editEmail, setEditEmail] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await deleteAccount();
+      toast.success("Votre compte a été supprimé");
+      onClose();
+    } catch (err) {
+      if (err.response?.status !== 401) {
+        toast.error(formatApiError(err.response?.data?.detail) || "Échec de la suppression");
+      }
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const saveName = async () => {
     const trimmed = name.trim();
@@ -226,14 +243,6 @@ export default function AccountModal({ onClose, onOpenChangePassword, onOpenStat
         {/* Settings tab */}
         {tab === "settings" && (
           <div className="space-y-2 p-6" data-testid="account-settings-panel">
-            <button
-              onClick={onOpenChangePassword}
-              data-testid="account-change-password"
-              className="flex w-full items-center gap-3 rounded-xl border border-black/10 bg-white px-4 py-3 text-left text-sm font-medium text-[#14161C] hover:bg-black/[0.03] transition-[background-color]"
-            >
-              <KeyRound className="h-4 w-4 text-gray-500" />
-              Modifier mon mot de passe
-            </button>
             {isAdmin && (
               <button
                 onClick={onOpenStats}
@@ -245,13 +254,59 @@ export default function AccountModal({ onClose, onOpenChangePassword, onOpenStat
               </button>
             )}
             <button
-              onClick={onLogout}
-              data-testid="account-logout"
-              className="flex w-full items-center gap-3 rounded-xl border border-red-500/30 bg-red-50 px-4 py-3 text-left text-sm font-semibold text-red-600 hover:bg-red-100 transition-[background-color]"
+              onClick={() => toast.info("Personnalisation du thème bientôt disponible")}
+              data-testid="account-theme"
+              className="flex w-full items-center gap-3 rounded-xl border border-black/10 bg-white px-4 py-3 text-left text-sm font-medium text-[#14161C] hover:bg-black/[0.03] transition-[background-color]"
             >
-              <LogOut className="h-4 w-4" />
-              Se déconnecter
+              <Palette className="h-4 w-4 text-gray-500" />
+              Thème
             </button>
+
+            {!confirmDelete ? (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                data-testid="account-delete-btn"
+                className="flex w-full items-center gap-3 rounded-xl border border-red-500/30 bg-red-50 px-4 py-3 text-left text-sm font-semibold text-red-600 hover:bg-red-100 transition-[background-color]"
+              >
+                <Trash2 className="h-4 w-4" />
+                Supprimer mon compte
+              </button>
+            ) : (
+              <div
+                className="rounded-xl border border-red-500/30 bg-red-50 p-3"
+                data-testid="account-delete-confirm"
+              >
+                <div className="mb-2 flex items-start gap-2">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+                  <p className="text-xs font-medium text-red-700">
+                    Supprimer définitivement votre compte et vos favoris ? Cette action est
+                    irréversible.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    data-testid="account-delete-confirm-btn"
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-red-600 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60 transition-[background-color]"
+                  >
+                    {deleting ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" />
+                    )}
+                    Oui, supprimer
+                  </button>
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    data-testid="account-delete-cancel-btn"
+                    className="rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-black/5 transition-[background-color]"
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

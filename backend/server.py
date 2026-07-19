@@ -272,6 +272,13 @@ async def update_profile(data: ProfileIn, user: dict = Depends(get_current_user)
     updated = await db.users.find_one({"_id": user["_id"]})
     return user_public(updated)
 
+@api_router.delete("/auth/account")
+async def delete_account(response: Response, user: dict = Depends(get_current_user)):
+    await db.users.delete_one({"_id": user["_id"]})
+    await db.password_reset_tokens.delete_many({"user_id": str(user["_id"])})
+    response.delete_cookie("access_token", path="/")
+    return {"ok": True, "message": "Compte supprimé."}
+
 # ---------------------------------------------------------------- Relay points
 # Index des localités uniques (ville + code postal) pour l'autocomplétion
 _LOC_INDEX = {}
