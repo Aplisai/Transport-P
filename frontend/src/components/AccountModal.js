@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, User, Settings, Save, Loader2, KeyRound, BarChart3, LogOut, Mail, Pencil, Check } from "lucide-react";
+import { X, User, Settings, Loader2, KeyRound, BarChart3, LogOut, Mail, Pencil, Check } from "lucide-react";
 import { api, formatApiError } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
@@ -9,29 +9,35 @@ export default function AccountModal({ onClose, onOpenChangePassword, onOpenStat
   const isAdmin = user?.role === "admin";
   const [tab, setTab] = useState("profile");
   const [name, setName] = useState(user?.name || "");
-  const [saving, setSaving] = useState(false);
+  const [editName, setEditName] = useState(false);
+  const [savingName, setSavingName] = useState(false);
   const [email, setEmail] = useState(user?.email || "");
   const [editEmail, setEditEmail] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
 
-  const saveProfile = async (e) => {
-    e.preventDefault();
+  const saveName = async () => {
     const trimmed = name.trim();
     if (!trimmed) {
       toast.error("Le nom ne peut pas être vide");
       return;
     }
-    setSaving(true);
+    if (trimmed === (user?.name || "")) {
+      setEditName(false);
+      return;
+    }
+    setSavingName(true);
     try {
       const { data } = await api.patch("/auth/profile", { name: trimmed });
       patchUser({ name: data.name });
-      toast.success("Profil mis à jour");
+      setName(data.name);
+      setEditName(false);
+      toast.success("Nom mis à jour");
     } catch (err) {
       if (err.response?.status !== 401) {
         toast.error(formatApiError(err.response?.data?.detail) || "Échec de la mise à jour");
       }
     } finally {
-      setSaving(false);
+      setSavingName(false);
     }
   };
 
@@ -67,8 +73,6 @@ export default function AccountModal({ onClose, onOpenChangePassword, onOpenStat
   ];
 
   const labelCls = "mb-1 block text-[11px] font-medium uppercase tracking-wider text-gray-500";
-  const inputCls =
-    "w-full rounded-lg border border-black/10 bg-white px-3 py-2.5 text-sm text-[#14161C] outline-none focus:border-black/40 transition-[border-color]";
 
   return (
     <div
@@ -118,17 +122,49 @@ export default function AccountModal({ onClose, onOpenChangePassword, onOpenStat
 
         {/* Profile tab */}
         {tab === "profile" && (
-          <form onSubmit={saveProfile} className="space-y-4 p-6" data-testid="account-profile-panel">
+          <div className="space-y-4 p-6" data-testid="account-profile-panel">
             <div>
               <label className={labelCls}>Nom</label>
-              <input
-                data-testid="account-name-input"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                maxLength={80}
-                className={inputCls}
-                placeholder="Votre nom"
-              />
+              <div className="flex gap-2">
+                <input
+                  data-testid="account-name-input"
+                  value={name}
+                  disabled={!editName}
+                  onChange={(e) => setName(e.target.value)}
+                  maxLength={80}
+                  placeholder="Votre nom"
+                  className={`w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition-[border-color] ${
+                    editName
+                      ? "border-black/30 bg-white text-[#14161C] focus:border-black/40"
+                      : "border-black/10 bg-black/[0.03] text-gray-600"
+                  }`}
+                />
+                {!editName ? (
+                  <button
+                    type="button"
+                    onClick={() => setEditName(true)}
+                    data-testid="account-name-edit-btn"
+                    className="flex shrink-0 items-center gap-1 rounded-lg border border-black/10 bg-white px-3 text-sm font-semibold text-[#14161C] hover:bg-black/5 transition-[background-color]"
+                  >
+                    <Pencil className="h-3.5 w-3.5" /> Modifier
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={saveName}
+                    disabled={savingName}
+                    data-testid="account-name-save-btn"
+                    className="flex shrink-0 items-center gap-1 rounded-lg bg-[#14161C] px-3 text-sm font-semibold text-white hover:bg-[#2a2d36] disabled:opacity-60 transition-[background-color]"
+                  >
+                    {savingName ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Check className="h-3.5 w-3.5" />
+                    )}
+                    OK
+                  </button>
+                )}
+              </div>
             </div>
             <div>
               <label className={labelCls}>Adresse email</label>
@@ -155,7 +191,7 @@ export default function AccountModal({ onClose, onOpenChangePassword, onOpenStat
                     data-testid="account-email-edit-btn"
                     className="flex shrink-0 items-center gap-1 rounded-lg border border-black/10 bg-white px-3 text-sm font-semibold text-[#14161C] hover:bg-black/5 transition-[background-color]"
                   >
-                    <Pencil className="h-3.5 w-3.5" /> Éditer
+                    <Pencil className="h-3.5 w-3.5" /> Modifier
                   </button>
                 ) : (
                   <button
@@ -184,16 +220,7 @@ export default function AccountModal({ onClose, onOpenChangePassword, onOpenStat
               <KeyRound className="h-4 w-4 text-gray-500" />
               Modifier mon mot de passe
             </button>
-            <button
-              type="submit"
-              disabled={saving || name.trim() === (user?.name || "")}
-              data-testid="account-save-btn"
-              className="flex w-full items-center justify-center gap-1.5 rounded-full bg-[#14161C] py-3 text-sm font-semibold text-white hover:bg-[#2a2d36] disabled:opacity-50 transition-[background-color]"
-            >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              Enregistrer
-            </button>
-          </form>
+          </div>
         )}
 
         {/* Settings tab */}
