@@ -11,6 +11,7 @@ import {
   Store,
   Box,
   MapPin,
+  ChevronDown,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
@@ -59,6 +60,7 @@ export default function MapApp() {
   const [showStats, setShowStats] = useState(false);
   const [tab, setTab] = useState("all"); // all | favorites | nearby
   const [sheetOpen, setSheetOpen] = useState(true);
+  const [acctMenu, setAcctMenu] = useState(false);
   const [locating, setLocating] = useState(false);
   const [ptype, setPtype] = useState("all"); // all | relais | locker
   const [radius, setRadius] = useState(20); // km, 5-200
@@ -393,6 +395,71 @@ export default function MapApp() {
               <User className="h-3.5 w-3.5" />
               Se connecter
             </button>
+          )}
+        </div>
+
+        {/* Mon compte (mobile uniquement) */}
+        <div className="relative mb-4 lg:hidden" data-testid="mon-compte-wrap">
+          <button
+            onClick={() => (user ? setAcctMenu((o) => !o) : setShowAuth(true))}
+            data-testid="mon-compte-btn"
+            className="flex w-full items-center justify-between rounded-full border border-black/10 bg-black/[0.03] px-4 py-2.5 text-sm font-semibold text-[#14161C] hover:bg-black/[0.06] transition-[background-color]"
+          >
+            <span className="flex items-center gap-2">
+              <User className="h-4 w-4" />
+              Mon compte
+            </span>
+            {user && (
+              <ChevronDown
+                className={`h-4 w-4 transition-transform ${acctMenu ? "rotate-180" : ""}`}
+              />
+            )}
+          </button>
+          {user && acctMenu && (
+            <div
+              data-testid="mon-compte-menu"
+              className="mt-2 overflow-hidden rounded-2xl border border-black/10 bg-white shadow-[0_12px_40px_rgba(0,0,0,0.12)]"
+            >
+              <div className="border-b border-black/5 px-4 py-2.5 text-xs text-gray-500">
+                Connecté en tant que{" "}
+                <span className="font-semibold text-[#14161C]">{user.name}</span>
+              </div>
+              {isAdmin && (
+                <button
+                  onClick={() => {
+                    setAcctMenu(false);
+                    setShowStats(true);
+                  }}
+                  data-testid="mon-compte-stats"
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-[#14161C] hover:bg-black/[0.03] transition-[background-color]"
+                >
+                  <BarChart3 className="h-4 w-4" /> Statistiques
+                </button>
+              )}
+              {isAdmin && (
+                <button
+                  onClick={() => {
+                    setAcctMenu(false);
+                    setShowChangePwd(true);
+                  }}
+                  data-testid="mon-compte-password"
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-[#14161C] hover:bg-black/[0.03] transition-[background-color]"
+                >
+                  <KeyRound className="h-4 w-4" /> Modifier mon mot de passe
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  setAcctMenu(false);
+                  logout();
+                  setTab("all");
+                }}
+                data-testid="mon-compte-logout"
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-red-600 hover:bg-red-50 transition-[background-color]"
+              >
+                <LogOut className="h-4 w-4" /> Se déconnecter
+              </button>
+            </div>
           )}
         </div>
 
