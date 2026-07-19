@@ -398,8 +398,8 @@ export default function MapApp() {
           )}
         </div>
 
-        {/* Mon compte (mobile uniquement) */}
-        <div className="relative mb-4 lg:hidden" data-testid="mon-compte-wrap">
+        {/* Mon compte */}
+        <div className="relative mb-4" data-testid="mon-compte-wrap">
           <button
             onClick={() => (user ? setAcctMenu((o) => !o) : setShowAuth(true))}
             data-testid="mon-compte-btn"
