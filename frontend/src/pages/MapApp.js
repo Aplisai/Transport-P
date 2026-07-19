@@ -514,7 +514,7 @@ export default function MapApp() {
                 : "text-gray-500 hover:text-[#14161C]"
             }`}
           >
-            <Heart className="h-3.5 w-3.5" /> Favoris
+            <Heart className="h-3.5 w-3.5 fill-red-500 text-red-500" /> Favoris
             {favorites.length > 0 && ` (${favorites.length})`}
           </button>
         </div>
