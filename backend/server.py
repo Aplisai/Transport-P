@@ -204,6 +204,9 @@ class ChangePasswordIn(BaseModel):
     current_password: str
     new_password: str = Field(min_length=6)
 
+class ProfileIn(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+
 @api_router.post("/auth/forgot-password")
 async def forgot_password(data: ForgotIn):
     email = data.email.lower()
@@ -247,6 +250,15 @@ async def change_password(data: ChangePasswordIn, user: dict = Depends(get_curre
     await db.users.update_one({"_id": user["_id"]},
                               {"$set": {"password_hash": hash_password(data.new_password)}})
     return {"ok": True, "message": "Mot de passe modifié avec succès."}
+
+@api_router.patch("/auth/profile")
+async def update_profile(data: ProfileIn, user: dict = Depends(get_current_user)):
+    name = data.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Le nom ne peut pas être vide")
+    await db.users.update_one({"_id": user["_id"]}, {"$set": {"name": name}})
+    updated = await db.users.find_one({"_id": user["_id"]})
+    return user_public(updated)
 
 # ---------------------------------------------------------------- Relay points
 # Index des localités uniques (ville + code postal) pour l'autocomplétion

@@ -51,6 +51,12 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 - Frontend: champ « Photo » dans PointForm (upload + aperçu + retrait), affichage dans PointDetail (bannière) et vignette dans PointCard. URL = `REACT_APP_BACKEND_URL + point.photo`.
 - Testé end-to-end (upload → aperçu → point créé → photo affichée dans la fiche).
 
+## Modale « Mon compte » (2026-06-19)
+- Bouton **« Mon compte »** (sous le titre, tous écrans) → ouvre `AccountModal` avec 2 onglets:
+  - **Mon profil**: nom modifiable (PATCH `/api/auth/profile`), email + rôle en lecture seule.
+  - **Paramètres**: modifier mot de passe, statistiques (admin), se déconnecter.
+- Backend: `ProfileIn` + `PATCH /auth/profile` (auth requis, met à jour `name`). Contexte: `patchUser()` met à jour le nom localement. Vérifié e2e.
+
 ## FIX Auth iOS/PWA — token Bearer (2026-06-18)
 - **Problème**: sur iOS/Safari et PWA, le cookie `access_token` (SameSite=None, Secure) n'était pas conservé → toute requête authentifiée (POST /favorites) renvoyait 401 → déconnexion à chaque ajout de favori.
 - **Correctif (repli Bearer)**: `/auth/login` et `/auth/register` (server.py) renvoient désormais `token` dans le body. Frontend (`lib/api.js`): token stocké dans localStorage (`rd_token`), ajouté en en-tête `Authorization: Bearer` via intercepteur de requête axios; supprimé au logout et sur 401. `get_current_user` lisait déjà le Bearer en repli du cookie. Cookie conservé en parallèle.

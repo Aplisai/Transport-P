@@ -48,6 +48,9 @@ export function AuthProvider({ children }) {
     await refreshFavorites();
   };
 
+  const patchUser = (partial) =>
+    setUser((prev) => (prev ? { ...prev, ...partial } : prev));
+
   const logout = async () => {
     await api.post("/auth/logout");
     setToken(null);
@@ -73,7 +76,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, favorites, onAuthed, logout, toggleFavorite, refreshFavorites, expiredTick }}
+      value={{ user, favorites, onAuthed, patchUser, logout, toggleFavorite, refreshFavorites, expiredTick }}
     >
       {children}
     </AuthContext.Provider>
