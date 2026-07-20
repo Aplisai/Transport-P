@@ -352,6 +352,40 @@ async def track_install():
     return {"ok": True}
 
 
+class ReviewIn(BaseModel):
+    rating: int = Field(ge=1, le=5)
+    comment: str = Field(default="", max_length=2000)
+
+
+@api_router.post("/reviews")
+async def create_review(data: ReviewIn, user: dict = Depends(get_current_user)):
+    doc = {
+        "user_id": str(user["_id"]),
+        "user_name": user.get("name", ""),
+        "user_email": user.get("email", ""),
+        "rating": data.rating,
+        "comment": data.comment.strip(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.reviews.insert_one(doc)
+    return {"ok": True}
+
+
+@api_router.get("/admin/reviews")
+async def list_reviews(admin: dict = Depends(require_admin)):
+    docs = await db.reviews.find().sort("created_at", -1).to_list(1000)
+    out = [{
+        "id": str(d["_id"]),
+        "user_name": d.get("user_name", ""),
+        "user_email": d.get("user_email", ""),
+        "rating": d.get("rating", 0),
+        "comment": d.get("comment", ""),
+        "created_at": d.get("created_at", ""),
+    } for d in docs]
+    avg = round(sum(d["rating"] for d in out) / len(out), 1) if out else 0
+    return {"reviews": out, "count": len(out), "average": avg}
+
+
 @api_router.get("/admin/stats")
 async def admin_stats(days: int = 30, admin: dict = Depends(require_admin)):
     docs = await db.stats_daily.find().to_list(1000)

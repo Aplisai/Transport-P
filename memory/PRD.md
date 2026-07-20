@@ -72,6 +72,11 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 - **Note**: mot de passe admin `admin123` ne fonctionne plus (modifié par l'utilisateur).
 - **Revue de code — faux positifs (non corrigés, sûrs)**: MD5 dans `mondial_relay.py` = signature IMPOSÉE par l'API Mondial Relay. `random` dans `relay_data.py` = données démo DÉSACTIVÉES. Aucune comparaison `is <int>` présente.
 
+## Avis clients + libellés (2026-07-20)
+- **Sous-titre header**: « Points Relais et Lockers France » sous le nom « Relay Dip ».
+- **Mode sombre**: confirmé — mode clair par défaut (aucun suivi OS), sombre seulement sur choix explicite (localStorage `rd_theme`).
+- **Avis clients**: bouton « Laisser votre avis » (visible connectés uniquement, sous « Mon compte »). ReviewModal (note 1-5 étoiles + commentaire). Backend `POST /api/reviews` (authentifié), `GET /api/admin/reviews` (admin, avec moyenne). Collection `reviews`. Consultation admin dans StatsModal (section « Avis clients »). Testé backend (curl) + frontend (login + soumission).
+
 ## Statistiques & PWA & Déploiement (2026-07-18)
 - **Statistiques admin**: `POST /api/track/visit`, `POST /api/track/install`, `GET /api/admin/stats` (collection stats_daily). Frontend: tracking auto (1 visite/session + event appinstalled), bouton « Stats » (admin) + StatsModal (totaux + graphe 30 jours).
 - **PWA installable**: manifest.json, service-worker.js (cache app shell, network-first, ignore /api/), icônes (192/512/apple-touch), méta iOS/Android, enregistrement dans src/index.js.

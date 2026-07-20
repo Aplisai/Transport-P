@@ -22,8 +22,9 @@ import ChangePasswordModal from "@/components/ChangePasswordModal";
 import StatsModal from "@/components/StatsModal";
 import AuthModal from "@/components/AuthModal";
 import AccountModal from "@/components/AccountModal";
+import ReviewModal from "@/components/ReviewModal";
 import { toast } from "sonner";
-import { Plus, KeyRound, BarChart3 } from "lucide-react";
+import { Plus, KeyRound, BarChart3, MessageSquare } from "lucide-react";
 
 const _norm = (s) =>
   (s || "")
@@ -61,6 +62,7 @@ export default function MapApp() {
   const [tab, setTab] = useState("all"); // all | favorites | nearby
   const [sheetOpen, setSheetOpen] = useState(true);
   const [showAccount, setShowAccount] = useState(false);
+  const [showReview, setShowReview] = useState(false);
   const [locating, setLocating] = useState(false);
   const [ptype, setPtype] = useState("all"); // all | relais | locker
   const [radius, setRadius] = useState(20); // km, 5-200
@@ -415,6 +417,18 @@ export default function MapApp() {
           <User className="h-4 w-4" />
           Mon compte
         </button>
+
+        {/* Laisser votre avis (connectés uniquement) */}
+        {user && (
+          <button
+            onClick={() => setShowReview(true)}
+            data-testid="leave-review-btn"
+            className="mb-4 flex w-full items-center gap-2 rounded-full border border-[#FFCC00]/50 bg-[#FFCC00]/10 px-4 py-2.5 text-sm font-semibold text-[#14161C] hover:bg-[#FFCC00]/20 transition-[background-color]"
+          >
+            <MessageSquare className="h-4 w-4" />
+            Laisser votre avis
+          </button>
+        )}
 
         {/* Search */}
         <form
@@ -807,6 +821,7 @@ export default function MapApp() {
       )}
       {showChangePwd && <ChangePasswordModal onClose={() => setShowChangePwd(false)} />}
       {showStats && <StatsModal onClose={() => setShowStats(false)} />}
+      {showReview && <ReviewModal onClose={() => setShowReview(false)} />}
       {selected && formPoint === undefined && (
         <PointDetail
           point={selected}
