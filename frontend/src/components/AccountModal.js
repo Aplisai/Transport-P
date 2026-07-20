@@ -155,14 +155,24 @@ export default function AccountModal({ onClose, onOpenChangePassword, onOpenStat
         <div className="flex gap-1 rounded-full bg-black/5 p-1 mx-6 mt-4">
           {tabs.map((t) => {
             const Icon = t.icon;
+            const isReview = t.id === "review";
+            const active = tab === t.id;
+            let cls;
+            if (isReview) {
+              cls = active
+                ? "bg-[#FFCC00] text-[#14161C]"
+                : "text-[#8a7400] hover:text-[#14161C]";
+            } else {
+              cls = active
+                ? "bg-[#14161C] text-white"
+                : "text-gray-500 hover:text-[#14161C]";
+            }
             return (
               <button
                 key={t.id}
                 data-testid={`account-tab-${t.id}`}
                 onClick={() => setTab(t.id)}
-                className={`flex flex-1 items-center justify-center gap-1 rounded-full px-1 py-2 text-xs font-medium transition-[background-color,color] ${
-                  tab === t.id ? "bg-[#14161C] text-white" : "text-gray-500 hover:text-[#14161C]"
-                }`}
+                className={`flex flex-1 items-center justify-center gap-1 rounded-full px-1 py-2 text-xs font-medium transition-[background-color,color] ${cls}`}
               >
                 <Icon className="h-3.5 w-3.5 shrink-0" /> <span className="truncate">{t.label}</span>
               </button>
