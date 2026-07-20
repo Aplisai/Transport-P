@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, User, Settings, Loader2, KeyRound, BarChart3, Mail, Pencil, Check, Palette, Trash2, AlertTriangle, Sun, Moon } from "lucide-react";
+import { X, User, Settings, Loader2, KeyRound, BarChart3, Mail, Pencil, Check, Palette, Trash2, AlertTriangle, Sun, Moon, MessageSquare, Star, CheckCircle2 } from "lucide-react";
 import { api, formatApiError } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { getTheme, setTheme as applyThemeChoice } from "@/lib/theme";
@@ -18,6 +18,30 @@ export default function AccountModal({ onClose, onOpenChangePassword, onOpenStat
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [theme, setThemeState] = useState(getTheme());
+  const [rating, setRating] = useState(0);
+  const [hoverStar, setHoverStar] = useState(0);
+  const [comment, setComment] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewDone, setReviewDone] = useState(false);
+
+  const submitReview = async () => {
+    if (rating < 1) {
+      toast.error("Merci de sélectionner une note.");
+      return;
+    }
+    setSubmittingReview(true);
+    try {
+      await api.post("/reviews", { rating, comment });
+      setReviewDone(true);
+      toast.success("Merci pour votre avis !");
+    } catch (err) {
+      if (err.response?.status !== 401) {
+        toast.error(formatApiError(err.response?.data?.detail) || "Échec de l'envoi");
+      }
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
 
   const chooseTheme = (t) => {
     setThemeState(t);
@@ -95,6 +119,7 @@ export default function AccountModal({ onClose, onOpenChangePassword, onOpenStat
   const tabs = [
     { id: "profile", label: "Mon profil", icon: User },
     { id: "settings", label: "Paramètres", icon: Settings },
+    { id: "review", label: "Laisser un avis", icon: MessageSquare },
   ];
 
   const labelCls = "mb-1 block text-[11px] font-medium uppercase tracking-wider text-gray-500";
@@ -135,11 +160,11 @@ export default function AccountModal({ onClose, onOpenChangePassword, onOpenStat
                 key={t.id}
                 data-testid={`account-tab-${t.id}`}
                 onClick={() => setTab(t.id)}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-sm font-medium transition-[background-color,color] ${
+                className={`flex flex-1 items-center justify-center gap-1 rounded-full px-1 py-2 text-xs font-medium transition-[background-color,color] ${
                   tab === t.id ? "bg-[#14161C] text-white" : "text-gray-500 hover:text-[#14161C]"
                 }`}
               >
-                <Icon className="h-4 w-4" /> {t.label}
+                <Icon className="h-3.5 w-3.5 shrink-0" /> <span className="truncate">{t.label}</span>
               </button>
             );
           })}
@@ -338,6 +363,60 @@ export default function AccountModal({ onClose, onOpenChangePassword, onOpenStat
                   </button>
                 </div>
               </div>
+            )}
+          </div>
+        )}
+
+        {/* Review tab */}
+        {tab === "review" && (
+          <div className="space-y-4 p-6" data-testid="account-review-panel">
+            {reviewDone ? (
+              <div className="flex flex-col items-center gap-3 py-8 text-center" data-testid="account-review-success">
+                <CheckCircle2 className="h-12 w-12 text-green-500" />
+                <p className="text-sm font-medium text-[#14161C]">Merci pour votre avis !</p>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className={labelCls}>Votre note</label>
+                  <div className="flex items-center gap-1.5" data-testid="account-review-stars">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        data-testid={`account-review-star-${n}`}
+                        onClick={() => setRating(n)}
+                        onMouseEnter={() => setHoverStar(n)}
+                        onMouseLeave={() => setHoverStar(0)}
+                        className="transition-transform hover:scale-110"
+                      >
+                        <Star className={`h-8 w-8 ${n <= (hoverStar || rating) ? "fill-[#FFCC00] text-[#FFCC00]" : "text-gray-300"}`} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className={labelCls}>Votre commentaire (facultatif)</label>
+                  <textarea
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    rows={4}
+                    maxLength={2000}
+                    data-testid="account-review-comment"
+                    placeholder="Dites-nous ce que vous pensez de l'application…"
+                    className="w-full resize-none rounded-lg border border-black/10 bg-black/[0.03] p-3 text-sm text-[#14161C] outline-none focus:border-black/30 transition-[border-color]"
+                  />
+                </div>
+                <button
+                  onClick={submitReview}
+                  disabled={submittingReview}
+                  data-testid="account-review-submit"
+                  className="flex w-full items-center justify-center gap-2 rounded-full bg-[#14161C] px-4 py-3 text-sm font-semibold text-white hover:bg-[#2a2d36] transition-[background-color] disabled:opacity-60"
+                >
+                  {submittingReview ? <Loader2 className="h-4 w-4 animate-spin" /> : <Star className="h-4 w-4" />}
+                  Envoyer mon avis
+                </button>
+              </>
             )}
           </div>
         )}
