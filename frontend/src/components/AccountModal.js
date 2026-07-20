@@ -161,7 +161,7 @@ export default function AccountModal({ onClose, onOpenChangePassword, onOpenStat
             if (isReview) {
               cls = active
                 ? "bg-[#FFCC00] text-[#14161C]"
-                : "text-[#8a7400] hover:text-[#14161C]";
+                : "bg-[#FFCC00]/70 text-[#14161C] hover:bg-[#FFCC00]";
             } else {
               cls = active
                 ? "bg-[#14161C] text-white"
