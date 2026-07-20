@@ -376,6 +376,12 @@ export default function MapApp() {
                 <span className="hidden sm:inline">Mot de passe</span>
               </button>
               <div className="ml-auto flex flex-col items-end gap-1">
+                <span
+                  className="max-w-[140px] truncate text-xs font-medium text-gray-600"
+                  data-testid="user-name"
+                >
+                  {user.name}
+                </span>
                 <button
                   onClick={() => {
                     logout();
@@ -388,12 +394,6 @@ export default function MapApp() {
                   <LogOut className="h-3.5 w-3.5" />
                   Se déconnecter
                 </button>
-                <span
-                  className="max-w-[140px] truncate text-xs font-medium text-gray-600"
-                  data-testid="user-name"
-                >
-                  {user.name}
-                </span>
               </div>
             </div>
           ) : (
