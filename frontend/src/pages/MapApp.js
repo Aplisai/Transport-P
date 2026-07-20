@@ -351,12 +351,6 @@ export default function MapApp() {
           </div>
           {user ? (
             <div className="flex flex-1 items-center gap-2">
-              <span
-                className="max-w-[110px] truncate text-xs font-medium text-gray-600"
-                data-testid="user-name"
-              >
-                {user.name}
-              </span>
               {isAdmin && (
                 <button
                   onClick={() => setShowStats(true)}
@@ -381,18 +375,26 @@ export default function MapApp() {
                 <KeyRound className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Mot de passe</span>
               </button>
-              <button
-                onClick={() => {
-                  logout();
-                  setTab("all");
-                }}
-                aria-label="Se déconnecter"
-                data-testid="logout-btn"
-                className="ml-auto flex items-center gap-1.5 rounded-full bg-red-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-600 transition-[background-color]"
-              >
-                <LogOut className="h-3.5 w-3.5" />
-                Se déconnecter
-              </button>
+              <div className="ml-auto flex flex-col items-end gap-1">
+                <button
+                  onClick={() => {
+                    logout();
+                    setTab("all");
+                  }}
+                  aria-label="Se déconnecter"
+                  data-testid="logout-btn"
+                  className="flex items-center gap-1.5 rounded-full bg-red-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-600 transition-[background-color]"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  Se déconnecter
+                </button>
+                <span
+                  className="max-w-[140px] truncate text-xs font-medium text-gray-600"
+                  data-testid="user-name"
+                >
+                  {user.name}
+                </span>
+              </div>
             </div>
           ) : (
             <button
