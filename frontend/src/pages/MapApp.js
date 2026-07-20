@@ -350,7 +350,7 @@ export default function MapApp() {
             )}
           </div>
           {user ? (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-1 items-center gap-2">
               <span
                 className="max-w-[110px] truncate text-xs font-medium text-gray-600"
                 data-testid="user-name"
@@ -388,7 +388,7 @@ export default function MapApp() {
                 }}
                 aria-label="Se déconnecter"
                 data-testid="logout-btn"
-                className="flex items-center gap-1.5 rounded-full bg-red-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-600 transition-[background-color]"
+                className="ml-auto flex items-center gap-1.5 rounded-full bg-red-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-600 transition-[background-color]"
               >
                 <LogOut className="h-3.5 w-3.5" />
                 Se déconnecter
