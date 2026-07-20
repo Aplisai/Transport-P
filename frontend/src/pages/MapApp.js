@@ -322,32 +322,32 @@ export default function MapApp() {
       {/* Header */}
       <div className="border-b border-black/10 p-4">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <div className="flex h-7 items-center justify-center gap-0.5 rounded-lg bg-[#FFCC00] px-1.5">
-              <span className="font-head text-base font-bold leading-none text-[#3399FF]">R</span>
-              <Package className="h-3.5 w-3.5 text-black" strokeWidth={2.5} />
-            </div>
-            <div className="flex flex-col gap-0.5">
+          <div className="flex flex-col gap-0.5">
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 items-center justify-center gap-0.5 rounded-lg bg-[#FFCC00] px-1.5">
+                <span className="font-head text-base font-bold leading-none text-[#3399FF]">R</span>
+                <Package className="h-3.5 w-3.5 text-black" strokeWidth={2.5} />
+              </div>
               <h1 className="whitespace-nowrap font-head text-lg font-semibold leading-none tracking-tight text-[#14161C]">
                 Relay Dip
               </h1>
-              <span
-                data-testid="header-tagline"
-                className="whitespace-nowrap text-[10px] font-medium leading-none text-gray-500"
-              >
-                Points Relais et Lockers France
-              </span>
+              {isAdmin && (
+                <button
+                  onClick={() => setFormPoint(null)}
+                  data-testid="header-add-point-btn"
+                  title="Ajouter un point relais ou locker"
+                  className="ml-1 flex items-center gap-1 rounded-full bg-[#FFCC00] px-2.5 py-1.5 text-[11px] font-bold text-[#14161C] hover:bg-[#f5c400] transition-[background-color]"
+                >
+                  <Plus className="h-3.5 w-3.5" strokeWidth={2.5} /> Ajouter
+                </button>
+              )}
             </div>
-            {isAdmin && (
-              <button
-                onClick={() => setFormPoint(null)}
-                data-testid="header-add-point-btn"
-                title="Ajouter un point relais ou locker"
-                className="ml-1 flex items-center gap-1 rounded-full bg-[#FFCC00] px-2.5 py-1.5 text-[11px] font-bold text-[#14161C] hover:bg-[#f5c400] transition-[background-color]"
-              >
-                <Plus className="h-3.5 w-3.5" strokeWidth={2.5} /> Ajouter
-              </button>
-            )}
+            <span
+              data-testid="header-tagline"
+              className="whitespace-nowrap text-[10px] font-medium leading-none text-gray-500"
+            >
+              Points Relais et Lockers France
+            </span>
           </div>
           {user ? (
             <div className="flex items-center gap-2">
