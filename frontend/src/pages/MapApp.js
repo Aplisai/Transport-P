@@ -327,9 +327,17 @@ export default function MapApp() {
               <span className="font-head text-base font-bold leading-none text-[#3399FF]">R</span>
               <Package className="h-3.5 w-3.5 text-black" strokeWidth={2.5} />
             </div>
-            <h1 className="whitespace-nowrap font-head text-lg font-semibold leading-none tracking-tight text-[#14161C]">
-              Relay Dip
-            </h1>
+            <div className="flex flex-col gap-0.5">
+              <h1 className="whitespace-nowrap font-head text-lg font-semibold leading-none tracking-tight text-[#14161C]">
+                Relay Dip
+              </h1>
+              <span
+                data-testid="header-tagline"
+                className="whitespace-nowrap text-[10px] font-medium leading-none text-gray-500"
+              >
+                Points Relais et Lockers France
+              </span>
+            </div>
             {isAdmin && (
               <button
                 onClick={() => setFormPoint(null)}
