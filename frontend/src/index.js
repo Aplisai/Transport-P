@@ -3,6 +3,9 @@ import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@/index.css";
 import App from "@/App";
+import { getTheme, applyTheme } from "@/lib/theme";
+
+applyTheme(getTheme());
 
 const queryClient = new QueryClient({
   defaultOptions: {

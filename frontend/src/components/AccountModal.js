@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { X, User, Settings, Loader2, KeyRound, BarChart3, Mail, Pencil, Check, Palette, Trash2, AlertTriangle } from "lucide-react";
+import { X, User, Settings, Loader2, KeyRound, BarChart3, Mail, Pencil, Check, Palette, Trash2, AlertTriangle, Sun, Moon } from "lucide-react";
 import { api, formatApiError } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { getTheme, setTheme as applyThemeChoice } from "@/lib/theme";
 import { toast } from "sonner";
 
 export default function AccountModal({ onClose, onOpenChangePassword, onOpenStats, onLogout }) {
@@ -16,6 +17,13 @@ export default function AccountModal({ onClose, onOpenChangePassword, onOpenStat
   const [savingEmail, setSavingEmail] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [theme, setThemeState] = useState(getTheme());
+
+  const chooseTheme = (t) => {
+    setThemeState(t);
+    applyThemeChoice(t);
+    toast.success(t === "dark" ? "Thème sombre activé" : "Thème clair activé");
+  };
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -253,14 +261,38 @@ export default function AccountModal({ onClose, onOpenChangePassword, onOpenStat
                 Statistiques d'audience
               </button>
             )}
-            <button
-              onClick={() => toast.info("Personnalisation du thème bientôt disponible")}
+            <div
+              className="rounded-xl border border-black/10 bg-white p-3"
               data-testid="account-theme"
-              className="flex w-full items-center gap-3 rounded-xl border border-black/10 bg-white px-4 py-3 text-left text-sm font-medium text-[#14161C] hover:bg-black/[0.03] transition-[background-color]"
             >
-              <Palette className="h-4 w-4 text-gray-500" />
-              Thème
-            </button>
+              <p className="mb-2 flex items-center gap-2 text-sm font-medium text-[#14161C]">
+                <Palette className="h-4 w-4 text-gray-500" /> Thème
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => chooseTheme("light")}
+                  data-testid="theme-light"
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-semibold transition-[background-color,border-color] ${
+                    theme === "light"
+                      ? "border-[#14161C] bg-[#14161C] text-white"
+                      : "border-black/10 bg-white text-[#14161C] hover:bg-black/[0.03]"
+                  }`}
+                >
+                  <Sun className="h-4 w-4" /> Clair
+                </button>
+                <button
+                  onClick={() => chooseTheme("dark")}
+                  data-testid="theme-dark"
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-semibold transition-[background-color,border-color] ${
+                    theme === "dark"
+                      ? "border-[#14161C] bg-[#14161C] text-white"
+                      : "border-black/10 bg-white text-[#14161C] hover:bg-black/[0.03]"
+                  }`}
+                >
+                  <Moon className="h-4 w-4" /> Sombre
+                </button>
+              </div>
+            </div>
 
             {!confirmDelete ? (
               <button

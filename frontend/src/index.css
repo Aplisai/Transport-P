@@ -134,3 +134,50 @@ h1, h2, h3, h4, .font-head {
         --radius: 0.75rem;
     }
 }
+
+/* =========================================================
+   MODE SOMBRE — surcharges ciblées (html.dark)
+   ========================================================= */
+html.dark body { background: #0B0C10; color: #E5E7EB; }
+
+/* Surfaces */
+html.dark .bg-white { background-color: #14161C !important; }
+html.dark .bg-\[\#F5F6F8\] { background-color: #0f1115 !important; }
+html.dark .bg-\[\#EEF1F5\] { background-color: #0B0C10 !important; }
+html.dark .bg-\[\#F4F4F5\] { background-color: #1a1d24 !important; }
+
+/* Boutons / éléments foncés (primaires, onglets actifs, badges) */
+html.dark .bg-\[\#14161C\] { background-color: #2b2f38 !important; }
+html.dark .bg-\[\#2a2d36\] { background-color: #3a3f4a !important; }
+html.dark .hover\:bg-\[\#2a2d36\]:hover { background-color: #3a3f4a !important; }
+
+/* Texte */
+html.dark .text-\[\#14161C\] { color: #E5E7EB !important; }
+html.dark .text-gray-500 { color: #a1a1aa !important; }
+html.dark .text-gray-600 { color: #a1a1aa !important; }
+html.dark .text-gray-700 { color: #c4c4cc !important; }
+
+/* Fonds noirs translucides -> blancs translucides */
+html.dark .bg-black\/5 { background-color: rgba(255,255,255,0.06) !important; }
+html.dark .bg-black\/10 { background-color: rgba(255,255,255,0.1) !important; }
+html.dark .bg-black\/\[0\.02\] { background-color: rgba(255,255,255,0.03) !important; }
+html.dark .bg-black\/\[0\.03\] { background-color: rgba(255,255,255,0.04) !important; }
+html.dark .bg-black\/\[0\.04\] { background-color: rgba(255,255,255,0.05) !important; }
+html.dark .bg-black\/\[0\.05\] { background-color: rgba(255,255,255,0.06) !important; }
+html.dark .bg-black\/\[0\.06\] { background-color: rgba(255,255,255,0.08) !important; }
+html.dark .hover\:bg-black\/5:hover { background-color: rgba(255,255,255,0.08) !important; }
+html.dark .hover\:bg-black\/10:hover { background-color: rgba(255,255,255,0.12) !important; }
+html.dark .hover\:bg-black\/\[0\.03\]:hover { background-color: rgba(255,255,255,0.06) !important; }
+
+/* Bordures */
+html.dark .border-black\/5 { border-color: rgba(255,255,255,0.06) !important; }
+html.dark .border-black\/10 { border-color: rgba(255,255,255,0.12) !important; }
+html.dark .border-black\/15 { border-color: rgba(255,255,255,0.16) !important; }
+html.dark .border-black\/20 { border-color: rgba(255,255,255,0.2) !important; }
+html.dark .border-black\/25 { border-color: rgba(255,255,255,0.25) !important; }
+html.dark .border-black\/30 { border-color: rgba(255,255,255,0.3) !important; }
+html.dark .hover\:border-black\/40:hover { border-color: rgba(255,255,255,0.4) !important; }
+
+/* Champs de saisie */
+html.dark input::placeholder { color: rgba(255,255,255,0.4); }
+html.dark .rp-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); }
