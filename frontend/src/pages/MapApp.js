@@ -408,27 +408,27 @@ export default function MapApp() {
           )}
         </div>
 
-        {/* Mon compte */}
-        <button
-          onClick={() => (user ? setShowAccount(true) : setShowAuth(true))}
-          data-testid="mon-compte-btn"
-          className="mb-4 flex w-full items-center gap-2 rounded-full border border-black/10 bg-black/[0.03] px-4 py-2.5 text-sm font-semibold text-[#14161C] hover:bg-black/[0.06] transition-[background-color]"
-        >
-          <User className="h-4 w-4" />
-          Mon compte
-        </button>
-
-        {/* Laisser votre avis (connectés uniquement) */}
-        {user && (
+        {/* Mon compte + Laisser votre avis */}
+        <div className="mb-4 flex items-center gap-2">
           <button
-            onClick={() => setShowReview(true)}
-            data-testid="leave-review-btn"
-            className="mb-4 flex w-full items-center gap-2 rounded-full border border-[#FFCC00]/50 bg-[#FFCC00]/10 px-4 py-2.5 text-sm font-semibold text-[#14161C] hover:bg-[#FFCC00]/20 transition-[background-color]"
+            onClick={() => (user ? setShowAccount(true) : setShowAuth(true))}
+            data-testid="mon-compte-btn"
+            className="flex flex-1 items-center justify-center gap-2 rounded-full border border-black/10 bg-black/[0.03] px-4 py-2.5 text-sm font-semibold text-[#14161C] hover:bg-black/[0.06] transition-[background-color]"
           >
-            <MessageSquare className="h-4 w-4" />
-            Laisser votre avis
+            <User className="h-4 w-4" />
+            Mon compte
           </button>
-        )}
+          {user && (
+            <button
+              onClick={() => setShowReview(true)}
+              data-testid="leave-review-btn"
+              className="flex flex-1 items-center justify-center gap-2 rounded-full border border-[#FFCC00]/50 bg-[#FFCC00]/10 px-4 py-2.5 text-sm font-semibold text-[#14161C] hover:bg-[#FFCC00]/20 transition-[background-color]"
+            >
+              <MessageSquare className="h-4 w-4" />
+              Laisser votre avis
+            </button>
+          )}
+        </div>
 
         {/* Search */}
         <form
