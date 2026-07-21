@@ -72,6 +72,12 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 - **Note**: mot de passe admin `admin123` ne fonctionne plus (modifié par l'utilisateur).
 - **Revue de code — faux positifs (non corrigés, sûrs)**: MD5 dans `mondial_relay.py` = signature IMPOSÉE par l'API Mondial Relay. `random` dans `relay_data.py` = données démo DÉSACTIVÉES. Aucune comparaison `is <int>` présente.
 
+## Profil sécurisé + Stats utilisateurs + UI (2026-07-21)
+- **Confirmation par mot de passe**: modifier nom/email dans « Mon compte » requiert désormais le mot de passe (`PATCH /api/auth/profile` avec champ `password` obligatoire, vérifié via bcrypt → 400 si incorrect). Overlay de confirmation dans AccountModal.
+- **Stats utilisateurs**: `GET /api/admin/stats` renvoie `registered_users` (count db.users), `visits_auth`, `visits_anon`. `track_visit` détecte le token (optionnel) pour incrémenter visits_auth/visits_anon. Nouvelle section « Utilisateurs » dans StatsModal (Comptes créés + Visiteurs sans compte).
+- **Avis dans Mon compte**: onglet « Laisser un avis » (jaune, 3e onglet) remplace le bouton d'accueil. Placeholder commentaire = « Que pensez-vous de l'application ? ».
+- **Header**: sous-titre « Points Relais et Lockers France » sous le nom ; nom utilisateur en haut / « Se déconnecter » (rouge) tout à droite en dessous. Bouton flottant « Ajouter un point » (carte) supprimé (bouton « Ajouter » du header conservé).
+
 ## Avis clients + libellés (2026-07-20)
 - **Sous-titre header**: « Points Relais et Lockers France » sous le nom « Relay Dip ».
 - **Mode sombre**: confirmé — mode clair par défaut (aucun suivi OS), sombre seulement sur choix explicite (localStorage `rd_theme`).

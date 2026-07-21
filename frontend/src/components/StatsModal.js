@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { X, BarChart3, Users, Download, Loader2, Star, MessageSquare } from "lucide-react";
+import { X, BarChart3, Users, Download, Loader2, Star, MessageSquare, UserCheck, UserX } from "lucide-react";
 import { api } from "@/lib/api";
 
 export default function StatsModal({ onClose }) {
@@ -65,6 +65,24 @@ export default function StatsModal({ onClose }) {
                 </div>
                 <div className="font-head text-2xl font-bold text-[#14161C]">{data.total_installs}</div>
                 <div className="text-[11px] text-gray-400">Aujourd'hui : {data.today_installs}</div>
+              </div>
+            </div>
+
+            {/* Utilisateurs : avec / sans compte */}
+            <div className="grid grid-cols-2 gap-3" data-testid="stat-users">
+              <div className="rounded-xl border border-black/10 bg-[#F4F4F5] p-4" data-testid="stat-registered">
+                <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-gray-500">
+                  <UserCheck className="h-3.5 w-3.5" /> Comptes créés
+                </div>
+                <div className="font-head text-2xl font-bold text-[#14161C]">{data.registered_users ?? 0}</div>
+                <div className="text-[11px] text-gray-400">Utilisateurs avec un compte</div>
+              </div>
+              <div className="rounded-xl border border-black/10 bg-[#F4F4F5] p-4" data-testid="stat-anon">
+                <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-gray-500">
+                  <UserX className="h-3.5 w-3.5" /> Visiteurs sans compte
+                </div>
+                <div className="font-head text-2xl font-bold text-[#14161C]">{data.visits_anon ?? 0}</div>
+                <div className="text-[11px] text-gray-400">Visites non connectées</div>
               </div>
             </div>
 

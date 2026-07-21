@@ -343,9 +343,28 @@ def _today_str():
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 
+async def _optional_user(request: Request):
+    token = request.cookies.get("access_token")
+    if not token:
+        auth = request.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            token = auth[7:]
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        return await db.users.find_one({"_id": ObjectId(payload["sub"])})
+    except Exception:
+        return None
+
+
 @api_router.post("/track/visit")
-async def track_visit():
-    await db.stats_daily.update_one({"date": _today_str()}, {"$inc": {"visits": 1}}, upsert=True)
+async def track_visit(request: Request):
+    user = await _optional_user(request)
+    field = "visits_auth" if user else "visits_anon"
+    await db.stats_daily.update_one(
+        {"date": _today_str()}, {"$inc": {"visits": 1, field: 1}}, upsert=True
+    )
     return {"ok": True}
 
 
@@ -405,6 +424,9 @@ async def admin_stats(days: int = 30, admin: dict = Depends(require_admin)):
         "total_installs": sum(d.get("installs", 0) for d in docs),
         "today_visits": by_date.get(_today_str(), {}).get("visits", 0),
         "today_installs": by_date.get(_today_str(), {}).get("installs", 0),
+        "registered_users": await db.users.count_documents({}),
+        "visits_auth": sum(d.get("visits_auth", 0) for d in docs),
+        "visits_anon": sum(d.get("visits_anon", 0) for d in docs),
     }
 
 
