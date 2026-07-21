@@ -418,16 +418,33 @@ async def admin_stats(days: int = 30, admin: dict = Depends(require_admin)):
         d = (today - timedelta(days=i)).strftime("%Y-%m-%d")
         rec = by_date.get(d, {})
         out.append({"date": d, "visits": rec.get("visits", 0), "installs": rec.get("installs", 0)})
+    today_rec = by_date.get(_today_str(), {})
     return {
         "days": out,
         "total_visits": sum(d.get("visits", 0) for d in docs),
         "total_installs": sum(d.get("installs", 0) for d in docs),
-        "today_visits": by_date.get(_today_str(), {}).get("visits", 0),
-        "today_installs": by_date.get(_today_str(), {}).get("installs", 0),
+        "today_visits": today_rec.get("visits", 0),
+        "today_installs": today_rec.get("installs", 0),
+        "today_visits_auth": today_rec.get("visits_auth", 0),
+        "today_visits_anon": today_rec.get("visits_anon", 0),
         "registered_users": await db.users.count_documents({}),
         "visits_auth": sum(d.get("visits_auth", 0) for d in docs),
         "visits_anon": sum(d.get("visits_anon", 0) for d in docs),
     }
+
+
+@api_router.get("/admin/users")
+async def list_users(admin: dict = Depends(require_admin)):
+    docs = await db.users.find().sort("created_at", -1).to_list(1000)
+    out = [{
+        "id": str(u["_id"]),
+        "name": u.get("name", ""),
+        "email": u.get("email", ""),
+        "role": u.get("role", "user"),
+        "created_at": u.get("created_at", ""),
+        "favorites_count": len(u.get("favorites", []) or []),
+    } for u in docs]
+    return {"users": out, "count": len(out)}
 
 
 # ---- Stockage d'objets (photos des points) ----

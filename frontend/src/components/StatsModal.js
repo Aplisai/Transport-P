@@ -8,6 +8,18 @@ export default function StatsModal({ onClose }) {
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState(null);
   const [period, setPeriod] = useState(7);
+  const [expanded, setExpanded] = useState(null);
+  const [users, setUsers] = useState(null);
+
+  const toggleCard = (key) => {
+    setExpanded((prev) => (prev === key ? null : key));
+    if (key === "registered" && !users) {
+      api
+        .get("/admin/users")
+        .then(({ data }) => setUsers(data))
+        .catch(() => setUsers({ users: [], count: 0 }));
+    }
+  };
 
   useEffect(() => {
     api
@@ -60,41 +72,116 @@ export default function StatsModal({ onClose }) {
           </div>
         ) : (
           <div className="space-y-5 p-6">
-            {/* Totaux */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-xl border border-black/10 bg-[#F4F4F5] p-4" data-testid="stat-visits">
+            {/* Cartes cliquables */}
+            <div className="grid grid-cols-2 gap-3" data-testid="stat-cards">
+              <button
+                onClick={() => toggleCard("visits")}
+                data-testid="stat-visits"
+                className={`rounded-xl border bg-[#F4F4F5] p-4 text-left transition-[border-color,background-color] hover:bg-black/[0.04] ${expanded === "visits" ? "border-[#14161C] ring-1 ring-[#14161C]" : "border-black/10"}`}
+              >
                 <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-gray-500">
                   <Users className="h-3.5 w-3.5" /> Visiteurs
                 </div>
                 <div className="font-head text-2xl font-bold text-[#14161C]">{data.total_visits}</div>
                 <div className="text-[11px] text-gray-400">Aujourd'hui : {data.today_visits}</div>
-              </div>
-              <div className="rounded-xl border border-black/10 bg-[#F4F4F5] p-4" data-testid="stat-installs">
+              </button>
+              <button
+                onClick={() => toggleCard("installs")}
+                data-testid="stat-installs"
+                className={`rounded-xl border bg-[#F4F4F5] p-4 text-left transition-[border-color,background-color] hover:bg-black/[0.04] ${expanded === "installs" ? "border-[#14161C] ring-1 ring-[#14161C]" : "border-black/10"}`}
+              >
                 <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-gray-500">
                   <Download className="h-3.5 w-3.5" /> Installations
                 </div>
                 <div className="font-head text-2xl font-bold text-[#14161C]">{data.total_installs}</div>
                 <div className="text-[11px] text-gray-400">Aujourd'hui : {data.today_installs}</div>
-              </div>
-            </div>
-
-            {/* Utilisateurs : avec / sans compte */}
-            <div className="grid grid-cols-2 gap-3" data-testid="stat-users">
-              <div className="rounded-xl border border-black/10 bg-[#F4F4F5] p-4" data-testid="stat-registered">
+              </button>
+              <button
+                onClick={() => toggleCard("registered")}
+                data-testid="stat-registered"
+                className={`rounded-xl border bg-[#F4F4F5] p-4 text-left transition-[border-color,background-color] hover:bg-black/[0.04] ${expanded === "registered" ? "border-[#14161C] ring-1 ring-[#14161C]" : "border-black/10"}`}
+              >
                 <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-gray-500">
                   <UserCheck className="h-3.5 w-3.5" /> Comptes créés
                 </div>
                 <div className="font-head text-2xl font-bold text-[#14161C]">{data.registered_users ?? 0}</div>
                 <div className="text-[11px] text-gray-400">Utilisateurs avec un compte</div>
-              </div>
-              <div className="rounded-xl border border-black/10 bg-[#F4F4F5] p-4" data-testid="stat-anon">
+              </button>
+              <button
+                onClick={() => toggleCard("anon")}
+                data-testid="stat-anon"
+                className={`rounded-xl border bg-[#F4F4F5] p-4 text-left transition-[border-color,background-color] hover:bg-black/[0.04] ${expanded === "anon" ? "border-[#14161C] ring-1 ring-[#14161C]" : "border-black/10"}`}
+              >
                 <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-gray-500">
                   <UserX className="h-3.5 w-3.5" /> Visiteurs sans compte
                 </div>
                 <div className="font-head text-2xl font-bold text-[#14161C]">{data.visits_anon ?? 0}</div>
                 <div className="text-[11px] text-gray-400">Visites non connectées</div>
-              </div>
+              </button>
             </div>
+
+            {/* Panneau de détail */}
+            {expanded && (
+              <div className="rounded-xl border border-black/10 bg-white p-4" data-testid="stat-detail">
+                {expanded === "visits" && (
+                  <div className="space-y-2 text-sm text-gray-700">
+                    <p className="font-semibold text-[#14161C]">Détail des visiteurs</p>
+                    <div className="flex justify-between"><span>Total des visites</span><span className="font-semibold tabular-nums">{data.total_visits}</span></div>
+                    <div className="flex justify-between"><span>Aujourd'hui</span><span className="font-semibold tabular-nums">{data.today_visits}</span></div>
+                    <div className="flex justify-between"><span>Dont visiteurs connectés</span><span className="font-semibold tabular-nums">{data.visits_auth ?? 0}</span></div>
+                    <div className="flex justify-between"><span>Dont visiteurs sans compte</span><span className="font-semibold tabular-nums">{data.visits_anon ?? 0}</span></div>
+                    <p className="pt-1 text-[11px] text-gray-400">Une visite est comptée une fois par session et par jour.</p>
+                  </div>
+                )}
+                {expanded === "installs" && (
+                  <div className="space-y-2 text-sm text-gray-700">
+                    <p className="font-semibold text-[#14161C]">Détail des installations</p>
+                    <div className="flex justify-between"><span>Total des installations</span><span className="font-semibold tabular-nums">{data.total_installs}</span></div>
+                    <div className="flex justify-between"><span>Aujourd'hui</span><span className="font-semibold tabular-nums">{data.today_installs}</span></div>
+                    <p className="pt-1 text-[11px] text-gray-400">Comptabilise chaque ajout de l'application à l'écran d'accueil (PWA) sur mobile ou ordinateur.</p>
+                  </div>
+                )}
+                {expanded === "anon" && (
+                  <div className="space-y-2 text-sm text-gray-700">
+                    <p className="font-semibold text-[#14161C]">Détail des visiteurs sans compte</p>
+                    <div className="flex justify-between"><span>Visites sans compte (total)</span><span className="font-semibold tabular-nums">{data.visits_anon ?? 0}</span></div>
+                    <div className="flex justify-between"><span>Aujourd'hui</span><span className="font-semibold tabular-nums">{data.today_visits_anon ?? 0}</span></div>
+                    <div className="flex justify-between"><span>Visiteurs connectés (total)</span><span className="font-semibold tabular-nums">{data.visits_auth ?? 0}</span></div>
+                    <p className="pt-1 text-[11px] text-gray-400">Visites d'utilisateurs non connectés (sans compte). Suivi depuis l'activation de cette mesure.</p>
+                  </div>
+                )}
+                {expanded === "registered" && (
+                  <div className="space-y-2 text-sm text-gray-700">
+                    <p className="font-semibold text-[#14161C]">Comptes créés {users ? `(${users.count})` : ""}</p>
+                    {!users ? (
+                      <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-gray-400" /></div>
+                    ) : users.count === 0 ? (
+                      <p className="text-[13px] text-gray-400">Aucun compte pour le moment.</p>
+                    ) : (
+                      <div className="max-h-64 space-y-2 overflow-y-auto rp-scroll" data-testid="users-list">
+                        {users.users.map((u) => (
+                          <div key={u.id} className="flex items-center justify-between gap-2 rounded-lg border border-black/10 bg-[#F4F4F5] px-3 py-2" data-testid="user-item">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="truncate text-[13px] font-semibold text-[#14161C]">{u.name || "Sans nom"}</span>
+                                {u.role === "admin" && (
+                                  <span className="shrink-0 rounded-full bg-[#FFCC00] px-1.5 py-0.5 text-[9px] font-bold uppercase text-[#14161C]">Admin</span>
+                                )}
+                              </div>
+                              <div className="truncate text-[11px] text-gray-500">{u.email}</div>
+                            </div>
+                            <div className="shrink-0 text-right text-[10px] text-gray-400">
+                              <div>{u.created_at ? u.created_at.slice(0, 10) : "—"}</div>
+                              <div>{u.favorites_count} favori{u.favorites_count > 1 ? "s" : ""}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Sélecteur de période + graphique */}
             <div>

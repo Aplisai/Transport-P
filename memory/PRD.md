@@ -72,6 +72,11 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 - **Note**: mot de passe admin `admin123` ne fonctionne plus (modifié par l'utilisateur).
 - **Revue de code — faux positifs (non corrigés, sûrs)**: MD5 dans `mondial_relay.py` = signature IMPOSÉE par l'API Mondial Relay. `random` dans `relay_data.py` = données démo DÉSACTIVÉES. Aucune comparaison `is <int>` présente.
 
+## Stats interactives + graphique (2026-07-21b)
+- **Cartes cliquables** dans StatsModal: Visiteurs, Installations, Comptes créés, Visiteurs sans compte → panneau de détail dépliable. « Comptes créés » liste les utilisateurs via `GET /api/admin/users` (admin, sans password_hash: id/name/email/role/created_at/favorites_count).
+- **Graphique recharts**: barres groupées Visiteurs/Installations, sélecteur période 7j/30j, tooltip, légende, dates gauche→droite. Axe Y avec domaine/ticks explicites.
+- `admin/stats` renvoie aussi `today_visits_auth`, `today_visits_anon`.
+
 ## Profil sécurisé + Stats utilisateurs + UI (2026-07-21)
 - **Confirmation par mot de passe**: modifier nom/email dans « Mon compte » requiert désormais le mot de passe (`PATCH /api/auth/profile` avec champ `password` obligatoire, vérifié via bcrypt → 400 si incorrect). Overlay de confirmation dans AccountModal.
 - **Stats utilisateurs**: `GET /api/admin/stats` renvoie `registered_users` (count db.users), `visits_auth`, `visits_anon`. `track_visit` détecte le token (optionnel) pour incrémenter visits_auth/visits_anon. Nouvelle section « Utilisateurs » dans StatsModal (Comptes créés + Visiteurs sans compte).
