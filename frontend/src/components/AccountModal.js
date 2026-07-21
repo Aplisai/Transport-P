@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, User, Settings, Loader2, KeyRound, BarChart3, Mail, Pencil, Check, Palette, Trash2, AlertTriangle, Sun, Moon, MessageSquare, Star, CheckCircle2 } from "lucide-react";
+import { X, User, Settings, Loader2, KeyRound, BarChart3, Mail, Pencil, Check, Palette, Trash2, AlertTriangle, Sun, Moon, MessageSquare, Star, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import { api, formatApiError } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { getTheme, setTheme as applyThemeChoice } from "@/lib/theme";
@@ -18,6 +18,10 @@ export default function AccountModal({ onClose, onOpenChangePassword, onOpenStat
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [theme, setThemeState] = useState(getTheme());
+  const [pendingUpdate, setPendingUpdate] = useState(null);
+  const [confirmPwd, setConfirmPwd] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const [showConfirmPwd, setShowConfirmPwd] = useState(false);
   const [rating, setRating] = useState(0);
   const [hoverStar, setHoverStar] = useState(0);
   const [comment, setComment] = useState("");
@@ -64,7 +68,7 @@ export default function AccountModal({ onClose, onOpenChangePassword, onOpenStat
     }
   };
 
-  const saveName = async () => {
+  const saveName = () => {
     const trimmed = name.trim();
     if (!trimmed) {
       toast.error("Le nom ne peut pas être vide");
@@ -74,23 +78,12 @@ export default function AccountModal({ onClose, onOpenChangePassword, onOpenStat
       setEditName(false);
       return;
     }
-    setSavingName(true);
-    try {
-      const { data } = await api.patch("/auth/profile", { name: trimmed });
-      patchUser({ name: data.name });
-      setName(data.name);
-      setEditName(false);
-      toast.success("Nom mis à jour");
-    } catch (err) {
-      if (err.response?.status !== 401) {
-        toast.error(formatApiError(err.response?.data?.detail) || "Échec de la mise à jour");
-      }
-    } finally {
-      setSavingName(false);
-    }
+    setConfirmPwd("");
+    setShowConfirmPwd(false);
+    setPendingUpdate({ field: "name", value: trimmed, label: "votre nom" });
   };
 
-  const saveEmail = async () => {
+  const saveEmail = () => {
     const trimmed = email.trim().toLowerCase();
     if (!trimmed || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmed)) {
       toast.error("Adresse email invalide");
@@ -100,20 +93,47 @@ export default function AccountModal({ onClose, onOpenChangePassword, onOpenStat
       setEditEmail(false);
       return;
     }
-    setSavingEmail(true);
+    setConfirmPwd("");
+    setShowConfirmPwd(false);
+    setPendingUpdate({ field: "email", value: trimmed, label: "votre adresse email" });
+  };
+
+  const confirmProfileUpdate = async () => {
+    if (!confirmPwd) {
+      toast.error("Veuillez saisir votre mot de passe");
+      return;
+    }
+    setConfirming(true);
     try {
-      const { data } = await api.patch("/auth/profile", { email: trimmed });
-      patchUser({ email: data.email });
-      setEmail(data.email);
-      setEditEmail(false);
-      toast.success("Adresse email mise à jour");
+      const payload = { password: confirmPwd, [pendingUpdate.field]: pendingUpdate.value };
+      const { data } = await api.patch("/auth/profile", payload);
+      if (pendingUpdate.field === "name") {
+        patchUser({ name: data.name });
+        setName(data.name);
+        setEditName(false);
+        toast.success("Nom mis à jour");
+      } else {
+        patchUser({ email: data.email });
+        setEmail(data.email);
+        setEditEmail(false);
+        toast.success("Adresse email mise à jour");
+      }
+      setPendingUpdate(null);
+      setConfirmPwd("");
     } catch (err) {
       if (err.response?.status !== 401) {
         toast.error(formatApiError(err.response?.data?.detail) || "Échec de la mise à jour");
       }
     } finally {
-      setSavingEmail(false);
+      setConfirming(false);
     }
+  };
+
+  const cancelProfileUpdate = () => {
+    setPendingUpdate(null);
+    setConfirmPwd("");
+    if (pendingUpdate?.field === "name") setName(user?.name || "");
+    if (pendingUpdate?.field === "email") setEmail(user?.email || "");
   };
 
   const tabs = [
@@ -428,6 +448,65 @@ export default function AccountModal({ onClose, onOpenChangePassword, onOpenStat
                 </button>
               </>
             )}
+          </div>
+        )}
+
+        {/* Confirmation par mot de passe pour modification du profil */}
+        {pendingUpdate && (
+          <div
+            className="absolute inset-0 z-10 flex items-center justify-center rounded-t-2xl bg-white/95 p-6 backdrop-blur-sm sm:rounded-2xl"
+            data-testid="profile-confirm-overlay"
+          >
+            <div className="w-full">
+              <div className="mb-3 flex items-center gap-2">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#14161C]">
+                  <KeyRound className="h-4 w-4 text-[#FFCC00]" />
+                </span>
+                <h3 className="font-head text-base font-semibold text-[#14161C]">Confirmer la modification</h3>
+              </div>
+              <p className="mb-4 text-sm text-gray-600">
+                Pour modifier {pendingUpdate.label}, veuillez saisir votre mot de passe de connexion.
+              </p>
+              <label className={labelCls}>Mot de passe</label>
+              <div className="relative mb-4">
+                <input
+                  type={showConfirmPwd ? "text" : "password"}
+                  value={confirmPwd}
+                  onChange={(e) => setConfirmPwd(e.target.value)}
+                  autoFocus
+                  data-testid="profile-confirm-password-input"
+                  placeholder="••••••••"
+                  onKeyDown={(e) => e.key === "Enter" && confirmProfileUpdate()}
+                  className="w-full rounded-lg border border-black/20 bg-white px-3 py-2.5 pr-11 text-sm text-[#14161C] outline-none focus:border-black/40 transition-[border-color]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPwd((s) => !s)}
+                  aria-label={showConfirmPwd ? "Masquer" : "Afficher"}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-gray-400 hover:text-[#14161C] transition-[color]"
+                >
+                  {showConfirmPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={confirmProfileUpdate}
+                  disabled={confirming}
+                  data-testid="profile-confirm-btn"
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-[#14161C] py-2.5 text-sm font-semibold text-white hover:bg-[#2a2d36] disabled:opacity-60 transition-[background-color]"
+                >
+                  {confirming ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  Confirmer
+                </button>
+                <button
+                  onClick={cancelProfileUpdate}
+                  data-testid="profile-confirm-cancel-btn"
+                  className="rounded-full border border-black/10 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-black/5 transition-[background-color]"
+                >
+                  Annuler
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

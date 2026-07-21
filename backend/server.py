@@ -207,6 +207,7 @@ class ChangePasswordIn(BaseModel):
 class ProfileIn(BaseModel):
     name: Optional[str] = Field(default=None, max_length=80)
     email: Optional[EmailStr] = None
+    password: str
 
 @api_router.post("/auth/forgot-password")
 async def forgot_password(data: ForgotIn):
@@ -254,6 +255,8 @@ async def change_password(data: ChangePasswordIn, user: dict = Depends(get_curre
 
 @api_router.patch("/auth/profile")
 async def update_profile(data: ProfileIn, user: dict = Depends(get_current_user)):
+    if not verify_password(data.password, user["password_hash"]):
+        raise HTTPException(status_code=400, detail="Mot de passe incorrect")
     updates = {}
     if data.name is not None:
         name = data.name.strip()
