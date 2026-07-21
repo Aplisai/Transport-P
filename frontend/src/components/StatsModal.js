@@ -1,30 +1,40 @@
 import { useEffect, useState } from "react";
 import { X, BarChart3, Users, Download, Loader2, Star, MessageSquare, UserCheck, UserX } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
 import { api } from "@/lib/api";
 
 export default function StatsModal({ onClose }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState(null);
+  const [period, setPeriod] = useState(7);
 
   useEffect(() => {
     api
-      .get("/admin/stats", { params: { days: 30 } })
+      .get("/admin/stats", { params: { days: period } })
       .then(({ data }) => setData(data))
       .catch(() => setData({ days: [], total_visits: 0, total_installs: 0 }))
       .finally(() => setLoading(false));
+  }, [period]);
+
+  useEffect(() => {
     api
       .get("/admin/reviews")
       .then(({ data }) => setReviews(data))
       .catch(() => setReviews({ reviews: [], count: 0, average: 0 }));
   }, []);
 
-  const days = data?.days || [];
-  const maxVal = Math.max(1, ...days.map((d) => Math.max(d.visits, d.installs)));
   const fmtDate = (s) => {
     const [, m, d] = s.split("-");
     return `${d}/${m}`;
   };
+  // Du plus ancien au plus récent (lecture de gauche à droite)
+  const chartData = [...(data?.days || [])]
+    .reverse()
+    .map((d) => ({ jour: fmtDate(d.date), Visiteurs: d.visits, Installations: d.installs }));
+  const maxV = Math.max(1, ...chartData.map((d) => Math.max(d.Visiteurs, d.Installations)));
+  const yTop = Math.max(4, Math.ceil(maxV / 2) * 2);
+  const yTicks = [0, yTop / 2, yTop];
 
   return (
     <div className="fixed inset-0 z-[2200] flex items-end justify-center p-0 sm:items-center sm:p-4" data-testid="stats-modal">
@@ -86,34 +96,59 @@ export default function StatsModal({ onClose }) {
               </div>
             </div>
 
-            {/* Légende */}
-            <div className="flex items-center gap-4 text-[11px] text-gray-500">
-              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-[#3399FF]" /> Visiteurs</span>
-              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-[#FFCC00]" /> Installations</span>
-              <span className="ml-auto">30 derniers jours</span>
-            </div>
-
-            {/* Graphe par jour */}
-            <div className="space-y-1.5" data-testid="stats-daily">
-              {days.map((d) => (
-                <div key={d.date} className="flex items-center gap-2">
-                  <span className="w-10 shrink-0 text-[10px] tabular-nums text-gray-400">{fmtDate(d.date)}</span>
-                  <div className="flex flex-1 flex-col gap-0.5">
-                    <div className="h-2 rounded-full bg-black/[0.04]">
-                      <div className="h-2 rounded-full bg-[#3399FF]" style={{ width: `${(d.visits / maxVal) * 100}%` }} />
-                    </div>
-                    <div className="h-2 rounded-full bg-black/[0.04]">
-                      <div className="h-2 rounded-full bg-[#FFCC00]" style={{ width: `${(d.installs / maxVal) * 100}%` }} />
-                    </div>
-                  </div>
-                  <span className="w-14 shrink-0 text-right text-[10px] tabular-nums text-gray-500">
-                    {d.visits} / {d.installs}
-                  </span>
+            {/* Sélecteur de période + graphique */}
+            <div>
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-[#14161C]">Évolution</h3>
+                <div className="flex gap-1 rounded-full bg-black/5 p-1" data-testid="stats-period">
+                  {[7, 30].map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setPeriod(p)}
+                      data-testid={`stats-period-${p}`}
+                      className={`rounded-full px-3 py-1 text-xs font-semibold transition-[background-color,color] ${
+                        period === p ? "bg-[#14161C] text-white" : "text-gray-500 hover:text-[#14161C]"
+                      }`}
+                    >
+                      {p} jours
+                    </button>
+                  ))}
                 </div>
-              ))}
+              </div>
+              <div className="rounded-xl border border-black/10 bg-white p-3" data-testid="stats-chart">
+                <ResponsiveContainer width="100%" height={240}>
+                  <BarChart data={chartData} margin={{ top: 8, right: 4, left: -18, bottom: 0 }} barGap={2}>
+                    <CartesianGrid vertical={false} stroke="#eee" />
+                    <XAxis
+                      dataKey="jour"
+                      tick={{ fontSize: 10, fill: "#9ca3af" }}
+                      interval={period === 7 ? 0 : "preserveStartEnd"}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      allowDecimals={false}
+                      domain={[0, yTop]}
+                      ticks={yTicks}
+                      tick={{ fontSize: 10, fill: "#9ca3af" }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={28}
+                    />
+                    <Tooltip
+                      cursor={{ fill: "rgba(0,0,0,0.04)" }}
+                      contentStyle={{ borderRadius: 12, border: "1px solid #eee", fontSize: 12 }}
+                      labelFormatter={(l) => `Le ${l}`}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} iconType="circle" />
+                    <Bar dataKey="Visiteurs" fill="#3399FF" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                    <Bar dataKey="Installations" fill="#FFCC00" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
             <p className="text-[11px] leading-relaxed text-gray-400">
-              « Visiteurs » = visites de l'application (une par session/jour). « Installations » = ajouts de l'app à l'écran d'accueil (PWA).
+              « Visiteurs » = nombre de visites de l'application (une par session et par jour). « Installations » = nombre de fois où l'app a été ajoutée à l'écran d'accueil (PWA). Survolez une barre pour voir le détail d'une journée.
             </p>
 
             {/* Avis clients */}
