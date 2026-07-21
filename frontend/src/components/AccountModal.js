@@ -413,7 +413,7 @@ export default function AccountModal({ onClose, onOpenChangePassword, onOpenStat
                     rows={4}
                     maxLength={2000}
                     data-testid="account-review-comment"
-                    placeholder="Dites-nous ce que vous pensez de l'application…"
+                    placeholder="Que pensez-vous de l'application ?"
                     className="w-full resize-none rounded-lg border border-black/10 bg-black/[0.03] p-3 text-sm text-[#14161C] outline-none focus:border-black/30 transition-[border-color]"
                   />
                 </div>
