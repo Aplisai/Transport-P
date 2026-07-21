@@ -767,17 +767,6 @@ export default function MapApp() {
         )}
       </button>
 
-      {/* Admin: Add point button */}
-      {isAdmin && (
-        <button
-          onClick={() => setFormPoint(null)}
-          data-testid="admin-add-point-btn"
-          className="absolute right-5 top-5 z-[1100] flex items-center gap-2 rounded-full bg-[#FFCC00] px-4 py-3 text-sm font-bold text-[#14161C] shadow-[0_8px_24px_rgba(0,0,0,0.2)] hover:bg-[#f5c400] transition-[background-color]"
-        >
-          <Plus className="h-4 w-4" strokeWidth={2.5} /> Ajouter un point
-        </button>
-      )}
-
       {/* Mobile sheet (plein écran) */}
       <div
         className={`absolute inset-0 z-[1050] bg-white transition-transform duration-300 lg:hidden ${
