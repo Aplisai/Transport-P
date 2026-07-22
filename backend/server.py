@@ -666,6 +666,54 @@ async def create_announcement(data: AnnouncementIn, admin: dict = Depends(requir
     return {"ok": True}
 
 
+class ProposalIn(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    address: str = Field(default="", max_length=250)
+    type: str = Field(default="relais")
+    comment: str = Field(default="", max_length=1000)
+
+
+@api_router.post("/proposals")
+async def create_proposal(data: ProposalIn, user: dict = Depends(get_current_user)):
+    ptype = data.type if data.type in ("relais", "locker") else "relais"
+    await db.proposals.insert_one({
+        "user_id": str(user["_id"]),
+        "user_name": user.get("name", ""),
+        "user_email": user.get("email", ""),
+        "name": data.name.strip(),
+        "address": data.address.strip(),
+        "type": ptype,
+        "comment": data.comment.strip(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    return {"ok": True}
+
+
+@api_router.get("/admin/proposals")
+async def list_proposals(admin: dict = Depends(require_admin)):
+    docs = await db.proposals.find().sort("created_at", -1).to_list(500)
+    items = [{
+        "id": str(d["_id"]),
+        "user_name": d.get("user_name", ""),
+        "user_email": d.get("user_email", ""),
+        "name": d.get("name", ""),
+        "address": d.get("address", ""),
+        "type": d.get("type", "relais"),
+        "comment": d.get("comment", ""),
+        "created_at": d.get("created_at", ""),
+    } for d in docs]
+    return {"proposals": items, "count": len(items)}
+
+
+@api_router.delete("/admin/proposals/{proposal_id}")
+async def delete_proposal(proposal_id: str, admin: dict = Depends(require_admin)):
+    try:
+        await db.proposals.delete_one({"_id": ObjectId(proposal_id)})
+    except Exception:
+        raise HTTPException(status_code=400, detail="Identifiant invalide")
+    return {"ok": True}
+
+
 @api_router.post("/admin/points")
 async def admin_create_point(data: PointFullIn, admin: dict = Depends(require_admin)):
     _validate_coords(data.lat, data.lng)
