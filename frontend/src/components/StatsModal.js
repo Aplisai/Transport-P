@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
-import { X, BarChart3, Users, Download, Loader2, Star, MessageSquare, UserCheck, UserX } from "lucide-react";
+import { X, BarChart3, Users, Download, Loader2, UserCheck, UserX } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
 import { api } from "@/lib/api";
 
 export default function StatsModal({ onClose }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [reviews, setReviews] = useState(null);
   const [period, setPeriod] = useState(7);
   const [expanded, setExpanded] = useState(null);
   const [users, setUsers] = useState(null);
@@ -28,13 +27,6 @@ export default function StatsModal({ onClose }) {
       .catch(() => setData({ days: [], total_visits: 0, total_installs: 0 }))
       .finally(() => setLoading(false));
   }, [period]);
-
-  useEffect(() => {
-    api
-      .get("/admin/reviews")
-      .then(({ data }) => setReviews(data))
-      .catch(() => setReviews({ reviews: [], count: 0, average: 0 }));
-  }, []);
 
   const fmtDate = (s) => {
     const [, m, d] = s.split("-");
@@ -237,43 +229,6 @@ export default function StatsModal({ onClose }) {
             <p className="text-[11px] leading-relaxed text-gray-400">
               « Visiteurs » = nombre de visites de l'application (une par session et par jour). « Installations » = nombre de fois où l'app a été ajoutée à l'écran d'accueil (PWA). Survolez une barre pour voir le détail d'une journée.
             </p>
-
-            {/* Avis clients */}
-            <div className="border-t border-black/10 pt-5" data-testid="admin-reviews">
-              <div className="mb-3 flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-sm font-semibold text-[#14161C]">
-                  <MessageSquare className="h-4 w-4" /> Avis clients
-                </div>
-                {reviews && reviews.count > 0 && (
-                  <div className="flex items-center gap-1 text-[11px] font-medium text-gray-500">
-                    <Star className="h-3.5 w-3.5 fill-[#FFCC00] text-[#FFCC00]" />
-                    {reviews.average} / 5 · {reviews.count} avis
-                  </div>
-                )}
-              </div>
-              {!reviews ? (
-                <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-gray-400" /></div>
-              ) : reviews.count === 0 ? (
-                <p className="text-[13px] text-gray-400">Aucun avis pour le moment.</p>
-              ) : (
-                <div className="space-y-2.5">
-                  {reviews.reviews.map((r) => (
-                    <div key={r.id} className="rounded-xl border border-black/10 bg-[#F4F4F5] p-3" data-testid="review-item">
-                      <div className="mb-1 flex items-center justify-between">
-                        <span className="text-[13px] font-semibold text-[#14161C]">{r.user_name || "Utilisateur"}</span>
-                        <div className="flex items-center gap-0.5">
-                          {[1, 2, 3, 4, 5].map((n) => (
-                            <Star key={n} className={`h-3.5 w-3.5 ${n <= r.rating ? "fill-[#FFCC00] text-[#FFCC00]" : "text-gray-300"}`} />
-                          ))}
-                        </div>
-                      </div>
-                      <div className="mb-1 text-[11px] text-gray-400">{r.user_email} · {r.created_at?.slice(0, 10)}</div>
-                      {r.comment && <p className="text-[13px] leading-relaxed text-gray-700">{r.comment}</p>}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
         )}
       </div>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Bell, X, Package, Megaphone, Send, Loader2, MapPin, Inbox, Trash2, Search } from "lucide-react";
+import { Bell, X, Package, Megaphone, Send, Loader2, MapPin, Inbox, Trash2, Search, Star } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
@@ -35,6 +35,7 @@ export const NotificationBell = ({ carriersInfo = [] }) => {
   const [pComment, setPComment] = useState("");
   const [sending, setSending] = useState(false);
   const [proposals, setProposals] = useState(null);
+  const [reviews, setReviews] = useState(null);
   const [addrSuggest, setAddrSuggest] = useState([]);
   const [showAddrSuggest, setShowAddrSuggest] = useState(false);
   const addrTimer = useRef(null);
@@ -83,6 +84,13 @@ export const NotificationBell = ({ carriersInfo = [] }) => {
       .catch(() => setProposals({ proposals: [], count: 0 }));
   }, []);
 
+  const fetchReviews = useCallback(() => {
+    api
+      .get("/admin/reviews")
+      .then(({ data }) => setReviews(data))
+      .catch(() => setReviews({ reviews: [], count: 0, average: 0 }));
+  }, []);
+
   useEffect(() => {
     if (!user) return;
     fetchNotifs();
@@ -110,6 +118,7 @@ export const NotificationBell = ({ carriersInfo = [] }) => {
       api.post("/notifications/read").then(() => setUnread(0)).catch(() => {});
     }
     if (t === "proposal" && isAdmin) fetchProposals();
+    if (t === "reviews" && isAdmin) fetchReviews();
   };
 
   const publish = async () => {
@@ -207,6 +216,16 @@ export const NotificationBell = ({ carriersInfo = [] }) => {
                 <span className="ml-0.5 rounded-full bg-red-500 px-1.5 text-[9px] text-white">{proposals.count}</span>
               )}
             </button>
+            {isAdmin && (
+              <button
+                onClick={() => switchTab("reviews")}
+                data-testid="notif-tab-reviews"
+                className={`flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-2 text-[11px] font-semibold leading-tight transition-[background-color,color] ${tab === "reviews" ? "bg-[#14161C] text-white" : "text-gray-500 hover:text-[#14161C]"}`}
+              >
+                <Star className="h-3.5 w-3.5 shrink-0" />
+                Avis clients
+              </button>
+            )}
             <button onClick={() => setOpen(false)} aria-label="Fermer" className="flex items-center rounded-lg px-1 text-gray-400 hover:text-[#14161C]">
               <X className="h-4 w-4" />
             </button>
@@ -355,6 +374,45 @@ export const NotificationBell = ({ carriersInfo = [] }) => {
                     {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                     Envoyer ma proposition
                   </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Onglet Avis clients (admin) */}
+          {tab === "reviews" && isAdmin && (
+            <div className="max-h-96 overflow-y-auto rp-scroll p-3" data-testid="reviews-admin-list">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                  <Star className="h-3.5 w-3.5" /> Avis clients {reviews ? `(${reviews.count})` : ""}
+                </p>
+                {reviews && reviews.count > 0 && (
+                  <span className="flex items-center gap-1 text-[11px] font-medium text-gray-500">
+                    <Star className="h-3.5 w-3.5 fill-[#FFCC00] text-[#FFCC00]" />
+                    {reviews.average} / 5
+                  </span>
+                )}
+              </div>
+              {!reviews ? (
+                <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-gray-400" /></div>
+              ) : reviews.count === 0 ? (
+                <p className="py-6 text-center text-sm text-gray-400">Aucun avis pour le moment.</p>
+              ) : (
+                <div className="space-y-2">
+                  {reviews.reviews.map((r) => (
+                    <div key={r.id} className="rounded-xl border border-black/10 bg-[#F4F4F5] p-3" data-testid="review-item">
+                      <div className="mb-1 flex items-center justify-between gap-2">
+                        <span className="truncate text-[13px] font-semibold text-[#14161C]">{r.user_name || "Utilisateur"}</span>
+                        <div className="flex shrink-0 items-center gap-0.5">
+                          {[1, 2, 3, 4, 5].map((n) => (
+                            <Star key={n} className={`h-3.5 w-3.5 ${n <= r.rating ? "fill-[#FFCC00] text-[#FFCC00]" : "text-gray-300"}`} />
+                          ))}
+                        </div>
+                      </div>
+                      <div className="mb-1 text-[10px] text-gray-400">{r.user_email} · {r.created_at?.slice(0, 10)}</div>
+                      {r.comment && <p className="text-[12px] leading-relaxed text-gray-700">{r.comment}</p>}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
