@@ -434,7 +434,7 @@ export const NotificationBell = ({ carriersInfo = [] }) => {
               <div className="flex items-center justify-between border-b border-black/10 px-4 py-3" data-testid="notif-toggle-row">
                 <div>
                   <p className="text-[13px] font-semibold text-[#14161C]">Recevoir les notifications</p>
-                  <p className="text-[11px] text-gray-400">Annonces, nouveaux points et nouvelles fonctionnalités</p>
+                  <p className="text-[11px] text-gray-400">Annonces et nouveaux points</p>
                 </div>
                 <button
                   onClick={toggleNotifEnabled}
@@ -463,7 +463,7 @@ export const NotificationBell = ({ carriersInfo = [] }) => {
               <div className="max-h-80 overflow-y-auto rp-scroll">
                 {!notifEnabled ? (
                   <p className="px-4 py-8 text-center text-sm text-gray-400" data-testid="notif-disabled-msg">
-                    Notifications désactivées. Activez-les ci-dessus pour recevoir les annonces et les nouveaux points.
+                    Notifications désactivées. Activez-les ci-dessus pour recevoir les annonces, les nouveaux points et les nouvelles fonctionnalités.
                   </p>
                 ) : items.length === 0 ? (
                   <p className="px-4 py-8 text-center text-sm text-gray-400" data-testid="notification-empty">
