@@ -72,6 +72,13 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 - **Note**: mot de passe admin `admin123` ne fonctionne plus (modifié par l'utilisateur).
 - **Revue de code — faux positifs (non corrigés, sûrs)**: MD5 dans `mondial_relay.py` = signature IMPOSÉE par l'API Mondial Relay. `random` dans `relay_data.py` = données démo DÉSACTIVÉES. Aucune comparaison `is <int>` présente.
 
+## Cloche : onglets Proposition + Avis + toggle (2026-07-22c)
+- **Panneau cloche à onglets**: « Information Client » (gauche) + « Proposition de point relais ou locker » + « Avis clients » (jaune, admin only, à droite).
+- **Proposition** (onglet, visiteur connecté): formulaire nom + recherche adresse (autocomplétion BAN via `/address-suggest`, placeholder « Numéro, nom de la rue, ville ou code postal ») + type Relais/Locker + transporteurs (multi-select, validés backend contre CARRIERS) + commentaire. `POST /api/proposals`. Admin voit la liste dans le même onglet (`GET /api/admin/proposals`, `DELETE /api/admin/proposals/{id}`).
+- **Avis clients** déplacé de StatsModal vers l'onglet cloche (admin), `GET /api/admin/reviews`.
+- **Toggle notifications** par utilisateur: `POST /api/notifications/toggle {enabled}`, `GET /notifications` renvoie `enabled` + unread=0 si off. N'affecte PAS la création de points/annonces. Interrupteur dans l'onglet Information Client.
+- Cloche visible connectés uniquement.
+
 ## Notifications internes (2026-07-22b)
 - **Cloche 🔔 sous le logo** (connectés uniquement) avec pastille rouge (non-lues). Composant `NotificationBell.js`, poll 60s, marque lu à l'ouverture.
 - Backend: collection `notifications` {type, title, body, created_at}. `GET /api/notifications` (liste 50 + unread basé sur `user.notifications_read_at`), `POST /api/notifications/read`, `POST /api/admin/notifications` (annonce admin). Notif auto type=point lors de `POST /api/admin/points`.
