@@ -677,6 +677,7 @@ class ProposalIn(BaseModel):
 @api_router.post("/proposals")
 async def create_proposal(data: ProposalIn, user: dict = Depends(get_current_user)):
     ptype = data.type if data.type in ("relais", "locker") else "relais"
+    valid_carriers = [c for c in data.carriers if c in CARRIERS][:20]
     await db.proposals.insert_one({
         "user_id": str(user["_id"]),
         "user_name": user.get("name", ""),
@@ -684,7 +685,7 @@ async def create_proposal(data: ProposalIn, user: dict = Depends(get_current_use
         "name": data.name.strip(),
         "address": data.address.strip(),
         "type": ptype,
-        "carriers": data.carriers[:20],
+        "carriers": valid_carriers,
         "comment": data.comment.strip(),
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
