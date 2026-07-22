@@ -22,6 +22,7 @@ import ChangePasswordModal from "@/components/ChangePasswordModal";
 import StatsModal from "@/components/StatsModal";
 import AuthModal from "@/components/AuthModal";
 import AccountModal from "@/components/AccountModal";
+import { NotificationBell } from "@/components/NotificationBell";
 import { toast } from "sonner";
 import { Plus, KeyRound, BarChart3 } from "lucide-react";
 
@@ -407,6 +408,13 @@ export default function MapApp() {
             </button>
           )}
         </div>
+
+        {/* Notifications (connectés uniquement) */}
+        {user && (
+          <div className="mb-4">
+            <NotificationBell />
+          </div>
+        )}
 
         {/* Mon compte */}
         <button

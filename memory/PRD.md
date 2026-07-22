@@ -72,6 +72,12 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 - **Note**: mot de passe admin `admin123` ne fonctionne plus (modifié par l'utilisateur).
 - **Revue de code — faux positifs (non corrigés, sûrs)**: MD5 dans `mondial_relay.py` = signature IMPOSÉE par l'API Mondial Relay. `random` dans `relay_data.py` = données démo DÉSACTIVÉES. Aucune comparaison `is <int>` présente.
 
+## Notifications internes (2026-07-22b)
+- **Cloche 🔔 sous le logo** (connectés uniquement) avec pastille rouge (non-lues). Composant `NotificationBell.js`, poll 60s, marque lu à l'ouverture.
+- Backend: collection `notifications` {type, title, body, created_at}. `GET /api/notifications` (liste 50 + unread basé sur `user.notifications_read_at`), `POST /api/notifications/read`, `POST /api/admin/notifications` (annonce admin). Notif auto type=point lors de `POST /api/admin/points`.
+- Deux sources: annonces manuelles admin (formulaire dans le panneau) + auto à l'ajout d'un point (1c). Testé curl + UI.
+- Google Auth (option B) RETIRÉE puis option C (email Gmail) ABANDONNÉE par l'utilisateur → app revenue à email/mot de passe classique.
+
 ## Auth Google (2026-07-22)
 - **Connexion/inscription Google** (Emergent-managed, gratuit, sans clé API) en plus de l'email/mot de passe. Bouton « Continuer avec Google » dans AuthModal (Connexion + Inscription).
 - Backend `POST /api/auth/google/session` échange le session_id (Emergent OAuth) → crée/lie user par email (auth_provider=google, sans password_hash) → émet le JWT existant (cookie + token). Login email/mdp bloqué pour comptes Google. `update_profile` n'exige le mot de passe que si le compte en a un.

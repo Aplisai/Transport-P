@@ -622,6 +622,50 @@ def _normalize_hours(h):
     }
 
 
+class AnnouncementIn(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+    body: str = Field(default="", max_length=1000)
+
+
+async def _add_notification(ntype: str, title: str, body: str = ""):
+    await db.notifications.insert_one({
+        "type": ntype,
+        "title": title,
+        "body": body,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+
+
+@api_router.get("/notifications")
+async def list_notifications(user: dict = Depends(get_current_user)):
+    docs = await db.notifications.find().sort("created_at", -1).to_list(50)
+    read_at = user.get("notifications_read_at") or ""
+    items = [{
+        "id": str(d["_id"]),
+        "type": d.get("type", "announcement"),
+        "title": d.get("title", ""),
+        "body": d.get("body", ""),
+        "created_at": d.get("created_at", ""),
+    } for d in docs]
+    unread = sum(1 for d in items if d["created_at"] > read_at)
+    return {"notifications": items, "unread": unread}
+
+
+@api_router.post("/notifications/read")
+async def mark_notifications_read(user: dict = Depends(get_current_user)):
+    await db.users.update_one(
+        {"_id": user["_id"]},
+        {"$set": {"notifications_read_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    return {"ok": True}
+
+
+@api_router.post("/admin/notifications")
+async def create_announcement(data: AnnouncementIn, admin: dict = Depends(require_admin)):
+    await _add_notification("announcement", data.title.strip(), data.body.strip())
+    return {"ok": True}
+
+
 @api_router.post("/admin/points")
 async def admin_create_point(data: PointFullIn, admin: dict = Depends(require_admin)):
     _validate_coords(data.lat, data.lng)
@@ -648,6 +692,7 @@ async def admin_create_point(data: PointFullIn, admin: dict = Depends(require_ad
     }
     await db.custom_points.update_one({"id": pid}, {"$set": point}, upsert=True)
     _CUSTOM[pid] = point
+    await _add_notification("point", "Nouveau point ajouté", point["name"])
     return point
 
 
