@@ -72,6 +72,12 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 - **Note**: mot de passe admin `admin123` ne fonctionne plus (modifié par l'utilisateur).
 - **Revue de code — faux positifs (non corrigés, sûrs)**: MD5 dans `mondial_relay.py` = signature IMPOSÉE par l'API Mondial Relay. `random` dans `relay_data.py` = données démo DÉSACTIVÉES. Aucune comparaison `is <int>` présente.
 
+## Auth Google (2026-07-22)
+- **Connexion/inscription Google** (Emergent-managed, gratuit, sans clé API) en plus de l'email/mot de passe. Bouton « Continuer avec Google » dans AuthModal (Connexion + Inscription).
+- Backend `POST /api/auth/google/session` échange le session_id (Emergent OAuth) → crée/lie user par email (auth_provider=google, sans password_hash) → émet le JWT existant (cookie + token). Login email/mdp bloqué pour comptes Google. `update_profile` n'exige le mot de passe que si le compte en a un.
+- Frontend: AuthContext détecte `#session_id=` au chargement et appelle l'endpoint puis nettoie l'URL. Redirect = window.location.origin.
+- Email vérifié automatiquement par Google → confirme l'inscription sans code email (alternative gratuite à Resend, choisie par l'utilisateur qui n'avait pas de clé API).
+
 ## Stats interactives + graphique (2026-07-21b)
 - **Cartes cliquables** dans StatsModal: Visiteurs, Installations, Comptes créés, Visiteurs sans compte → panneau de détail dépliable. « Comptes créés » liste les utilisateurs via `GET /api/admin/users` (admin, sans password_hash: id/name/email/role/created_at/favorites_count).
 - **Graphique recharts**: barres groupées Visiteurs/Installations, sélecteur période 7j/30j, tooltip, légende, dates gauche→droite. Axe Y avec domaine/ticks explicites.

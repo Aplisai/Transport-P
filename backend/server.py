@@ -69,6 +69,9 @@ class LoginIn(BaseModel):
     email: EmailStr
     password: str
 
+class GoogleSessionIn(BaseModel):
+    session_id: str
+
 class FavoriteIn(BaseModel):
     point_id: str
 
@@ -178,8 +181,48 @@ async def register(data: RegisterIn, response: Response):
 async def login(data: LoginIn, response: Response):
     email = data.email.lower()
     user = await db.users.find_one({"email": email})
-    if not user or not verify_password(data.password, user["password_hash"]):
+    if not user or not user.get("password_hash"):
+        if user and not user.get("password_hash"):
+            raise HTTPException(status_code=401, detail="Ce compte utilise la connexion Google. Cliquez sur « Continuer avec Google ».")
         raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
+    if not verify_password(data.password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
+    token = create_access_token(str(user["_id"]), email)
+    set_auth_cookie(response, token)
+    return {**user_public(user), "token": token}
+
+@api_router.post("/auth/google/session")
+async def google_session(data: GoogleSessionIn, response: Response):
+    import asyncio
+    try:
+        resp = await asyncio.to_thread(
+            requests.get,
+            "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
+            headers={"X-Session-ID": data.session_id},
+            timeout=15,
+        )
+    except Exception:
+        raise HTTPException(status_code=502, detail="Service d'authentification Google indisponible")
+    if resp.status_code != 200:
+        raise HTTPException(status_code=401, detail="Session Google invalide ou expirée")
+    info = resp.json()
+    email = (info.get("email") or "").lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="Email Google introuvable")
+    user = await db.users.find_one({"email": email})
+    if not user:
+        doc = {
+            "email": email,
+            "name": info.get("name") or email.split("@")[0],
+            "role": "user",
+            "favorites": [],
+            "auth_provider": "google",
+            "picture": info.get("picture", ""),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        res = await db.users.insert_one(doc)
+        doc["_id"] = res.inserted_id
+        user = doc
     token = create_access_token(str(user["_id"]), email)
     set_auth_cookie(response, token)
     return {**user_public(user), "token": token}
@@ -207,7 +250,7 @@ class ChangePasswordIn(BaseModel):
 class ProfileIn(BaseModel):
     name: Optional[str] = Field(default=None, max_length=80)
     email: Optional[EmailStr] = None
-    password: str
+    password: Optional[str] = None
 
 @api_router.post("/auth/forgot-password")
 async def forgot_password(data: ForgotIn):
@@ -255,8 +298,9 @@ async def change_password(data: ChangePasswordIn, user: dict = Depends(get_curre
 
 @api_router.patch("/auth/profile")
 async def update_profile(data: ProfileIn, user: dict = Depends(get_current_user)):
-    if not verify_password(data.password, user["password_hash"]):
-        raise HTTPException(status_code=400, detail="Mot de passe incorrect")
+    if user.get("password_hash"):
+        if not data.password or not verify_password(data.password, user["password_hash"]):
+            raise HTTPException(status_code=400, detail="Mot de passe incorrect")
     updates = {}
     if data.name is not None:
         name = data.name.strip()

@@ -33,6 +33,23 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    const hash = window.location.hash || "";
+    if (hash.includes("session_id=")) {
+      const sid = new URLSearchParams(hash.replace(/^#/, "")).get("session_id");
+      const cleanUrl = window.location.pathname + window.location.search;
+      if (sid) {
+        api
+          .post("/auth/google/session", { session_id: sid })
+          .then(({ data }) => onAuthed(data))
+          .catch(() => {
+            setUser(false);
+            toast.error("Échec de la connexion Google. Réessayez.");
+          })
+          .finally(() => window.history.replaceState(null, "", cleanUrl));
+        return;
+      }
+      window.history.replaceState(null, "", cleanUrl);
+    }
     api
       .get("/auth/me")
       .then(({ data }) => {
@@ -40,6 +57,7 @@ export function AuthProvider({ children }) {
         refreshFavorites();
       })
       .catch(() => setUser(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshFavorites]);
 
   const onAuthed = async (u) => {
