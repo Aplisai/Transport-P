@@ -263,7 +263,7 @@ export const NotificationBell = ({ carriersInfo = [] }) => {
                   <textarea value={pComment} onChange={(e) => setPComment(e.target.value)} rows={2} maxLength={1000} placeholder="Commentaire (facultatif)" data-testid="proposal-comment-input" className={`${inputCls} resize-none`} />
                   {carriersInfo.length > 0 && (
                     <div>
-                      <p className="mb-1.5 text-[12px] font-medium text-[#14161C]">Transporteur(s) pris en charge</p>
+                      <p className="mb-1.5 text-[12px] font-medium text-[#14161C]">Sélectionner votre transporteur</p>
                       <div className="flex flex-wrap gap-1.5" data-testid="proposal-carriers">
                         {carriersInfo.map((c) => {
                           const on = pCarriers.includes(c.id);
