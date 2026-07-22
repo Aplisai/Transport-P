@@ -35,6 +35,33 @@ export const NotificationBell = ({ carriersInfo = [] }) => {
   const [pComment, setPComment] = useState("");
   const [sending, setSending] = useState(false);
   const [proposals, setProposals] = useState(null);
+  const [addrSuggest, setAddrSuggest] = useState([]);
+  const [showAddrSuggest, setShowAddrSuggest] = useState(false);
+  const addrTimer = useRef(null);
+
+  const onAddressChange = (v) => {
+    setPAddress(v);
+    if (addrTimer.current) clearTimeout(addrTimer.current);
+    if (v.trim().length >= 3) {
+      addrTimer.current = setTimeout(async () => {
+        try {
+          const { data } = await api.get("/address-suggest", { params: { q: v.trim() } });
+          setAddrSuggest(data || []);
+          setShowAddrSuggest(true);
+        } catch {
+          setAddrSuggest([]);
+        }
+      }, 200);
+    } else {
+      setAddrSuggest([]);
+      setShowAddrSuggest(false);
+    }
+  };
+
+  const pickAddress = (s) => {
+    setPAddress(s.label);
+    setShowAddrSuggest(false);
+  };
 
   const toggleCarrier = (id) =>
     setPCarriers((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -248,7 +275,39 @@ export const NotificationBell = ({ carriersInfo = [] }) => {
                   <input value={pName} onChange={(e) => setPName(e.target.value)} maxLength={120} placeholder="Nom du point *" data-testid="proposal-name-input" className={inputCls} />
                   <div className="relative">
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                    <input value={pAddress} onChange={(e) => setPAddress(e.target.value)} maxLength={250} placeholder="Ville ou code postal (adresse complète)" data-testid="proposal-address-input" className={`${inputCls} pl-9`} />
+                    <input
+                      value={pAddress}
+                      onChange={(e) => onAddressChange(e.target.value)}
+                      onFocus={() => addrSuggest.length && setShowAddrSuggest(true)}
+                      onBlur={() => setTimeout(() => setShowAddrSuggest(false), 150)}
+                      autoComplete="off"
+                      maxLength={250}
+                      placeholder="Ville ou code postal (adresse complète)"
+                      data-testid="proposal-address-input"
+                      className={`${inputCls} pl-9`}
+                    />
+                    {showAddrSuggest && addrSuggest.length > 0 && (
+                      <div
+                        data-testid="proposal-address-suggestions"
+                        className="absolute left-0 right-0 top-full z-[1300] mt-1 max-h-56 overflow-y-auto rounded-xl border border-black/10 bg-white shadow-[0_12px_40px_rgba(0,0,0,0.15)] rp-scroll"
+                      >
+                        {addrSuggest.map((s, i) => (
+                          <button
+                            key={`${s.label}-${i}`}
+                            type="button"
+                            data-testid={`proposal-address-suggest-${i}`}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              pickAddress(s);
+                            }}
+                            className="flex w-full items-start gap-2 border-b border-black/5 px-3 py-2 text-left last:border-0 hover:bg-black/[0.03] transition-[background-color]"
+                          >
+                            <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400" />
+                            <span className="text-[12px] leading-snug text-[#14161C]">{s.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     {[["relais", "Relais"], ["locker", "Locker"]].map(([val, label]) => (
