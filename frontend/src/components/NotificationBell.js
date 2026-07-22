@@ -434,7 +434,7 @@ export const NotificationBell = ({ carriersInfo = [] }) => {
               <div className="flex items-center justify-between border-b border-black/10 px-4 py-3" data-testid="notif-toggle-row">
                 <div>
                   <p className="text-[13px] font-semibold text-[#14161C]">Recevoir les notifications</p>
-                  <p className="text-[11px] text-gray-400">Annonces et nouveaux points</p>
+                  <p className="text-[11px] text-gray-400">Annonces, nouveaux points et nouvelles fonctionnalités</p>
                 </div>
                 <button
                   onClick={toggleNotifEnabled}
