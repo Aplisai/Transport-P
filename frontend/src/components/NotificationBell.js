@@ -84,7 +84,7 @@ export const NotificationBell = () => {
         onClick={toggle}
         data-testid="notification-bell-btn"
         aria-label="Notifications"
-        className="relative flex h-9 w-9 items-center justify-center rounded-full border border-black/10 bg-black/[0.03] text-[#14161C] hover:bg-black/[0.06] transition-[background-color]"
+        className="relative flex h-9 w-9 items-center justify-center rounded-full bg-[#FFCC00] text-[#14161C] hover:bg-[#f5c400] transition-[background-color]"
       >
         <Bell className="h-4 w-4" />
         {unread > 0 && (
