@@ -243,7 +243,7 @@ export const NotificationBell = ({ carriersInfo = [] }) => {
               ) : (
                 <div className="space-y-2.5 p-4" data-testid="proposal-form">
                   <p className="text-[12px] leading-relaxed text-gray-500">
-                    Vous connaissez un point relais ou un locker qui n'est pas sur la carte ? Proposez-le nous !
+                    Ici, proposez votre point relais ou locker. Une fois vérifié et validé, il fera partie des points relais et lockers disponibles dans un délai de vingt-quatre heures maximum.
                   </p>
                   <input value={pName} onChange={(e) => setPName(e.target.value)} maxLength={120} placeholder="Nom du point *" data-testid="proposal-name-input" className={inputCls} />
                   <input value={pAddress} onChange={(e) => setPAddress(e.target.value)} maxLength={250} placeholder="Adresse (ville, rue…)" data-testid="proposal-address-input" className={inputCls} />
