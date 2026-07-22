@@ -20,6 +20,7 @@ export const NotificationBell = ({ carriersInfo = [] }) => {
   const [tab, setTab] = useState("proposal");
   const [items, setItems] = useState([]);
   const [unread, setUnread] = useState(0);
+  const [notifEnabled, setNotifEnabled] = useState(true);
   const ref = useRef(null);
 
   // Annonce admin (onglet Information Client)
@@ -73,9 +74,17 @@ export const NotificationBell = ({ carriersInfo = [] }) => {
       .then(({ data }) => {
         setItems(data.notifications || []);
         setUnread(data.unread || 0);
+        setNotifEnabled(data.enabled !== false);
       })
       .catch(() => {});
   }, []);
+
+  const toggleNotifEnabled = () => {
+    const next = !notifEnabled;
+    setNotifEnabled(next);
+    if (!next) setUnread(0);
+    api.post("/notifications/toggle", { enabled: next }).then(fetchNotifs).catch(() => {});
+  };
 
   const fetchProposals = useCallback(() => {
     api
@@ -177,7 +186,7 @@ export const NotificationBell = ({ carriersInfo = [] }) => {
         className="relative flex h-9 w-9 items-center justify-center rounded-full bg-[#FFCC00] text-[#14161C] hover:bg-[#f5c400] transition-[background-color]"
       >
         <Bell className="h-4 w-4" />
-        {unread > 0 && (
+        {notifEnabled && unread > 0 && (
           <span
             data-testid="notification-badge"
             className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white"
@@ -201,7 +210,7 @@ export const NotificationBell = ({ carriersInfo = [] }) => {
             >
               <Bell className="h-3.5 w-3.5 shrink-0" />
               Information Client
-              {unread > 0 && tab !== "info" && (
+              {notifEnabled && unread > 0 && tab !== "info" && (
                 <span className="ml-0.5 rounded-full bg-red-500 px-1.5 text-[9px] text-white">{unread}</span>
               )}
             </button>
@@ -421,6 +430,23 @@ export const NotificationBell = ({ carriersInfo = [] }) => {
           {/* Onglet Information Client */}
           {tab === "info" && (
             <div>
+              {/* Interrupteur activer/désactiver les notifications */}
+              <div className="flex items-center justify-between border-b border-black/10 px-4 py-3" data-testid="notif-toggle-row">
+                <div>
+                  <p className="text-[13px] font-semibold text-[#14161C]">Recevoir les notifications</p>
+                  <p className="text-[11px] text-gray-400">Annonces et nouveaux points</p>
+                </div>
+                <button
+                  onClick={toggleNotifEnabled}
+                  data-testid="notif-toggle-btn"
+                  role="switch"
+                  aria-checked={notifEnabled}
+                  className={`relative h-6 w-11 shrink-0 rounded-full transition-[background-color] ${notifEnabled ? "bg-[#14161C]" : "bg-gray-300"}`}
+                >
+                  <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-[left] ${notifEnabled ? "left-[22px]" : "left-0.5"}`} />
+                </button>
+              </div>
+
               {isAdmin && (
                 <div className="border-b border-black/10 bg-[#F4F4F5] p-3" data-testid="announcement-form">
                   <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
@@ -435,7 +461,11 @@ export const NotificationBell = ({ carriersInfo = [] }) => {
                 </div>
               )}
               <div className="max-h-80 overflow-y-auto rp-scroll">
-                {items.length === 0 ? (
+                {!notifEnabled ? (
+                  <p className="px-4 py-8 text-center text-sm text-gray-400" data-testid="notif-disabled-msg">
+                    Notifications désactivées. Activez-les ci-dessus pour recevoir les annonces et les nouveaux points.
+                  </p>
+                ) : items.length === 0 ? (
                   <p className="px-4 py-8 text-center text-sm text-gray-400" data-testid="notification-empty">
                     Aucune information pour le moment.
                   </p>

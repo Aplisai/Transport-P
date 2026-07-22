@@ -640,6 +640,7 @@ async def _add_notification(ntype: str, title: str, body: str = ""):
 async def list_notifications(user: dict = Depends(get_current_user)):
     docs = await db.notifications.find().sort("created_at", -1).to_list(50)
     read_at = user.get("notifications_read_at") or ""
+    enabled = user.get("notifications_enabled", True)
     items = [{
         "id": str(d["_id"]),
         "type": d.get("type", "announcement"),
@@ -647,8 +648,21 @@ async def list_notifications(user: dict = Depends(get_current_user)):
         "body": d.get("body", ""),
         "created_at": d.get("created_at", ""),
     } for d in docs]
-    unread = sum(1 for d in items if d["created_at"] > read_at)
-    return {"notifications": items, "unread": unread}
+    unread = 0 if not enabled else sum(1 for d in items if d["created_at"] > read_at)
+    return {"notifications": items, "unread": unread, "enabled": enabled}
+
+
+class NotifToggleIn(BaseModel):
+    enabled: bool
+
+
+@api_router.post("/notifications/toggle")
+async def toggle_notifications(data: NotifToggleIn, user: dict = Depends(get_current_user)):
+    await db.users.update_one(
+        {"_id": user["_id"]},
+        {"$set": {"notifications_enabled": data.enabled}},
+    )
+    return {"ok": True, "enabled": data.enabled}
 
 
 @api_router.post("/notifications/read")
