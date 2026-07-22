@@ -282,7 +282,7 @@ export const NotificationBell = ({ carriersInfo = [] }) => {
                       onBlur={() => setTimeout(() => setShowAddrSuggest(false), 150)}
                       autoComplete="off"
                       maxLength={250}
-                      placeholder="Ville ou code postal (adresse complète)"
+                      placeholder="Numéro, nom de la rue, ville ou code postal"
                       data-testid="proposal-address-input"
                       className={`${inputCls} pl-9`}
                     />
