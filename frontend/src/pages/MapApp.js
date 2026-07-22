@@ -412,7 +412,7 @@ export default function MapApp() {
         {/* Notifications (connectés uniquement) */}
         {user && (
           <div className="mb-4">
-            <NotificationBell />
+            <NotificationBell carriersInfo={carriers} />
           </div>
         )}
 

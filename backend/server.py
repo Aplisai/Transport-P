@@ -670,6 +670,7 @@ class ProposalIn(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     address: str = Field(default="", max_length=250)
     type: str = Field(default="relais")
+    carriers: List[str] = Field(default_factory=list)
     comment: str = Field(default="", max_length=1000)
 
 
@@ -683,6 +684,7 @@ async def create_proposal(data: ProposalIn, user: dict = Depends(get_current_use
         "name": data.name.strip(),
         "address": data.address.strip(),
         "type": ptype,
+        "carriers": data.carriers[:20],
         "comment": data.comment.strip(),
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
@@ -699,6 +701,7 @@ async def list_proposals(admin: dict = Depends(require_admin)):
         "name": d.get("name", ""),
         "address": d.get("address", ""),
         "type": d.get("type", "relais"),
+        "carriers": d.get("carriers", []),
         "comment": d.get("comment", ""),
         "created_at": d.get("created_at", ""),
     } for d in docs]

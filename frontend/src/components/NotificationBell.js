@@ -13,7 +13,7 @@ function timeAgo(iso) {
   return `il y a ${Math.floor(diff / 86400)} j`;
 }
 
-export const NotificationBell = () => {
+export const NotificationBell = ({ carriersInfo = [] }) => {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const [open, setOpen] = useState(false);
@@ -31,9 +31,13 @@ export const NotificationBell = () => {
   const [pName, setPName] = useState("");
   const [pAddress, setPAddress] = useState("");
   const [pType, setPType] = useState("relais");
+  const [pCarriers, setPCarriers] = useState([]);
   const [pComment, setPComment] = useState("");
   const [sending, setSending] = useState(false);
   const [proposals, setProposals] = useState(null);
+
+  const toggleCarrier = (id) =>
+    setPCarriers((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   const fetchNotifs = useCallback(() => {
     api
@@ -101,11 +105,12 @@ export const NotificationBell = () => {
     if (!pName.trim()) return toast.error("Le nom du point est obligatoire");
     setSending(true);
     try {
-      await api.post("/proposals", { name: pName, address: pAddress, type: pType, comment: pComment });
+      await api.post("/proposals", { name: pName, address: pAddress, type: pType, carriers: pCarriers, comment: pComment });
       toast.success("Merci ! Votre proposition a bien été envoyée.");
       setPName("");
       setPAddress("");
       setPType("relais");
+      setPCarriers([]);
       setPComment("");
     } catch {
       toast.error("Échec de l'envoi");
@@ -205,6 +210,19 @@ export const NotificationBell = () => {
                                 </span>
                               </div>
                               {p.address && <p className="text-[12px] text-gray-600">{p.address}</p>}
+                              {p.carriers?.length > 0 && (
+                                <div className="mt-1 flex flex-wrap gap-1" data-testid="proposal-item-carriers">
+                                  {p.carriers.map((cid) => {
+                                    const c = carriersInfo.find((x) => x.id === cid);
+                                    return (
+                                      <span key={cid} className="flex items-center gap-1 rounded-full bg-white px-1.5 py-0.5 text-[10px] font-medium text-gray-700 ring-1 ring-black/10">
+                                        <span className="h-1.5 w-1.5 rounded-full" style={{ background: c?.color || "#999" }} />
+                                        {c?.name || cid}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              )}
                               {p.comment && <p className="mt-0.5 text-[12px] italic text-gray-500">« {p.comment} »</p>}
                               <p className="mt-1 text-[10px] text-gray-400">{p.user_name} · {p.user_email} · {timeAgo(p.created_at)}</p>
                             </div>
@@ -243,6 +261,29 @@ export const NotificationBell = () => {
                     ))}
                   </div>
                   <textarea value={pComment} onChange={(e) => setPComment(e.target.value)} rows={2} maxLength={1000} placeholder="Commentaire (facultatif)" data-testid="proposal-comment-input" className={`${inputCls} resize-none`} />
+                  {carriersInfo.length > 0 && (
+                    <div>
+                      <p className="mb-1.5 text-[12px] font-medium text-[#14161C]">Transporteur(s) pris en charge</p>
+                      <div className="flex flex-wrap gap-1.5" data-testid="proposal-carriers">
+                        {carriersInfo.map((c) => {
+                          const on = pCarriers.includes(c.id);
+                          return (
+                            <button
+                              key={c.id}
+                              type="button"
+                              data-testid={`proposal-carrier-${c.id}`}
+                              onClick={() => toggleCarrier(c.id)}
+                              style={on ? { background: c.color, borderColor: c.color, color: "#0B0C10" } : {}}
+                              className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] transition-[background-color,border-color,color] ${on ? "font-semibold" : "border-black/15 bg-white text-gray-600 hover:border-black/40"}`}
+                            >
+                              <span className="h-2 w-2 rounded-full" style={{ background: on ? "#0B0C10" : c.color }} />
+                              {c.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                   <button
                     onClick={sendProposal}
                     disabled={sending}
