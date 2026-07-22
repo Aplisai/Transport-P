@@ -248,7 +248,7 @@ export const NotificationBell = ({ carriersInfo = [] }) => {
                   <input value={pName} onChange={(e) => setPName(e.target.value)} maxLength={120} placeholder="Nom du point *" data-testid="proposal-name-input" className={inputCls} />
                   <div className="relative">
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                    <input value={pAddress} onChange={(e) => setPAddress(e.target.value)} maxLength={250} placeholder="Ville ou code postal" data-testid="proposal-address-input" className={`${inputCls} pl-9`} />
+                    <input value={pAddress} onChange={(e) => setPAddress(e.target.value)} maxLength={250} placeholder="Ville ou code postal (adresse complète)" data-testid="proposal-address-input" className={`${inputCls} pl-9`} />
                   </div>
                   <div className="flex gap-2">
                     {[["relais", "Relais"], ["locker", "Locker"]].map(([val, label]) => (
