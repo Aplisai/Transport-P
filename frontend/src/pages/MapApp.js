@@ -400,9 +400,9 @@ export default function MapApp() {
                 <button
                   onClick={() => setShowProposal(true)}
                   data-testid="propose-point-btn"
-                  className="flex items-center gap-1.5 rounded-full bg-[#FFCC00] px-3 py-1.5 text-xs font-semibold text-[#14161C] hover:bg-[#f5c400] transition-[background-color]"
+                  className="flex max-w-[150px] items-center gap-1.5 rounded-lg bg-[#FFCC00] px-2.5 py-1.5 text-left text-[11px] font-semibold leading-tight text-[#14161C] hover:bg-[#f5c400] transition-[background-color]"
                 >
-                  <MapPin className="h-3.5 w-3.5" />
+                  <MapPin className="h-3.5 w-3.5 shrink-0" />
                   Proposer un point relais ou locker
                 </button>
               </div>
