@@ -133,7 +133,7 @@ export const NotificationBell = () => {
             <button
               onClick={() => switchTab("info")}
               data-testid="notif-tab-info"
-              className={`relative flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-2 text-[11px] font-semibold leading-tight transition-[background-color,color] ${tab === "info" ? "bg-[#14161C] text-white" : "text-gray-500 hover:text-[#14161C]"}`}
+              className={`relative flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-2 text-[11px] font-semibold leading-tight transition-[background-color,color] ${tab === "info" ? "bg-[#FFCC00] text-[#14161C]" : "bg-[#FFCC00]/70 text-[#14161C] hover:bg-[#FFCC00]"}`}
             >
               <Bell className="h-3.5 w-3.5 shrink-0" />
               Information Client
