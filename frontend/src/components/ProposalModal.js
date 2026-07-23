@@ -205,18 +205,21 @@ export default function ProposalModal({ onClose, carriersInfo = [] }) {
                 </div>
               )}
             </div>
-            <div className="flex gap-2">
-              {[["relais", "Relais"], ["locker", "Locker"]].map(([val, label]) => (
-                <button
-                  key={val}
-                  type="button"
-                  onClick={() => setPType(val)}
-                  data-testid={`proposal-type-${val}`}
-                  className={`flex-1 rounded-full border py-2 text-xs font-semibold transition-[background-color,border-color,color] ${pType === val ? "border-[#14161C] bg-[#14161C] text-white" : "border-black/15 bg-white text-gray-600 hover:border-black/30"}`}
-                >
-                  {label}
-                </button>
-              ))}
+            <div>
+              <p className="mb-1.5 text-[12px] font-medium text-[#14161C]">Sélectionnez votre type de point.</p>
+              <div className="flex gap-2">
+                {[["relais", "Relais"], ["locker", "Locker"]].map(([val, label]) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setPType(val)}
+                    data-testid={`proposal-type-${val}`}
+                    className={`flex-1 rounded-full border py-2 text-xs font-semibold transition-[background-color,border-color,color] ${pType === val ? "border-[#14161C] bg-[#14161C] text-white" : "border-black/15 bg-white text-gray-600 hover:border-black/30"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
             {carriersInfo.length > 0 && (
               <div>
