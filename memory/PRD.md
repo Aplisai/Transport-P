@@ -72,6 +72,10 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 - **Note**: mot de passe admin `admin123` ne fonctionne plus (modifié par l'utilisateur).
 - **Revue de code — faux positifs (non corrigés, sûrs)**: MD5 dans `mondial_relay.py` = signature IMPOSÉE par l'API Mondial Relay. `random` dans `relay_data.py` = données démo DÉSACTIVÉES. Aucune comparaison `is <int>` présente.
 
+## Bouton Proposition sorti de la cloche (2026-07-23)
+- « Proposition de point relais ou locker » retiré de la cloche → composant dédié `ProposalModal.js` ouvert par un bouton jaune, placé sur la même ligne que la cloche (à droite). Même forme/largeur que « Se déconnecter » puis repositionné au niveau de la cloche.
+- Cloche = 2 onglets: Information Client + Avis clients (admin). Formulaire proposition: placeholder adresse « Adresse (Ex : 10 rue de Rivoli, Paris) », autocomplétion BAN conservée.
+
 ## Cloche : onglets Proposition + Avis + toggle (2026-07-22c)
 - **Panneau cloche à onglets**: « Information Client » (gauche) + « Proposition de point relais ou locker » + « Avis clients » (jaune, admin only, à droite).
 - **Proposition** (onglet, visiteur connecté): formulaire nom + recherche adresse (autocomplétion BAN via `/address-suggest`, placeholder « Numéro, nom de la rue, ville ou code postal ») + type Relais/Locker + transporteurs (multi-select, validés backend contre CARRIERS) + commentaire. `POST /api/proposals`. Admin voit la liste dans le même onglet (`GET /api/admin/proposals`, `DELETE /api/admin/proposals/{id}`).
