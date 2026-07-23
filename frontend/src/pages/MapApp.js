@@ -397,14 +397,6 @@ export default function MapApp() {
                   <LogOut className="h-3.5 w-3.5" />
                   Se déconnecter
                 </button>
-                <button
-                  onClick={() => setShowProposal(true)}
-                  data-testid="propose-point-btn"
-                  className="flex w-[150px] items-center justify-center gap-1.5 rounded-full bg-[#FFCC00] px-3 py-1.5 text-[11px] font-semibold leading-tight text-[#14161C] hover:bg-[#f5c400] transition-[background-color]"
-                >
-                  <MapPin className="h-3.5 w-3.5 shrink-0" />
-                  Proposer un point relais ou locker
-                </button>
               </div>
             </div>
           ) : (
@@ -421,8 +413,16 @@ export default function MapApp() {
 
         {/* Notifications (connectés uniquement) */}
         {user && (
-          <div className="mb-4">
+          <div className="mb-4 flex items-center justify-between gap-2">
             <NotificationBell />
+            <button
+              onClick={() => setShowProposal(true)}
+              data-testid="propose-point-btn"
+              className="flex w-[150px] items-center justify-center gap-1.5 rounded-full bg-[#FFCC00] px-3 py-1.5 text-[11px] font-semibold leading-tight text-[#14161C] hover:bg-[#f5c400] transition-[background-color]"
+            >
+              <MapPin className="h-3.5 w-3.5 shrink-0" />
+              Proposer un point relais ou locker
+            </button>
           </div>
         )}
 
