@@ -181,7 +181,7 @@ export default function ProposalModal({ onClose, carriersInfo = [] }) {
                 onBlur={() => setTimeout(() => setShowAddrSuggest(false), 150)}
                 autoComplete="off"
                 maxLength={250}
-                placeholder="Ex : 10 rue de Rivoli, Paris"
+                placeholder="Adresse (Ex : 10 rue de Rivoli, Paris)"
                 data-testid="proposal-address-input"
                 className={`${inputCls} pl-9`}
               />
