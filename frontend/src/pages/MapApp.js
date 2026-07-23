@@ -23,6 +23,7 @@ import StatsModal from "@/components/StatsModal";
 import AuthModal from "@/components/AuthModal";
 import AccountModal from "@/components/AccountModal";
 import { NotificationBell } from "@/components/NotificationBell";
+import ProposalModal from "@/components/ProposalModal";
 import { toast } from "sonner";
 import { Plus, KeyRound, BarChart3 } from "lucide-react";
 
@@ -62,6 +63,7 @@ export default function MapApp() {
   const [tab, setTab] = useState("all"); // all | favorites | nearby
   const [sheetOpen, setSheetOpen] = useState(true);
   const [showAccount, setShowAccount] = useState(false);
+  const [showProposal, setShowProposal] = useState(false);
   const [locating, setLocating] = useState(false);
   const [ptype, setPtype] = useState("all"); // all | relais | locker
   const [radius, setRadius] = useState(20); // km, 5-200
@@ -395,6 +397,14 @@ export default function MapApp() {
                   <LogOut className="h-3.5 w-3.5" />
                   Se déconnecter
                 </button>
+                <button
+                  onClick={() => setShowProposal(true)}
+                  data-testid="propose-point-btn"
+                  className="flex items-center gap-1.5 rounded-full bg-[#FFCC00] px-3 py-1.5 text-xs font-semibold text-[#14161C] hover:bg-[#f5c400] transition-[background-color]"
+                >
+                  <MapPin className="h-3.5 w-3.5" />
+                  Proposer un point relais ou locker
+                </button>
               </div>
             </div>
           ) : (
@@ -412,7 +422,7 @@ export default function MapApp() {
         {/* Notifications (connectés uniquement) */}
         {user && (
           <div className="mb-4">
-            <NotificationBell carriersInfo={carriers} />
+            <NotificationBell />
           </div>
         )}
 
@@ -806,6 +816,7 @@ export default function MapApp() {
       )}
       {showChangePwd && <ChangePasswordModal onClose={() => setShowChangePwd(false)} />}
       {showStats && <StatsModal onClose={() => setShowStats(false)} />}
+      {showProposal && <ProposalModal onClose={() => setShowProposal(false)} carriersInfo={carriers} />}
       {selected && formPoint === undefined && (
         <PointDetail
           point={selected}
