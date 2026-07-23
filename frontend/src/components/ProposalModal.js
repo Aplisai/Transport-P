@@ -206,7 +206,7 @@ export default function ProposalModal({ onClose, carriersInfo = [] }) {
               )}
             </div>
             <div>
-              <p className="mb-1.5 text-[12px] font-medium text-[#14161C]">Sélectionnez votre type de point.</p>
+              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Sélectionnez votre type de point</p>
               <div className="flex gap-2">
                 {[["relais", "Relais"], ["locker", "Locker"]].map(([val, label]) => (
                   <button
@@ -223,7 +223,7 @@ export default function ProposalModal({ onClose, carriersInfo = [] }) {
             </div>
             {carriersInfo.length > 0 && (
               <div>
-                <p className="mb-1.5 text-[12px] font-medium text-[#14161C]">Sélectionnez le ou les transporteurs prises en charge sur place parmi les transporteurs ci-dessous</p>
+                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Sélectionnez le ou les transporteurs prises en charge sur place parmi les transporteurs ci-dessous</p>
                 <div className="flex flex-wrap gap-1.5" data-testid="proposal-carriers">
                   {carriersInfo.map((c) => {
                     const on = pCarriers.includes(c.id);
