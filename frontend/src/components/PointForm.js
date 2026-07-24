@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { X, Save, Trash2, Loader2, Plus, Store, Box, MapPin, Camera, AlertTriangle, Sparkles } from "lucide-react";
+import { X, Save, Trash2, Loader2, Plus, Store, Box, MapPin, Camera, AlertTriangle, Mic, Square } from "lucide-react";
 import { api, formatApiError } from "@/lib/api";
 import { toast } from "sonner";
 import MicButton from "@/components/MicButton";
@@ -74,7 +74,9 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [lookingUpHours, setLookingUpHours] = useState(false);
+  const [voiceState, setVoiceState] = useState("idle"); // idle | recording | processing
+  const voiceRecorderRef = useRef(null);
+  const voiceChunksRef = useRef([]);
   const [dupWarning, setDupWarning] = useState(null);
   const [dupConfirmed, setDupConfirmed] = useState(false);
   const [addrSug, setAddrSug] = useState([]);
@@ -151,34 +153,83 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
     });
   };
 
-  const lookupHours = async () => {
-    if (!name.trim()) {
-      toast.error("Renseignez d'abord le nom du point");
-      return;
-    }
-    setLookingUpHours(true);
-    try {
-      const { data } = await api.post("/admin/points/hours-lookup", {
-        name: name.trim(),
-        address: address.trim(),
-        postal_code: postalCode.trim(),
-        city: city.trim(),
+  const fillFromLookup = (d) => {
+    if (d.name) setName(d.name);
+    if (d.address) setAddress(d.address);
+    if (d.postal_code) setPostalCode(d.postal_code);
+    if (d.city) setCity(d.city);
+    if (d.phone) setPhone(d.phone);
+    setLat("");
+    setLng("");
+    if (d.hours) {
+      setHours((prev) => {
+        const next = { ...prev };
+        for (const { key } of DAY_FIELDS) if (d.hours[key]) next[key] = d.hours[key];
+        return next;
       });
-      if (data.found && data.hours) {
-        setHours((prev) => {
-          const next = { ...prev };
-          for (const { key } of DAY_FIELDS) if (data.hours[key]) next[key] = data.hours[key];
-          return next;
-        });
-        toast.success("Horaires trouvés — vérifiez puis validez");
+    }
+  };
+
+  const lookupByQuery = async (query) => {
+    setVoiceState("processing");
+    try {
+      const { data } = await api.post("/admin/points/lookup", { query });
+      const hasInfo =
+        data.found || data.name || data.address || data.phone || Object.values(data.hours || {}).some(Boolean);
+      if (hasInfo) {
+        fillFromLookup({ ...data, name: data.name || query });
+        toast.success("Informations trouvées — vérifiez puis validez");
       } else {
-        toast.info("Aucun horaire trouvé automatiquement. Saisissez-les manuellement.");
+        setName((prev) => prev || query);
+        toast.info("Point non identifié. Complétez les informations manuellement.");
       }
     } catch (err) {
       if (err.response?.status !== 401)
-        toast.error(formatApiError(err.response?.data?.detail) || "Échec de la recherche des horaires");
+        toast.error(formatApiError(err.response?.data?.detail) || "Échec de la recherche automatique");
     } finally {
-      setLookingUpHours(false);
+      setVoiceState("idle");
+    }
+  };
+
+  const startVoiceSearch = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      voiceChunksRef.current = [];
+      mr.ondataavailable = (ev) => ev.data.size && voiceChunksRef.current.push(ev.data);
+      mr.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(voiceChunksRef.current, { type: mr.mimeType || "audio/webm" });
+        setVoiceState("processing");
+        try {
+          const fd = new FormData();
+          fd.append("audio", blob, "audio.webm");
+          const { data } = await api.post("/transcribe", fd, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+          const text = (data.text || "").trim();
+          if (text) await lookupByQuery(text);
+          else {
+            toast.info("Aucune parole détectée, réessayez.");
+            setVoiceState("idle");
+          }
+        } catch {
+          toast.error("Échec de la transcription vocale.");
+          setVoiceState("idle");
+        }
+      };
+      mr.start();
+      voiceRecorderRef.current = mr;
+      setVoiceState("recording");
+    } catch {
+      toast.error("Micro inaccessible. Autorisez l'accès au microphone.");
+      setVoiceState("idle");
+    }
+  };
+
+  const stopVoiceSearch = () => {
+    if (voiceRecorderRef.current && voiceRecorderRef.current.state !== "inactive") {
+      voiceRecorderRef.current.stop();
     }
   };
 
@@ -578,17 +629,33 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
             </div>
           )}
 
-          {/* Actions */}
+          {/* Recherche vocale — remplit automatiquement toutes les infos */}
           <button
             type="button"
-            onClick={lookupHours}
-            disabled={lookingUpHours}
-            data-testid="hours-ai-lookup-btn"
-            className="flex w-full items-center justify-center gap-2 rounded-full border border-[#3399FF]/40 bg-[#3399FF]/10 py-3 text-sm font-semibold text-[#1f6fd4] hover:bg-[#3399FF]/20 disabled:opacity-60 transition-[background-color]"
+            onClick={voiceState === "recording" ? stopVoiceSearch : startVoiceSearch}
+            disabled={voiceState === "processing"}
+            data-testid="voice-search-btn"
+            className={`flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-semibold transition-[background-color,color] disabled:opacity-70 ${
+              voiceState === "recording"
+                ? "animate-pulse bg-red-500 text-white hover:bg-red-600"
+                : "border border-[#3399FF]/40 bg-[#3399FF]/10 text-[#1f6fd4] hover:bg-[#3399FF]/20"
+            }`}
           >
-            {lookingUpHours ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            {lookingUpHours ? "Recherche des horaires…" : "Rechercher les horaires automatiquement"}
+            {voiceState === "processing" ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : voiceState === "recording" ? (
+              <Square className="h-3.5 w-3.5" fill="currentColor" />
+            ) : (
+              <Mic className="h-4 w-4" />
+            )}
+            {voiceState === "processing"
+              ? "Recherche en cours…"
+              : voiceState === "recording"
+              ? "Arrêter et rechercher"
+              : "Recherche vocale : dites le nom du point"}
           </button>
+
+          {/* Actions */}
           <div className="flex gap-2 pt-2">
             <button
               type="submit"

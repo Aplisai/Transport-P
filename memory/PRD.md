@@ -129,6 +129,12 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 ## Données
 - `DEMO_POINTS_ENABLED=false` dans backend/.env → l'app démarre vide, l'admin ajoute ses propres points. Réversible.
 
+## Recherche vocale du point complet (2026-06-24, remplace la recherche horaires)
+- Bouton « Recherche vocale : dites le nom du point » (au-dessus de « Ajouter le point »). L'admin dicte le nom → transcription Whisper → Gemini identifie l'établissement → remplit AUTO nom, adresse, CP, ville, téléphone, horaires 7 jours. L'admin vérifie/corrige puis valide.
+- Backend : `POST /api/admin/points/lookup` (admin) body {query} → {found, name, address, postal_code, city, phone, hours{lun..dim}}. Gemini gemini-3.1-pro-preview via EMERGENT_LLM_KEY. (Ancien /hours-lookup supprimé.)
+- Coordonnées laissées vides → géocodage auto depuis l'adresse au save.
+- Testé : curl (Tour Eiffel → toutes infos + 401 sans auth) + UI (bouton visible). NB: enregistrement micro non testable en automatisation → à valider par l'utilisateur.
+
 ## Recherche IA des horaires (2026-06-24)
 - Bouton « Rechercher les horaires automatiquement » dans le formulaire admin (juste au-dessus de « Ajouter le point »). Utilise le nom + adresse/ville déjà saisis.
 - Backend `POST /api/admin/points/hours-lookup` (admin) → Gemini `gemini-3.1-pro-preview` via EMERGENT_LLM_KEY (emergentintegrations LlmChat). Renvoie JSON {found, hours{lun..dim}}. Parsing robuste (regex JSON), horaires vides si non trouvé.

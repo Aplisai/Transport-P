@@ -907,52 +907,57 @@ async def transcribe_audio(audio: UploadFile = File(...), user: dict = Depends(g
             os.remove(tmp_path)
 
 
-class HoursLookupIn(BaseModel):
-    name: str = Field(min_length=1, max_length=200)
-    address: str = Field(default="", max_length=250)
-    postal_code: str = Field(default="", max_length=20)
-    city: str = Field(default="", max_length=120)
+class PointLookupIn(BaseModel):
+    query: str = Field(min_length=1, max_length=300)
 
 
-@api_router.post("/admin/points/hours-lookup")
-async def admin_hours_lookup(data: HoursLookupIn, admin: dict = Depends(require_admin)):
-    loc = ", ".join([p for p in [data.address.strip(), data.postal_code.strip(), data.city.strip()] if p])
-    query = f'"{data.name.strip()}"' + (f" ({loc})" if loc else "")
+@api_router.post("/admin/points/lookup")
+async def admin_point_lookup(data: PointLookupIn, admin: dict = Depends(require_admin)):
     system_message = (
-        "Tu es un assistant qui fournit les horaires d'ouverture des commerces et points relais en France. "
+        "Tu es un assistant qui identifie les commerces et points relais en France et fournit leurs informations. "
         "Tu réponds UNIQUEMENT avec un objet JSON valide, sans texte autour, sans markdown. "
-        "Le JSON a exactement ces clés: lun, mar, mer, jeu, ven, sam, dim, found. "
-        "Chaque jour est une chaîne au format français « 09h00 – 19h00 » (utilise un tiret cadratin), "
-        "ou « Fermé » si fermé ce jour-là, ou « » (chaîne vide) si tu ne connais pas l'horaire de ce jour. "
-        "found vaut true si tu as pu identifier l'établissement avec des horaires plausibles, sinon false. "
-        "Ne jamais inventer une adresse. Si tu n'es pas sûr, laisse les jours vides et found=false."
+        "Clés exactes: name, address, postal_code, city, phone, lun, mar, mer, jeu, ven, sam, dim, found. "
+        "name = nom de l'établissement. address = numéro et rue. postal_code = code postal à 5 chiffres. "
+        "city = ville. phone = téléphone au format français. "
+        "Chaque jour est au format « 09h00 – 19h00 » (tiret cadratin), « Fermé », ou « » (vide) si inconnu. "
+        "found vaut true uniquement si tu identifies un établissement réel et précis. "
+        "Ne renseigne une valeur que si tu es raisonnablement sûr, sinon laisse la chaîne vide. Ne jamais inventer d'adresse ou de numéro."
     )
     prompt = (
-        f"Donne les horaires d'ouverture habituels de ce point : {query}. "
+        f"Identifie ce point relais ou commerce en France et donne ses informations : « {data.query.strip()} ». "
         "Réponds seulement avec le JSON demandé."
     )
+    empty = {"found": False, "name": "", "address": "", "postal_code": "", "city": "", "phone": "",
+             "hours": {k: "" for k in DAY_KEYS}}
     try:
         chat = LlmChat(
             api_key=os.environ["EMERGENT_LLM_KEY"],
-            session_id=f"hours-{uuid.uuid4().hex[:12]}",
+            session_id=f"lookup-{uuid.uuid4().hex[:12]}",
             system_message=system_message,
         ).with_model("gemini", "gemini-3.1-pro-preview")
         raw = await chat.send_message(UserMessage(text=prompt))
     except Exception as e:
-        logger.warning("Hours lookup error: %s", e)
-        raise HTTPException(status_code=502, detail="Échec de la recherche automatique des horaires")
+        logger.warning("Point lookup error: %s", e)
+        raise HTTPException(status_code=502, detail="Échec de la recherche automatique")
 
-    text = (raw or "").strip()
-    m = re.search(r"\{.*\}", text, re.DOTALL)
+    m = re.search(r"\{.*\}", (raw or "").strip(), re.DOTALL)
     if not m:
-        return {"found": False, "hours": {k: "" for k in DAY_KEYS}}
+        return empty
     try:
-        parsed = json.loads(m.group(0))
+        p = json.loads(m.group(0))
     except Exception:
-        return {"found": False, "hours": {k: "" for k in DAY_KEYS}}
-    hours = {k: (str(parsed.get(k, "") or "").strip()) for k in DAY_KEYS}
-    found = bool(parsed.get("found")) and any(hours.values())
-    return {"found": found, "hours": hours}
+        return empty
+    hours = {k: (str(p.get(k, "") or "").strip()) for k in DAY_KEYS}
+    result = {
+        "found": bool(p.get("found")),
+        "name": str(p.get("name", "") or "").strip(),
+        "address": str(p.get("address", "") or "").strip(),
+        "postal_code": str(p.get("postal_code", "") or "").strip(),
+        "city": str(p.get("city", "") or "").strip(),
+        "phone": str(p.get("phone", "") or "").strip(),
+        "hours": hours,
+    }
+    return result
 
 
 @api_router.get("/geocode")
