@@ -129,6 +129,12 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 ## Données
 - `DEMO_POINTS_ENABLED=false` dans backend/.env → l'app démarre vide, l'admin ajoute ses propres points. Réversible.
 
+## Recherche IA des horaires (2026-06-24)
+- Bouton « Rechercher les horaires automatiquement » dans le formulaire admin (juste au-dessus de « Ajouter le point »). Utilise le nom + adresse/ville déjà saisis.
+- Backend `POST /api/admin/points/hours-lookup` (admin) → Gemini `gemini-3.1-pro-preview` via EMERGENT_LLM_KEY (emergentintegrations LlmChat). Renvoie JSON {found, hours{lun..dim}}. Parsing robuste (regex JSON), horaires vides si non trouvé.
+- Frontend : pré-remplit les 7 jours (l'admin vérifie/corrige puis valide). Toast « à vérifier ». Coût : petit crédit universel par recherche (accepté par l'utilisateur).
+- Testé : curl (Carrefour City → 7 jours) + UI (bouton remplit les champs).
+
 ## Horaires 7 jours (2026-06-24)
 - Formulaire admin : les horaires passent de 3 champs (Lun-Ven/Sam/Dim) à 7 jours individuels (Lundi→Dimanche), chacun avec micro dictée. Raccourci « Copier lundi sur la semaine ».
 - Backend `_normalize_hours` : stocke les 7 clés `lun,mar,mer,jeu,ven,sam,dim`. Migration auto des anciens points (`lun-ven` réparti sur lun→ven).

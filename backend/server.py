@@ -4,6 +4,8 @@ load_dotenv(Path(__file__).parent / '.env')
 
 import os
 import math
+import json
+import re
 import logging
 import unicodedata
 import secrets
@@ -30,6 +32,7 @@ from pydantic import BaseModel, EmailStr, Field, BeforeValidator, ConfigDict
 
 from relay_data import POINTS as _DEMO_POINTS, CARRIERS
 from emergentintegrations.llm.openai import OpenAISpeechToText
+from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 # Jeu de données de démo activable/désactivable. Si désactivé, l'application
 # démarre vide et n'affiche que les points ajoutés manuellement par l'admin.
@@ -902,6 +905,54 @@ async def transcribe_audio(audio: UploadFile = File(...), user: dict = Depends(g
     finally:
         if tmp_path and os.path.exists(tmp_path):
             os.remove(tmp_path)
+
+
+class HoursLookupIn(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    address: str = Field(default="", max_length=250)
+    postal_code: str = Field(default="", max_length=20)
+    city: str = Field(default="", max_length=120)
+
+
+@api_router.post("/admin/points/hours-lookup")
+async def admin_hours_lookup(data: HoursLookupIn, admin: dict = Depends(require_admin)):
+    loc = ", ".join([p for p in [data.address.strip(), data.postal_code.strip(), data.city.strip()] if p])
+    query = f'"{data.name.strip()}"' + (f" ({loc})" if loc else "")
+    system_message = (
+        "Tu es un assistant qui fournit les horaires d'ouverture des commerces et points relais en France. "
+        "Tu réponds UNIQUEMENT avec un objet JSON valide, sans texte autour, sans markdown. "
+        "Le JSON a exactement ces clés: lun, mar, mer, jeu, ven, sam, dim, found. "
+        "Chaque jour est une chaîne au format français « 09h00 – 19h00 » (utilise un tiret cadratin), "
+        "ou « Fermé » si fermé ce jour-là, ou « » (chaîne vide) si tu ne connais pas l'horaire de ce jour. "
+        "found vaut true si tu as pu identifier l'établissement avec des horaires plausibles, sinon false. "
+        "Ne jamais inventer une adresse. Si tu n'es pas sûr, laisse les jours vides et found=false."
+    )
+    prompt = (
+        f"Donne les horaires d'ouverture habituels de ce point : {query}. "
+        "Réponds seulement avec le JSON demandé."
+    )
+    try:
+        chat = LlmChat(
+            api_key=os.environ["EMERGENT_LLM_KEY"],
+            session_id=f"hours-{uuid.uuid4().hex[:12]}",
+            system_message=system_message,
+        ).with_model("gemini", "gemini-3.1-pro-preview")
+        raw = await chat.send_message(UserMessage(text=prompt))
+    except Exception as e:
+        logger.warning("Hours lookup error: %s", e)
+        raise HTTPException(status_code=502, detail="Échec de la recherche automatique des horaires")
+
+    text = (raw or "").strip()
+    m = re.search(r"\{.*\}", text, re.DOTALL)
+    if not m:
+        return {"found": False, "hours": {k: "" for k in DAY_KEYS}}
+    try:
+        parsed = json.loads(m.group(0))
+    except Exception:
+        return {"found": False, "hours": {k: "" for k in DAY_KEYS}}
+    hours = {k: (str(parsed.get(k, "") or "").strip()) for k in DAY_KEYS}
+    found = bool(parsed.get("found")) and any(hours.values())
+    return {"found": found, "hours": hours}
 
 
 @api_router.get("/geocode")

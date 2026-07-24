@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { X, Save, Trash2, Loader2, Plus, Store, Box, MapPin, Camera, AlertTriangle } from "lucide-react";
+import { X, Save, Trash2, Loader2, Plus, Store, Box, MapPin, Camera, AlertTriangle, Sparkles } from "lucide-react";
 import { api, formatApiError } from "@/lib/api";
 import { toast } from "sonner";
 import MicButton from "@/components/MicButton";
@@ -74,6 +74,7 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [lookingUpHours, setLookingUpHours] = useState(false);
   const [dupWarning, setDupWarning] = useState(null);
   const [dupConfirmed, setDupConfirmed] = useState(false);
   const [addrSug, setAddrSug] = useState([]);
@@ -144,11 +145,41 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
     }
   };
 
-  const toggleCarrier = (id) => {
-    setCarriers((prev) => {
+  const toggleCarrier = (id) => {    setCarriers((prev) => {
       const next = prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id];
       return next.length ? next : prev;
     });
+  };
+
+  const lookupHours = async () => {
+    if (!name.trim()) {
+      toast.error("Renseignez d'abord le nom du point");
+      return;
+    }
+    setLookingUpHours(true);
+    try {
+      const { data } = await api.post("/admin/points/hours-lookup", {
+        name: name.trim(),
+        address: address.trim(),
+        postal_code: postalCode.trim(),
+        city: city.trim(),
+      });
+      if (data.found && data.hours) {
+        setHours((prev) => {
+          const next = { ...prev };
+          for (const { key } of DAY_FIELDS) if (data.hours[key]) next[key] = data.hours[key];
+          return next;
+        });
+        toast.success("Horaires trouvés — vérifiez puis validez");
+      } else {
+        toast.info("Aucun horaire trouvé automatiquement. Saisissez-les manuellement.");
+      }
+    } catch (err) {
+      if (err.response?.status !== 401)
+        toast.error(formatApiError(err.response?.data?.detail) || "Échec de la recherche des horaires");
+    } finally {
+      setLookingUpHours(false);
+    }
   };
 
   const submit = async (e, force = false) => {
@@ -548,6 +579,16 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
           )}
 
           {/* Actions */}
+          <button
+            type="button"
+            onClick={lookupHours}
+            disabled={lookingUpHours}
+            data-testid="hours-ai-lookup-btn"
+            className="flex w-full items-center justify-center gap-2 rounded-full border border-[#3399FF]/40 bg-[#3399FF]/10 py-3 text-sm font-semibold text-[#1f6fd4] hover:bg-[#3399FF]/20 disabled:opacity-60 transition-[background-color]"
+          >
+            {lookingUpHours ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {lookingUpHours ? "Recherche des horaires…" : "Rechercher les horaires automatiquement"}
+          </button>
           <div className="flex gap-2 pt-2">
             <button
               type="submit"
