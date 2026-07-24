@@ -129,6 +129,11 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 ## Données
 - `DEMO_POINTS_ENABLED=false` dans backend/.env → l'app démarre vide, l'admin ajoute ses propres points. Réversible.
 
+## Ajustements recherche (2026-06-24)
+- Mode vocal : la transcription remplit uniquement le champ Nom (pas de recherche auto) ; l'utilisateur clique la loupe pour lancer.
+- Priorité horaires : OSM n'est « suffisant » que s'il fournit des horaires, sinon repli IA. Prompt IA assoupli → fournit les horaires HABITUELS des 7 jours (estimation, à vérifier) quand l'établissement/enseigne est connu.
+- Testé : Carrefour/Intermarché → OSM 7/7 ; Paul, Tabac Presse du Centre Pirey → IA 7/7.
+
 ## Recherche hybride OSM + IA (2026-06-24, option B)
 - `POST /api/admin/points/lookup` : essaie OpenStreetMap (gratuit) d'abord ; si adresse absente OU (pas d'horaires ET pas de tél) → repli auto sur IA Gemini (petit crédit). Renvoie `source` (openstreetmap|ia|"").
 - Helpers `_osm_lookup`, `_ai_lookup`, `_empty_lookup`. Frontend affiche la source dans le toast.

@@ -209,11 +209,13 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
             headers: { "Content-Type": "multipart/form-data" },
           });
           const text = (data.text || "").trim();
-          if (text) await lookupByQuery(text);
-          else {
+          if (text) {
+            setName(text);
+            toast.success("Nom dicté — cliquez sur la loupe pour lancer la recherche");
+          } else {
             toast.info("Aucune parole détectée, réessayez.");
-            setVoiceState("idle");
           }
+          setVoiceState("idle");
         } catch {
           toast.error("Échec de la transcription vocale.");
           setVoiceState("idle");

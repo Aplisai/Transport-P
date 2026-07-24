@@ -1010,8 +1010,9 @@ async def _ai_lookup(q: str):
         "name = nom de l'établissement. address = numéro et rue. postal_code = code postal à 5 chiffres. "
         "city = ville. phone = téléphone au format français. "
         "Chaque jour est au format « 09h00 – 19h00 » (tiret cadratin), « Fermé », ou « » (vide) si inconnu. "
-        "found vaut true uniquement si tu identifies un établissement réel et précis. "
-        "Ne renseigne une valeur que si tu es raisonnablement sûr, sinon laisse la chaîne vide. Ne jamais inventer d'adresse ou de numéro."
+        "found vaut true dès que tu identifies un établissement réel et précis. "
+        "Pour l'adresse, le code postal et le téléphone : ne renseigne que si tu es raisonnablement sûr, sinon laisse vide, ne jamais inventer. "
+        "Pour les HORAIRES : si tu connais l'établissement (ou son enseigne), fournis ses horaires d'ouverture HABITUELS des 7 jours (une estimation raisonnable est acceptée puisque l'utilisateur vérifiera et corrigera). Ne laisse les jours vides que si tu n'as vraiment aucune idée du type d'établissement."
     )
     prompt = (
         f"Identifie ce point relais ou commerce en France et donne ses informations : « {q} ». "
@@ -1051,18 +1052,20 @@ async def admin_point_lookup(data: PointLookupIn, admin: dict = Depends(require_
     q = data.query.strip()
     if not q:
         return {**_empty_lookup(), "source": ""}
-    # 1) OpenStreetMap (gratuit) d'abord
+    # 1) OpenStreetMap (gratuit) d'abord — suffisant seulement s'il fournit les horaires
     osm = _osm_lookup(q)
-    osm_ok = bool(osm["address"]) and (any(osm["hours"].values()) or bool(osm["phone"]))
+    osm_ok = bool(osm["address"]) and any(osm["hours"].values())
     if osm_ok:
         return {**osm, "source": "openstreetmap"}
-    # 2) Repli IA (Gemini) si OSM insuffisant
+    # 2) Repli IA (Gemini) pour compléter, notamment les horaires/jours d'ouverture
     ai = await _ai_lookup(q)
     ai_has_info = ai["found"] or ai["address"] or ai["phone"] or any(ai["hours"].values())
     if ai_has_info:
         return {**ai, "source": "ia"}
-    # 3) Rien de mieux : renvoyer ce qu'OSM avait éventuellement
-    return {**osm, "source": "openstreetmap" if osm["found"] else ""}
+    # 3) Rien de mieux : renvoyer ce qu'OSM avait éventuellement (adresse sans horaires)
+    if osm["found"]:
+        return {**osm, "source": "openstreetmap"}
+    return {**_empty_lookup(), "source": ""}
 
 
 @api_router.get("/geocode")
