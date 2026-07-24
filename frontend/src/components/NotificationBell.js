@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Bell, X, Package, Megaphone, Send, Loader2, Star } from "lucide-react";
+import { Bell, X, Package, Megaphone, Send, Loader2, Star, ArrowLeft } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
@@ -21,6 +21,7 @@ export const NotificationBell = () => {
   const [items, setItems] = useState([]);
   const [unread, setUnread] = useState(0);
   const [notifEnabled, setNotifEnabled] = useState(true);
+  const [selectedNotif, setSelectedNotif] = useState(null);
   const ref = useRef(null);
 
   const [title, setTitle] = useState("");
@@ -196,7 +197,33 @@ export const NotificationBell = () => {
           )}
 
           {/* Onglet Information Client */}
-          {tab === "info" && (
+          {tab === "info" && selectedNotif && (
+            <div className="p-4" data-testid="notification-detail">
+              <button
+                onClick={() => setSelectedNotif(null)}
+                data-testid="notification-detail-back"
+                className="mb-3 flex items-center gap-1.5 text-[12px] font-semibold text-gray-500 hover:text-[#14161C] transition-[color]"
+              >
+                <ArrowLeft className="h-4 w-4" /> Retour
+              </button>
+              <div className="flex items-center gap-2">
+                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${selectedNotif.type === "point" ? "bg-[#FFCC00]/20 text-[#8a7400]" : "bg-[#3399FF]/15 text-[#3399FF]"}`}>
+                  {selectedNotif.type === "point" ? <Package className="h-4 w-4" /> : <Megaphone className="h-4 w-4" />}
+                </span>
+                <div>
+                  <h3 className="font-head text-base font-semibold leading-tight text-[#14161C]">{selectedNotif.title}</h3>
+                  <p className="text-[11px] text-gray-400">{timeAgo(selectedNotif.created_at)}</p>
+                </div>
+              </div>
+              {selectedNotif.body ? (
+                <p className="mt-4 whitespace-pre-wrap text-[14px] leading-relaxed text-gray-700">{selectedNotif.body}</p>
+              ) : (
+                <p className="mt-4 text-[13px] italic text-gray-400">Aucun détail supplémentaire.</p>
+              )}
+            </div>
+          )}
+
+          {tab === "info" && !selectedNotif && (
             <div>
               <div className="flex items-center justify-between border-b border-black/10 px-4 py-3" data-testid="notif-toggle-row">
                 <div>
@@ -238,16 +265,21 @@ export const NotificationBell = () => {
                   </p>
                 ) : (
                   items.map((n) => (
-                    <div key={n.id} className="flex gap-3 border-b border-black/5 px-4 py-3 last:border-0" data-testid="notification-item">
+                    <button
+                      key={n.id}
+                      onClick={() => setSelectedNotif(n)}
+                      data-testid="notification-item"
+                      className="flex w-full gap-3 border-b border-black/5 px-4 py-3 text-left last:border-0 hover:bg-black/[0.03] transition-[background-color]"
+                    >
                       <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${n.type === "point" ? "bg-[#FFCC00]/20 text-[#8a7400]" : "bg-[#3399FF]/15 text-[#3399FF]"}`}>
                         {n.type === "point" ? <Package className="h-3.5 w-3.5" /> : <Megaphone className="h-3.5 w-3.5" />}
                       </span>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="text-[13px] font-semibold text-[#14161C]">{n.title}</p>
-                        {n.body && <p className="text-[12px] leading-relaxed text-gray-600">{n.body}</p>}
-                        <p className="mt-0.5 text-[10px] text-gray-400">{timeAgo(n.created_at)}</p>
+                        {n.body && <p className="truncate text-[12px] leading-relaxed text-gray-600">{n.body}</p>}
+                        <p className="mt-0.5 text-[10px] text-[#3399FF]">Voir le détail →</p>
                       </div>
-                    </div>
+                    </button>
                   ))
                 )}
               </div>
