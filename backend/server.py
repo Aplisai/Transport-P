@@ -4,7 +4,6 @@ load_dotenv(Path(__file__).parent / '.env')
 
 import os
 import math
-import json
 import re
 import logging
 import unicodedata
@@ -32,7 +31,6 @@ from pydantic import BaseModel, EmailStr, Field, BeforeValidator, ConfigDict
 
 from relay_data import POINTS as _DEMO_POINTS, CARRIERS
 from emergentintegrations.llm.openai import OpenAISpeechToText
-from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 # Jeu de données de démo activable/désactivable. Si désactivé, l'application
 # démarre vide et n'affiche que les points ajoutés manuellement par l'admin.
@@ -911,53 +909,103 @@ class PointLookupIn(BaseModel):
     query: str = Field(min_length=1, max_length=300)
 
 
+_OSM_DAY_MAP = {"Mo": "lun", "Tu": "mar", "We": "mer", "Th": "jeu", "Fr": "ven", "Sa": "sam", "Su": "dim"}
+_OSM_DAY_ORDER = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+
+
+def _fmt_osm_times(spec):
+    spec = (spec or "").strip()
+    low = spec.lower()
+    if low in ("off", "closed"):
+        return "Fermé"
+    if low in ("24/7", "open"):
+        return "24h/24"
+    out = []
+    for p in [x.strip() for x in spec.split(",") if x.strip()]:
+        mt = re.match(r"^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})$", p)
+        if mt:
+            out.append(f"{mt.group(1).zfill(2)}h{mt.group(2)} – {mt.group(3).zfill(2)}h{mt.group(4)}")
+        else:
+            out.append(p)
+    return ", ".join(out)
+
+
+def _parse_osm_hours(oh):
+    res = {k: "" for k in DAY_KEYS}
+    if not oh or not isinstance(oh, str):
+        return res
+    oh = oh.strip()
+    if oh == "24/7":
+        return {k: "24h/24" for k in DAY_KEYS}
+    for rule in oh.split(";"):
+        rule = rule.strip()
+        if not rule:
+            continue
+        mt = re.match(r"^([A-Za-z,\- ]+?)\s+(.*)$", rule)
+        if mt:
+            daypart, timepart = mt.group(1).strip(), mt.group(2).strip()
+        else:
+            daypart, timepart = "Mo-Su", rule
+        days = []
+        for token in daypart.split(","):
+            token = token.strip()
+            rng = token.split("-")
+            if len(rng) == 2 and rng[0] in _OSM_DAY_ORDER and rng[1] in _OSM_DAY_ORDER:
+                i, j = _OSM_DAY_ORDER.index(rng[0]), _OSM_DAY_ORDER.index(rng[1])
+                if i <= j:
+                    days += _OSM_DAY_ORDER[i:j + 1]
+            elif token in _OSM_DAY_ORDER:
+                days.append(token)
+        val = _fmt_osm_times(timepart)
+        for d in days:
+            res[_OSM_DAY_MAP[d]] = val
+    return res
+
+
 @api_router.post("/admin/points/lookup")
-async def admin_point_lookup(data: PointLookupIn, admin: dict = Depends(require_admin)):
-    system_message = (
-        "Tu es un assistant qui identifie les commerces et points relais en France et fournit leurs informations. "
-        "Tu réponds UNIQUEMENT avec un objet JSON valide, sans texte autour, sans markdown. "
-        "Clés exactes: name, address, postal_code, city, phone, lun, mar, mer, jeu, ven, sam, dim, found. "
-        "name = nom de l'établissement. address = numéro et rue. postal_code = code postal à 5 chiffres. "
-        "city = ville. phone = téléphone au format français. "
-        "Chaque jour est au format « 09h00 – 19h00 » (tiret cadratin), « Fermé », ou « » (vide) si inconnu. "
-        "found vaut true uniquement si tu identifies un établissement réel et précis. "
-        "Ne renseigne une valeur que si tu es raisonnablement sûr, sinon laisse la chaîne vide. Ne jamais inventer d'adresse ou de numéro."
-    )
-    prompt = (
-        f"Identifie ce point relais ou commerce en France et donne ses informations : « {data.query.strip()} ». "
-        "Réponds seulement avec le JSON demandé."
-    )
+def admin_point_lookup(data: PointLookupIn, admin: dict = Depends(require_admin)):
     empty = {"found": False, "name": "", "address": "", "postal_code": "", "city": "", "phone": "",
              "hours": {k: "" for k in DAY_KEYS}}
+    q = data.query.strip()
+    if not q:
+        return empty
     try:
-        chat = LlmChat(
-            api_key=os.environ["EMERGENT_LLM_KEY"],
-            session_id=f"lookup-{uuid.uuid4().hex[:12]}",
-            system_message=system_message,
-        ).with_model("gemini", "gemini-3.1-pro-preview")
-        raw = await chat.send_message(UserMessage(text=prompt))
+        r = requests.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"q": q, "format": "json", "countrycodes": "fr", "limit": 1,
+                    "addressdetails": 1, "extratags": 1, "namedetails": 1},
+            headers={"User-Agent": "RelayDip/1.0 (points relais France)"},
+            timeout=10,
+        )
+        items = r.json()
     except Exception as e:
-        logger.warning("Point lookup error: %s", e)
-        raise HTTPException(status_code=502, detail="Échec de la recherche automatique")
-
-    m = re.search(r"\{.*\}", (raw or "").strip(), re.DOTALL)
-    if not m:
+        logger.warning("OSM lookup error: %s", e)
+        raise HTTPException(status_code=502, detail="Échec de la recherche OpenStreetMap")
+    if not items:
         return empty
-    try:
-        p = json.loads(m.group(0))
-    except Exception:
-        return empty
-    hours = {k: (str(p.get(k, "") or "").strip()) for k in DAY_KEYS}
-    result = {
-        "found": bool(p.get("found")),
-        "name": str(p.get("name", "") or "").strip(),
-        "address": str(p.get("address", "") or "").strip(),
-        "postal_code": str(p.get("postal_code", "") or "").strip(),
-        "city": str(p.get("city", "") or "").strip(),
-        "phone": str(p.get("phone", "") or "").strip(),
+    it = items[0]
+    addr = it.get("address", {}) or {}
+    extra = it.get("extratags", {}) or {}
+    names = it.get("namedetails", {}) or {}
+    road = addr.get("road") or addr.get("pedestrian") or addr.get("neighbourhood") or ""
+    house = addr.get("house_number") or ""
+    street = (f"{house} {road}".strip()) if road else ""
+    postal = addr.get("postcode") or ""
+    city = addr.get("city") or addr.get("town") or addr.get("village") or addr.get("municipality") or ""
+    dn = it.get("display_name") or ""
+    name = names.get("name") or it.get("name") or extra.get("brand") or (dn.split(",")[0].strip() if dn else "")
+    phone = extra.get("phone") or extra.get("contact:phone") or ""
+    hours = _parse_osm_hours(extra.get("opening_hours", ""))
+    found = bool(street or postal or city or phone or any(hours.values()))
+    return {
+        "found": found,
+        "name": name,
+        "address": street,
+        "postal_code": postal,
+        "city": city,
+        "phone": phone,
         "hours": hours,
     }
-    return result
 
 
 @api_router.get("/geocode")

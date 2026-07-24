@@ -129,6 +129,14 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 ## Données
 - `DEMO_POINTS_ENABLED=false` dans backend/.env → l'app démarre vide, l'admin ajoute ses propres points. Réversible.
 
+## Recherche vocale via OpenStreetMap (2026-06-24, remplace la version Gemini)
+- Choix utilisateur : source 100 % GRATUITE OpenStreetMap (Nominatim) au lieu de l'IA payante. Recherche vocale conservée.
+- Flux : dictée nom → Whisper (/transcribe) → `POST /api/admin/points/lookup` interroge Nominatim (extratags+addressdetails+namedetails) → remplit nom, adresse, CP, ville, téléphone, horaires 7 jours.
+- Parser OSM `opening_hours` → format français (`_parse_osm_hours`, `_fmt_osm_times`). Gère Mo-Fr / Sa / Su / 24/7 / off.
+- Couverture partielle : si l'établissement n'a pas ces infos dans OSM, champs vides → saisie manuelle. Aucun crédit consommé.
+- Import Gemini (LlmChat) et `json` retirés (plus utilisés).
+- Testé : curl (Monoprix = tél + 7 jours, Tour Eiffel, Gare de Lyon sans horaires, 401 sans auth). Frontend inchangé (même structure de réponse).
+
 ## Recherche vocale du point complet (2026-06-24, remplace la recherche horaires)
 - Bouton « Recherche vocale : dites le nom du point » (au-dessus de « Ajouter le point »). L'admin dicte le nom → transcription Whisper → Gemini identifie l'établissement → remplit AUTO nom, adresse, CP, ville, téléphone, horaires 7 jours. L'admin vérifie/corrige puis valide.
 - Backend : `POST /api/admin/points/lookup` (admin) body {query} → {found, name, address, postal_code, city, phone, hours{lun..dim}}. Gemini gemini-3.1-pro-preview via EMERGENT_LLM_KEY. (Ancien /hours-lookup supprimé.)
