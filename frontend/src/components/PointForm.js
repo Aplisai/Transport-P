@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { X, Save, Trash2, Loader2, Plus, Store, Box, MapPin, Camera, AlertTriangle, Mic, Square } from "lucide-react";
+import { X, Save, Trash2, Loader2, Plus, Store, Box, MapPin, Camera, AlertTriangle, Mic, Square, Search } from "lucide-react";
 import { api, formatApiError } from "@/lib/api";
 import { toast } from "sonner";
 import MicButton from "@/components/MicButton";
@@ -233,6 +233,14 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
     }
   };
 
+  const searchByName = () => {
+    if (!name.trim()) {
+      toast.error("Saisissez ou dictez le nom du point");
+      return;
+    }
+    lookupByQuery(name.trim());
+  };
+
   const submit = async (e, force = false) => {
     if (e) e.preventDefault();
     let latN = parseFloat(lat);
@@ -353,13 +361,61 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
         </div>
 
         <form onSubmit={submit} className="space-y-4 p-6">
-          {/* Name */}
+          {/* Name + combined search (voice or manual) via OpenStreetMap */}
           <div>
-            <label className={labelCls}>Nom du point</label>
+            <label className={labelCls}>Nom du point — dictez ou saisissez, puis recherchez</label>
             <div className="relative">
-              <input data-testid="form-name" value={name} onChange={(e) => setName(e.target.value)} className={micInputCls} placeholder="Ex : Tabac Presse du Centre" />
-              <MicButton testid="mic-name" onResult={(t) => setName(t)} />
+              <input
+                data-testid="form-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    searchByName();
+                  }
+                }}
+                className="w-full rounded-lg border border-black/10 bg-white px-3 py-2 pr-[4.5rem] text-sm outline-none focus:border-black/40 transition-[border-color]"
+                placeholder="Ex : Tabac Presse du Centre"
+              />
+              <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
+                <button
+                  type="button"
+                  onClick={voiceState === "recording" ? stopVoiceSearch : startVoiceSearch}
+                  disabled={voiceState === "processing"}
+                  data-testid="voice-search-btn"
+                  aria-label={voiceState === "recording" ? "Arrêter la dictée" : "Rechercher à la voix"}
+                  title={voiceState === "recording" ? "Arrêter" : "Rechercher à la voix"}
+                  className={`flex h-6 w-6 items-center justify-center rounded-full transition-[background-color,color] disabled:opacity-60 ${
+                    voiceState === "recording"
+                      ? "animate-pulse bg-red-500 text-white"
+                      : "bg-black/5 text-gray-500 hover:bg-black/10 hover:text-[#14161C]"
+                  }`}
+                >
+                  {voiceState === "processing" ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : voiceState === "recording" ? (
+                    <Square className="h-3 w-3" fill="currentColor" />
+                  ) : (
+                    <Mic className="h-3.5 w-3.5" />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={searchByName}
+                  disabled={voiceState !== "idle"}
+                  data-testid="name-search-btn"
+                  aria-label="Rechercher ce nom"
+                  title="Rechercher ce nom (OpenStreetMap)"
+                  className="flex h-6 w-6 items-center justify-center rounded-full bg-[#3399FF] text-white hover:bg-[#2b86e6] disabled:opacity-60 transition-[background-color]"
+                >
+                  <Search className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
+            <p className="mt-1 text-[11px] text-gray-400">
+              Recherche gratuite via OpenStreetMap — remplit automatiquement les informations disponibles.
+            </p>
           </div>
 
           {/* Photo */}
@@ -628,32 +684,6 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
               </div>
             </div>
           )}
-
-          {/* Recherche vocale — remplit automatiquement toutes les infos */}
-          <button
-            type="button"
-            onClick={voiceState === "recording" ? stopVoiceSearch : startVoiceSearch}
-            disabled={voiceState === "processing"}
-            data-testid="voice-search-btn"
-            className={`flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-semibold transition-[background-color,color] disabled:opacity-70 ${
-              voiceState === "recording"
-                ? "animate-pulse bg-red-500 text-white hover:bg-red-600"
-                : "border border-[#3399FF]/40 bg-[#3399FF]/10 text-[#1f6fd4] hover:bg-[#3399FF]/20"
-            }`}
-          >
-            {voiceState === "processing" ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : voiceState === "recording" ? (
-              <Square className="h-3.5 w-3.5" fill="currentColor" />
-            ) : (
-              <Mic className="h-4 w-4" />
-            )}
-            {voiceState === "processing"
-              ? "Recherche en cours…"
-              : voiceState === "recording"
-              ? "Arrêter et rechercher"
-              : "Recherche vocale : dites le nom du point"}
-          </button>
 
           {/* Actions */}
           <div className="flex gap-2 pt-2">

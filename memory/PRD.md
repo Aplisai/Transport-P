@@ -129,6 +129,11 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 ## Données
 - `DEMO_POINTS_ENABLED=false` dans backend/.env → l'app démarre vide, l'admin ajoute ses propres points. Réversible.
 
+## Champ Nom combiné voix + recherche (2026-06-24)
+- Le champ « Nom du point » (en haut) intègre 2 boutons : micro (recherche vocale) + loupe (recherche du nom tapé). Entrée clavier déclenche aussi la recherche. Bouton vocal du bas supprimé.
+- Les deux modes lancent la même recherche OpenStreetMap (`lookupByQuery` → `/admin/points/lookup`) et remplissent auto tous les champs.
+- Testé UI : saisie « Monoprix Rue de Rennes Paris » + clic loupe → nom, adresse, CP, ville, téléphone, horaires remplis.
+
 ## Recherche vocale via OpenStreetMap (2026-06-24, remplace la version Gemini)
 - Choix utilisateur : source 100 % GRATUITE OpenStreetMap (Nominatim) au lieu de l'IA payante. Recherche vocale conservée.
 - Flux : dictée nom → Whisper (/transcribe) → `POST /api/admin/points/lookup` interroge Nominatim (extratags+addressdetails+namedetails) → remplit nom, adresse, CP, ville, téléphone, horaires 7 jours.
