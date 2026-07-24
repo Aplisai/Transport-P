@@ -178,7 +178,8 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
         data.found || data.name || data.address || data.phone || Object.values(data.hours || {}).some(Boolean);
       if (hasInfo) {
         fillFromLookup({ ...data, name: data.name || query });
-        toast.success("Informations trouvées — vérifiez puis validez");
+        const src = data.source === "ia" ? "via IA" : "via OpenStreetMap";
+        toast.success(`Informations trouvées (${src}) — vérifiez puis validez`);
       } else {
         setName((prev) => prev || query);
         toast.info("Point non identifié. Complétez les informations manuellement.");

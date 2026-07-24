@@ -129,6 +129,11 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 ## Données
 - `DEMO_POINTS_ENABLED=false` dans backend/.env → l'app démarre vide, l'admin ajoute ses propres points. Réversible.
 
+## Recherche hybride OSM + IA (2026-06-24, option B)
+- `POST /api/admin/points/lookup` : essaie OpenStreetMap (gratuit) d'abord ; si adresse absente OU (pas d'horaires ET pas de tél) → repli auto sur IA Gemini (petit crédit). Renvoie `source` (openstreetmap|ia|"").
+- Helpers `_osm_lookup`, `_ai_lookup`, `_empty_lookup`. Frontend affiche la source dans le toast.
+- Testé : Carrefour City → OSM ; Tabac de la Gare → IA ; Mondial Relay générique → rien (limite : aucune source ne connaît chaque point relais générique → chercher le NOM DU COMMERCE hôte).
+
 ## Champ Nom combiné voix + recherche (2026-06-24)
 - Le champ « Nom du point » (en haut) intègre 2 boutons : micro (recherche vocale) + loupe (recherche du nom tapé). Entrée clavier déclenche aussi la recherche. Bouton vocal du bas supprimé.
 - Les deux modes lancent la même recherche OpenStreetMap (`lookupByQuery` → `/admin/points/lookup`) et remplissent auto tous les champs.

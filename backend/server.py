@@ -4,6 +4,7 @@ load_dotenv(Path(__file__).parent / '.env')
 
 import os
 import math
+import json
 import re
 import logging
 import unicodedata
@@ -31,6 +32,7 @@ from pydantic import BaseModel, EmailStr, Field, BeforeValidator, ConfigDict
 
 from relay_data import POINTS as _DEMO_POINTS, CARRIERS
 from emergentintegrations.llm.openai import OpenAISpeechToText
+from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 # Jeu de données de démo activable/désactivable. Si désactivé, l'application
 # démarre vide et n'affiche que les points ajoutés manuellement par l'admin.
@@ -962,13 +964,12 @@ def _parse_osm_hours(oh):
     return res
 
 
-@api_router.post("/admin/points/lookup")
-def admin_point_lookup(data: PointLookupIn, admin: dict = Depends(require_admin)):
-    empty = {"found": False, "name": "", "address": "", "postal_code": "", "city": "", "phone": "",
-             "hours": {k: "" for k in DAY_KEYS}}
-    q = data.query.strip()
-    if not q:
-        return empty
+def _empty_lookup():
+    return {"found": False, "name": "", "address": "", "postal_code": "", "city": "", "phone": "",
+            "hours": {k: "" for k in DAY_KEYS}}
+
+
+def _osm_lookup(q: str):
     try:
         r = requests.get(
             "https://nominatim.openstreetmap.org/search",
@@ -980,9 +981,9 @@ def admin_point_lookup(data: PointLookupIn, admin: dict = Depends(require_admin)
         items = r.json()
     except Exception as e:
         logger.warning("OSM lookup error: %s", e)
-        raise HTTPException(status_code=502, detail="Échec de la recherche OpenStreetMap")
+        return _empty_lookup()
     if not items:
-        return empty
+        return _empty_lookup()
     it = items[0]
     addr = it.get("address", {}) or {}
     extra = it.get("extratags", {}) or {}
@@ -997,15 +998,71 @@ def admin_point_lookup(data: PointLookupIn, admin: dict = Depends(require_admin)
     phone = extra.get("phone") or extra.get("contact:phone") or ""
     hours = _parse_osm_hours(extra.get("opening_hours", ""))
     found = bool(street or postal or city or phone or any(hours.values()))
+    return {"found": found, "name": name, "address": street, "postal_code": postal,
+            "city": city, "phone": phone, "hours": hours}
+
+
+async def _ai_lookup(q: str):
+    system_message = (
+        "Tu es un assistant qui identifie les commerces et points relais en France et fournit leurs informations. "
+        "Tu réponds UNIQUEMENT avec un objet JSON valide, sans texte autour, sans markdown. "
+        "Clés exactes: name, address, postal_code, city, phone, lun, mar, mer, jeu, ven, sam, dim, found. "
+        "name = nom de l'établissement. address = numéro et rue. postal_code = code postal à 5 chiffres. "
+        "city = ville. phone = téléphone au format français. "
+        "Chaque jour est au format « 09h00 – 19h00 » (tiret cadratin), « Fermé », ou « » (vide) si inconnu. "
+        "found vaut true uniquement si tu identifies un établissement réel et précis. "
+        "Ne renseigne une valeur que si tu es raisonnablement sûr, sinon laisse la chaîne vide. Ne jamais inventer d'adresse ou de numéro."
+    )
+    prompt = (
+        f"Identifie ce point relais ou commerce en France et donne ses informations : « {q} ». "
+        "Réponds seulement avec le JSON demandé."
+    )
+    try:
+        chat = LlmChat(
+            api_key=os.environ["EMERGENT_LLM_KEY"],
+            session_id=f"lookup-{uuid.uuid4().hex[:12]}",
+            system_message=system_message,
+        ).with_model("gemini", "gemini-3.1-pro-preview")
+        raw = await chat.send_message(UserMessage(text=prompt))
+    except Exception as e:
+        logger.warning("AI lookup error: %s", e)
+        return _empty_lookup()
+    m = re.search(r"\{.*\}", (raw or "").strip(), re.DOTALL)
+    if not m:
+        return _empty_lookup()
+    try:
+        p = json.loads(m.group(0))
+    except Exception:
+        return _empty_lookup()
+    hours = {k: (str(p.get(k, "") or "").strip()) for k in DAY_KEYS}
     return {
-        "found": found,
-        "name": name,
-        "address": street,
-        "postal_code": postal,
-        "city": city,
-        "phone": phone,
+        "found": bool(p.get("found")),
+        "name": str(p.get("name", "") or "").strip(),
+        "address": str(p.get("address", "") or "").strip(),
+        "postal_code": str(p.get("postal_code", "") or "").strip(),
+        "city": str(p.get("city", "") or "").strip(),
+        "phone": str(p.get("phone", "") or "").strip(),
         "hours": hours,
     }
+
+
+@api_router.post("/admin/points/lookup")
+async def admin_point_lookup(data: PointLookupIn, admin: dict = Depends(require_admin)):
+    q = data.query.strip()
+    if not q:
+        return {**_empty_lookup(), "source": ""}
+    # 1) OpenStreetMap (gratuit) d'abord
+    osm = _osm_lookup(q)
+    osm_ok = bool(osm["address"]) and (any(osm["hours"].values()) or bool(osm["phone"]))
+    if osm_ok:
+        return {**osm, "source": "openstreetmap"}
+    # 2) Repli IA (Gemini) si OSM insuffisant
+    ai = await _ai_lookup(q)
+    ai_has_info = ai["found"] or ai["address"] or ai["phone"] or any(ai["hours"].values())
+    if ai_has_info:
+        return {**ai, "source": "ia"}
+    # 3) Rien de mieux : renvoyer ce qu'OSM avait éventuellement
+    return {**osm, "source": "openstreetmap" if osm["found"] else ""}
 
 
 @api_router.get("/geocode")
