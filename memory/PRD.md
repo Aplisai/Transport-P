@@ -129,6 +129,10 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 ## Données
 - `DEMO_POINTS_ENABLED=false` dans backend/.env → l'app démarre vide, l'admin ajoute ses propres points. Réversible.
 
+## Libellé « Recherche d'enseignes » (2026-06-24)
+- Libellé du champ nom renommé « Recherche d'enseignes » ; placeholder « Ex : supérette, tabac, magasin, fleuriste… ».
+- Autocomplétion OSM couvre tous types d'enseignes (supérette, tabac, boulangerie, fleuriste, pharmacie…). Testé : fleuriste/tabac/boulangerie/pharmacie + UI (tabac Lyon → 2 suggestions).
+
 ## Recadrage photo à l'ajout (2026-06-24)
 - Nouveau composant `ImageCropModal.js` (react-easy-crop@6.2.3) : à la sélection d'une photo, ouverture d'une fenêtre « Cadrer la photo » avec déplacement, zoom (slider) et rotation 90°. Aspect 4/3, grille.
 - `PointForm.js` : `onPhotoSelected` lit le fichier → dataURL → ouvre le crop. `uploadCroppedBlob` génère un JPEG (canvas, qualité 0.9) et l'envoie à `/admin/upload-photo` (nom photo.jpg).

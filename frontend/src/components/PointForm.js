@@ -411,7 +411,7 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
         <form onSubmit={submit} className="space-y-4 p-6">
           {/* Name + combined search (voice or manual) via OpenStreetMap */}
           <div className="relative">
-            <label className={labelCls}>Nom du point — dictez ou saisissez, puis recherchez</label>
+            <label className={labelCls}>Recherche d'enseignes</label>
             <div className="relative">
               <input
                 data-testid="form-name"
@@ -427,7 +427,7 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
                 }}
                 autoComplete="off"
                 className="w-full rounded-lg border border-black/10 bg-white px-3 py-2 pr-[4.5rem] text-sm outline-none focus:border-black/40 transition-[border-color]"
-                placeholder="Ex : Tabac Presse du Centre"
+                placeholder="Ex : supérette, tabac, magasin, fleuriste…"
               />
               <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
                 {searchingName && <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-400" />}
