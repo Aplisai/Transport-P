@@ -3,6 +3,7 @@ import { X, Save, Trash2, Loader2, Plus, Store, Box, MapPin, Camera, AlertTriang
 import { api, formatApiError } from "@/lib/api";
 import { toast } from "sonner";
 import MicButton from "@/components/MicButton";
+import ImageCropModal from "@/components/ImageCropModal";
 
 const CODES = {
   mondial_relay: "MR",
@@ -71,6 +72,7 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
   const setHour = (k, v) => setHours((prev) => ({ ...prev, [k]: v }));
   const [photo, setPhoto] = useState(point?.photo || "");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [cropSrc, setCropSrc] = useState(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -126,17 +128,26 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
     setDupConfirmed(false);
   };
 
-  const uploadPhoto = async (e) => {
+  const onPhotoSelected = (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
     if (f.size > 8 * 1024 * 1024) {
       toast.error("Image trop volumineuse (max 8 Mo)");
+      e.target.value = "";
       return;
     }
+    const reader = new FileReader();
+    reader.onload = () => setCropSrc(reader.result);
+    reader.readAsDataURL(f);
+    e.target.value = "";
+  };
+
+  const uploadCroppedBlob = async (blob) => {
+    setCropSrc(null);
     setUploadingPhoto(true);
     try {
       const fd = new FormData();
-      fd.append("file", f);
+      fd.append("file", blob, "photo.jpg");
       const { data } = await api.post("/admin/upload-photo", fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
@@ -147,7 +158,6 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
         toast.error(formatApiError(err.response?.data?.detail) || "Échec de l'envoi de la photo");
     } finally {
       setUploadingPhoto(false);
-      e.target.value = "";
     }
   };
 
@@ -523,7 +533,7 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
                 <input
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
-                  onChange={uploadPhoto}
+                  onChange={onPhotoSelected}
                   disabled={uploadingPhoto}
                   data-testid="photo-input"
                   className="hidden"
@@ -805,6 +815,13 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
           )}
         </form>
       </div>
+      {cropSrc && (
+        <ImageCropModal
+          src={cropSrc}
+          onCancel={() => setCropSrc(null)}
+          onConfirm={uploadCroppedBlob}
+        />
+      )}
     </div>
   );
 }

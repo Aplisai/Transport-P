@@ -129,6 +129,11 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 ## Données
 - `DEMO_POINTS_ENABLED=false` dans backend/.env → l'app démarre vide, l'admin ajoute ses propres points. Réversible.
 
+## Recadrage photo à l'ajout (2026-06-24)
+- Nouveau composant `ImageCropModal.js` (react-easy-crop@6.2.3) : à la sélection d'une photo, ouverture d'une fenêtre « Cadrer la photo » avec déplacement, zoom (slider) et rotation 90°. Aspect 4/3, grille.
+- `PointForm.js` : `onPhotoSelected` lit le fichier → dataURL → ouvre le crop. `uploadCroppedBlob` génère un JPEG (canvas, qualité 0.9) et l'envoie à `/admin/upload-photo` (nom photo.jpg).
+- Testé UI : sélection fichier → modal cadrage → Valider → aperçu photo + toast « Photo ajoutée ».
+
 ## Masquer la recherche sur ordinateur (2026-06-24, révisé)
 - Comportement identique au mobile : `collapseCls = searchCollapsed ? "hidden" : ""` masque UNIQUEMENT la zone recherche (Mon compte, barre de recherche, onglets, filtres type + transporteurs) sur mobile ET desktop.
 - La LISTE des points (relais/lockers) reste TOUJOURS visible (hors `collapseCls`). Le panneau desktop (`aside`) reste affiché en 400px (pas de masquage complet).
