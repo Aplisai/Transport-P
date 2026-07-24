@@ -625,13 +625,15 @@ def _normalize_hours(h):
 class AnnouncementIn(BaseModel):
     title: str = Field(min_length=1, max_length=120)
     body: str = Field(default="", max_length=1000)
+    link: str = Field(default="", max_length=500)
 
 
-async def _add_notification(ntype: str, title: str, body: str = ""):
+async def _add_notification(ntype: str, title: str, body: str = "", link: str = ""):
     await db.notifications.insert_one({
         "type": ntype,
         "title": title,
         "body": body,
+        "link": link,
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
 
@@ -646,6 +648,7 @@ async def list_notifications(user: dict = Depends(get_current_user)):
         "type": d.get("type", "announcement"),
         "title": d.get("title", ""),
         "body": d.get("body", ""),
+        "link": d.get("link", ""),
         "created_at": d.get("created_at", ""),
     } for d in docs]
     unread = 0 if not enabled else sum(1 for d in items if d["created_at"] > read_at)
@@ -676,7 +679,10 @@ async def mark_notifications_read(user: dict = Depends(get_current_user)):
 
 @api_router.post("/admin/notifications")
 async def create_announcement(data: AnnouncementIn, admin: dict = Depends(require_admin)):
-    await _add_notification("announcement", data.title.strip(), data.body.strip())
+    link = data.link.strip()
+    if link and not link.startswith(("http://", "https://")):
+        link = "https://" + link
+    await _add_notification("announcement", data.title.strip(), data.body.strip(), link)
     return {"ok": True}
 
 

@@ -129,6 +129,12 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 ## Données
 - `DEMO_POINTS_ENABLED=false` dans backend/.env → l'app démarre vide, l'admin ajoute ses propres points. Réversible.
 
+## Notifications cliquables + offres (2026-06-24)
+- Annonces admin : ajout d'un champ « Lien de l'offre » optionnel (`link`). Backend normalise en https:// auto.
+- Comportement visiteur : annonce AVEC lien → clic ouvre l'URL dans un nouvel onglet (« Ouvrir l'offre »). Annonce SANS lien → clic ouvre la vue détail complète (« Voir le détail »).
+- Fichiers : `backend/server.py` (modèle AnnouncementIn + `_add_notification` + list_notifications), `frontend/src/components/NotificationBell.js`.
+- Testé : curl (link auto-préfixé) + UI (champ visible, publication, indicateur « Ouvrir l'offre »).
+
 ## Backlog / Next
 - P1: Envoi réel d'email pour « Mot de passe oublié » (Resend ou SendGrid) — actuellement le token est affiché dans l'UI.
 - P2: Intégration des vraies API transporteurs (Mondial Relay, La Poste) — en attente clés/contrats officiels réels.

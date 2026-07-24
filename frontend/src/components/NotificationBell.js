@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Bell, X, Package, Megaphone, Send, Loader2, Star, ArrowLeft } from "lucide-react";
+import { Bell, X, Package, Megaphone, Send, Loader2, Star, ArrowLeft, ExternalLink } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
@@ -26,6 +26,7 @@ export const NotificationBell = () => {
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [link, setLink] = useState("");
   const [publishing, setPublishing] = useState(false);
   const [reviews, setReviews] = useState(null);
 
@@ -89,10 +90,11 @@ export const NotificationBell = () => {
     if (!title.trim()) return toast.error("Le titre est obligatoire");
     setPublishing(true);
     try {
-      await api.post("/admin/notifications", { title, body });
+      await api.post("/admin/notifications", { title, body, link });
       toast.success("Annonce publiée");
       setTitle("");
       setBody("");
+      setLink("");
       fetchNotifs();
     } catch {
       toast.error("Échec de la publication");
@@ -220,6 +222,17 @@ export const NotificationBell = () => {
               ) : (
                 <p className="mt-4 text-[13px] italic text-gray-400">Aucun détail supplémentaire.</p>
               )}
+              {selectedNotif.link && (
+                <a
+                  href={selectedNotif.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-testid="notification-detail-link"
+                  className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-full bg-[#3399FF] py-2 text-xs font-semibold text-white hover:bg-[#2b86e6] transition-[background-color]"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" /> Ouvrir l'offre
+                </a>
+              )}
             </div>
           )}
 
@@ -248,6 +261,8 @@ export const NotificationBell = () => {
                   </p>
                   <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} placeholder="Titre de l'annonce" data-testid="announcement-title-input" className={`${inputCls} mb-2`} />
                   <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={2} maxLength={1000} placeholder="Message (facultatif)" data-testid="announcement-body-input" className={`${inputCls} mb-2 resize-none`} />
+                  <input value={link} onChange={(e) => setLink(e.target.value)} maxLength={500} placeholder="Lien de l'offre (facultatif) — ex : https://..." data-testid="announcement-link-input" className={`${inputCls} mb-1`} />
+                  <p className="mb-2 flex items-center gap-1 text-[10px] text-gray-400"><ExternalLink className="h-3 w-3" /> Avec un lien, l'annonce s'ouvre dans un nouvel onglet.</p>
                   <button onClick={publish} disabled={publishing} data-testid="announcement-publish-btn" className="flex w-full items-center justify-center gap-1.5 rounded-full bg-[#14161C] py-2 text-xs font-semibold text-white hover:bg-[#2a2d36] disabled:opacity-60 transition-[background-color]">
                     {publishing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                     Publier
@@ -267,7 +282,7 @@ export const NotificationBell = () => {
                   items.map((n) => (
                     <button
                       key={n.id}
-                      onClick={() => setSelectedNotif(n)}
+                      onClick={() => (n.link ? window.open(n.link, "_blank", "noopener,noreferrer") : setSelectedNotif(n))}
                       data-testid="notification-item"
                       className="flex w-full gap-3 border-b border-black/5 px-4 py-3 text-left last:border-0 hover:bg-black/[0.03] transition-[background-color]"
                     >
@@ -277,7 +292,13 @@ export const NotificationBell = () => {
                       <div className="min-w-0 flex-1">
                         <p className="text-[13px] font-semibold text-[#14161C]">{n.title}</p>
                         {n.body && <p className="truncate text-[12px] leading-relaxed text-gray-600">{n.body}</p>}
-                        <p className="mt-0.5 text-[10px] text-[#3399FF]">Voir le détail →</p>
+                        {n.link ? (
+                          <p className="mt-0.5 flex items-center gap-0.5 text-[10px] font-semibold text-[#3399FF]">
+                            <ExternalLink className="h-3 w-3" /> Ouvrir l'offre
+                          </p>
+                        ) : (
+                          <p className="mt-0.5 text-[10px] text-[#3399FF]">Voir le détail →</p>
+                        )}
                       </div>
                     </button>
                   ))
