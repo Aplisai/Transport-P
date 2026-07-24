@@ -84,7 +84,11 @@ export default function PointDetail({ point, carriersInfo = [], isAdmin = false,
   };
 
   const days = [
-    { key: "lun-ven", label: "Lundi – Vendredi" },
+    { key: "lun", label: "Lundi", legacy: true },
+    { key: "mar", label: "Mardi", legacy: true },
+    { key: "mer", label: "Mercredi", legacy: true },
+    { key: "jeu", label: "Jeudi", legacy: true },
+    { key: "ven", label: "Vendredi", legacy: true },
     { key: "sam", label: "Samedi" },
     { key: "dim", label: "Dimanche" },
   ];
@@ -247,7 +251,7 @@ export default function PointDetail({ point, carriersInfo = [], isAdmin = false,
             </div>
             <div className="overflow-hidden rounded-xl border border-black/10" data-testid="detail-hours">
               {days.map((d, i) => {
-                const val = point.hours[d.key] || "Fermé";
+                const val = point.hours[d.key] || (d.legacy ? point.hours["lun-ven"] : "") || "Fermé";
                 const closed = val.toLowerCase() === "fermé";
                 return (
                   <div

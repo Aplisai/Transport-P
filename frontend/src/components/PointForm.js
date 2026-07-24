@@ -20,6 +20,27 @@ const CODES = {
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
+const DAY_FIELDS = [
+  { key: "lun", label: "Lundi" },
+  { key: "mar", label: "Mardi" },
+  { key: "mer", label: "Mercredi" },
+  { key: "jeu", label: "Jeudi" },
+  { key: "ven", label: "Vendredi" },
+  { key: "sam", label: "Samedi" },
+  { key: "dim", label: "Dimanche" },
+];
+const WEEKDAYS = ["lun", "mar", "mer", "jeu", "ven"];
+
+const initHours = (point) => {
+  const h = point?.hours || {};
+  const legacy = h["lun-ven"] || "";
+  const out = {};
+  for (const { key } of DAY_FIELDS) {
+    out[key] = h[key] || (WEEKDAYS.includes(key) ? legacy : "") || "";
+  }
+  return out;
+};
+
 const _normStr = (s) =>
   (s || "")
     .normalize("NFKD")
@@ -46,9 +67,8 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
   const [phone, setPhone] = useState(point?.phone || "");
   const [lat, setLat] = useState(point?.lat ?? "");
   const [lng, setLng] = useState(point?.lng ?? "");
-  const [hLunVen, setHLunVen] = useState(point?.hours?.["lun-ven"] || "");
-  const [hSam, setHSam] = useState(point?.hours?.sam || "");
-  const [hDim, setHDim] = useState(point?.hours?.dim || "");
+  const [hours, setHours] = useState(() => initHours(point));
+  const setHour = (k, v) => setHours((prev) => ({ ...prev, [k]: v }));
   const [photo, setPhoto] = useState(point?.photo || "");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -190,7 +210,7 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
       phone: phone.trim(),
       lat: latN,
       lng: lngN,
-      hours: { "lun-ven": hLunVen.trim(), sam: hSam.trim(), dim: hDim.trim() },
+      hours: Object.fromEntries(DAY_FIELDS.map((d) => [d.key, (hours[d.key] || "").trim()])),
       photo: photo || "",
     };
     setSaving(true);
@@ -453,29 +473,36 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
 
           {/* Hours */}
           <div>
-            <label className={labelCls}>Horaires d'ouverture</label>
+            <div className="mb-1 flex items-center justify-between">
+              <label className={labelCls} style={{ marginBottom: 0 }}>Horaires d'ouverture</label>
+              <button
+                type="button"
+                data-testid="hours-copy-week"
+                onClick={() => {
+                  const src = hours.lun || "";
+                  setHours((prev) => ({ ...prev, mar: src, mer: src, jeu: src, ven: src }));
+                }}
+                className="text-[11px] font-medium text-[#3399FF] hover:underline"
+              >
+                Copier lundi sur la semaine
+              </button>
+            </div>
             <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="w-28 shrink-0 text-xs text-gray-500">Lundi – Vendredi</span>
-                <div className="relative flex-1">
-                  <input data-testid="form-hours-lunven" value={hLunVen} onChange={(e) => setHLunVen(e.target.value)} className={micInputCls} placeholder="09h00 – 19h00" />
-                  <MicButton testid="mic-hours-lunven" onResult={(t) => setHLunVen(t)} />
+              {DAY_FIELDS.map((d) => (
+                <div key={d.key} className="flex items-center gap-2">
+                  <span className="w-24 shrink-0 text-xs text-gray-500">{d.label}</span>
+                  <div className="relative flex-1">
+                    <input
+                      data-testid={`form-hours-${d.key}`}
+                      value={hours[d.key]}
+                      onChange={(e) => setHour(d.key, e.target.value)}
+                      className={micInputCls}
+                      placeholder={d.key === "dim" ? "Fermé" : "09h00 – 19h00"}
+                    />
+                    <MicButton testid={`mic-hours-${d.key}`} onResult={(t) => setHour(d.key, t)} />
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-28 shrink-0 text-xs text-gray-500">Samedi</span>
-                <div className="relative flex-1">
-                  <input data-testid="form-hours-sam" value={hSam} onChange={(e) => setHSam(e.target.value)} className={micInputCls} placeholder="09h00 – 12h00" />
-                  <MicButton testid="mic-hours-sam" onResult={(t) => setHSam(t)} />
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-28 shrink-0 text-xs text-gray-500">Dimanche</span>
-                <div className="relative flex-1">
-                  <input data-testid="form-hours-dim" value={hDim} onChange={(e) => setHDim(e.target.value)} className={micInputCls} placeholder="Fermé" />
-                  <MicButton testid="mic-hours-dim" onResult={(t) => setHDim(t)} />
-                </div>
-              </div>
+              ))}
             </div>
           </div>
 

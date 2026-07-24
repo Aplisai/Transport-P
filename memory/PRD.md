@@ -129,6 +129,12 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 ## Données
 - `DEMO_POINTS_ENABLED=false` dans backend/.env → l'app démarre vide, l'admin ajoute ses propres points. Réversible.
 
+## Horaires 7 jours (2026-06-24)
+- Formulaire admin : les horaires passent de 3 champs (Lun-Ven/Sam/Dim) à 7 jours individuels (Lundi→Dimanche), chacun avec micro dictée. Raccourci « Copier lundi sur la semaine ».
+- Backend `_normalize_hours` : stocke les 7 clés `lun,mar,mer,jeu,ven,sam,dim`. Migration auto des anciens points (`lun-ven` réparti sur lun→ven).
+- Affichage : `PointDetail.js` liste les 7 jours (repli `lun-ven` pour anciens points), `PointCard.js` affiche `lun-ven || lun`.
+- Testé : curl (7 jours + migration legacy) + UI (7 champs visibles).
+
 ## Notifications cliquables + offres (2026-06-24)
 - Annonces admin : ajout d'un champ « Lien de l'offre » optionnel (`link`). Backend normalise en https:// auto.
 - Comportement visiteur : annonce AVEC lien → clic ouvre l'URL dans un nouvel onglet (« Ouvrir l'offre »). Annonce SANS lien → clic ouvre la vue détail complète (« Voir le détail »).

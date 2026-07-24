@@ -107,7 +107,7 @@ function PointCard({ point, active, onSelect, onRequireAuth, index }) {
             </p>
             <p className="flex items-center gap-1.5">
               <Clock className="h-3.5 w-3.5 shrink-0" />
-              Lun-Ven {point.hours["lun-ven"]}
+              Lun-Ven {point.hours["lun-ven"] || point.hours["lun"] || "—"}
             </p>
             {point.phone && (
               <p className="flex items-center gap-1.5">

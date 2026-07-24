@@ -612,14 +612,22 @@ async def get_points(
     return results[:limit]
 
 
+DAY_KEYS = ["lun", "mar", "mer", "jeu", "ven", "sam", "dim"]
+_WEEKDAY_KEYS = ["lun", "mar", "mer", "jeu", "ven"]
+
+
 def _normalize_hours(h):
     if not isinstance(h, dict):
-        return {"lun-ven": "", "sam": "", "dim": ""}
-    return {
-        "lun-ven": h.get("lun-ven", "") or "",
-        "sam": h.get("sam", "") or "",
-        "dim": h.get("dim", "") or "",
-    }
+        return {k: "" for k in DAY_KEYS}
+    legacy = (h.get("lun-ven", "") or "").strip()
+    out = {}
+    for k in DAY_KEYS:
+        v = (h.get(k, "") or "")
+        v = v.strip() if isinstance(v, str) else ""
+        if not v and legacy and k in _WEEKDAY_KEYS:
+            v = legacy
+        out[k] = v
+    return out
 
 
 class AnnouncementIn(BaseModel):
