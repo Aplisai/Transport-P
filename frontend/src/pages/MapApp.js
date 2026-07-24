@@ -11,6 +11,8 @@ import {
   Store,
   Box,
   MapPin,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
@@ -64,6 +66,7 @@ export default function MapApp() {
   const [sheetOpen, setSheetOpen] = useState(true);
   const [showAccount, setShowAccount] = useState(false);
   const [showProposal, setShowProposal] = useState(false);
+  const [searchCollapsed, setSearchCollapsed] = useState(false);
   const [locating, setLocating] = useState(false);
   const [ptype, setPtype] = useState("all"); // all | relais | locker
   const [radius, setRadius] = useState(20); // km, 5-200
@@ -320,6 +323,8 @@ export default function MapApp() {
   }, [tab, points, favorites, userLoc, radius]);
   const listPoints = useMemo(() => visiblePoints.slice(0, 300), [visiblePoints]);
 
+  const collapseCls = searchCollapsed ? "hidden lg:block" : "";
+
   const Panel = (
     <div className="flex h-full flex-col bg-white">
       {/* Header */}
@@ -426,6 +431,24 @@ export default function MapApp() {
           </div>
         )}
 
+        {/* Bouton Afficher/Masquer la recherche (mobile uniquement) */}
+        <button
+          onClick={() => setSearchCollapsed((s) => !s)}
+          data-testid="toggle-search-btn"
+          className="mb-4 flex w-full items-center justify-center gap-2 rounded-full border border-black/10 bg-black/[0.03] px-4 py-2 text-xs font-semibold text-[#14161C] hover:bg-black/[0.06] transition-[background-color] lg:hidden"
+        >
+          {searchCollapsed ? (
+            <>
+              <ChevronDown className="h-4 w-4" /> Afficher la recherche
+            </>
+          ) : (
+            <>
+              <ChevronUp className="h-4 w-4" /> Masquer la recherche
+            </>
+          )}
+        </button>
+
+        <div className={collapseCls}>
         {/* Mon compte */}
         <button
           onClick={() => (user ? setShowAccount(true) : setShowAuth(true))}
@@ -546,10 +569,11 @@ export default function MapApp() {
             {favorites.length > 0 && ` (${favorites.length})`}
           </button>
         </div>
+        </div>
       </div>
 
       {/* Type filter */}
-      <div className="border-b border-black/10 px-4 py-3">
+      <div className={`border-b border-black/10 px-4 py-3 ${collapseCls}`}>
         <p className="mb-2 text-[11px] uppercase tracking-wider text-gray-400">
           Choix de type de point
         </p>
@@ -579,7 +603,7 @@ export default function MapApp() {
       </div>
 
       {/* Filter chips */}
-      <div className="border-b border-black/10 px-4 py-3">
+      <div className={`border-b border-black/10 px-4 py-3 ${collapseCls}`}>
         <p className="mb-2 text-[11px] uppercase tracking-wider text-gray-400">
           Sélectionnez vos ou votre transporteur
         </p>
