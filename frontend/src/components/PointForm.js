@@ -77,6 +77,10 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
   const [voiceState, setVoiceState] = useState("idle"); // idle | recording | processing
   const voiceRecorderRef = useRef(null);
   const voiceChunksRef = useRef([]);
+  const [nameSug, setNameSug] = useState([]);
+  const [showNameSug, setShowNameSug] = useState(false);
+  const [searchingName, setSearchingName] = useState(false);
+  const nameDebounce = useRef(null);
   const [dupWarning, setDupWarning] = useState(null);
   const [dupConfirmed, setDupConfirmed] = useState(false);
   const [addrSug, setAddrSug] = useState([]);
@@ -241,7 +245,38 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
       toast.error("Saisissez ou dictez le nom du point");
       return;
     }
+    setShowNameSug(false);
     lookupByQuery(name.trim());
+  };
+
+  const onNameChange = (val) => {
+    setName(val);
+    if (nameDebounce.current) clearTimeout(nameDebounce.current);
+    if (val.trim().length < 3) {
+      setNameSug([]);
+      setShowNameSug(false);
+      return;
+    }
+    setSearchingName(true);
+    nameDebounce.current = setTimeout(async () => {
+      try {
+        const { data } = await api.get("/admin/points/suggest", { params: { q: val.trim() } });
+        setNameSug(data.suggestions || []);
+        setShowNameSug((data.suggestions || []).length > 0);
+      } catch {
+        setNameSug([]);
+        setShowNameSug(false);
+      } finally {
+        setSearchingName(false);
+      }
+    }, 400);
+  };
+
+  const pickNameSuggestion = (s) => {
+    fillFromLookup(s);
+    setShowNameSug(false);
+    setNameSug([]);
+    toast.success("Point sélectionné — vérifiez puis validez");
   };
 
   const submit = async (e, force = false) => {
@@ -365,23 +400,27 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
 
         <form onSubmit={submit} className="space-y-4 p-6">
           {/* Name + combined search (voice or manual) via OpenStreetMap */}
-          <div>
+          <div className="relative">
             <label className={labelCls}>Nom du point — dictez ou saisissez, puis recherchez</label>
             <div className="relative">
               <input
                 data-testid="form-name"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => onNameChange(e.target.value)}
+                onFocus={() => nameSug.length && setShowNameSug(true)}
+                onBlur={() => setTimeout(() => setShowNameSug(false), 180)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
                     searchByName();
                   }
                 }}
+                autoComplete="off"
                 className="w-full rounded-lg border border-black/10 bg-white px-3 py-2 pr-[4.5rem] text-sm outline-none focus:border-black/40 transition-[border-color]"
                 placeholder="Ex : Tabac Presse du Centre"
               />
               <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
+                {searchingName && <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-400" />}
                 <button
                   type="button"
                   onClick={voiceState === "recording" ? stopVoiceSearch : startVoiceSearch}
@@ -416,8 +455,35 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
                 </button>
               </div>
             </div>
+            {showNameSug && nameSug.length > 0 && (
+              <div
+                data-testid="name-suggestions"
+                className="absolute z-40 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-black/10 bg-white shadow-[0_12px_30px_rgba(0,0,0,0.15)] rp-scroll"
+              >
+                {nameSug.map((s, i) => (
+                  <button
+                    key={`${s.label}-${i}`}
+                    type="button"
+                    data-testid={`name-sug-${i}`}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => pickNameSuggestion(s)}
+                    className="flex w-full items-start gap-2 border-b border-black/5 px-3 py-2 text-left text-xs last:border-0 hover:bg-black/5 transition-[background-color]"
+                  >
+                    <Store className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#3399FF]" />
+                    <span>
+                      <span className="font-semibold text-[#14161C]">{s.name}</span>
+                      {(s.address || s.city) && (
+                        <span className="block text-[11px] text-gray-500">
+                          {[s.address, s.postal_code, s.city].filter(Boolean).join(", ")}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
             <p className="mt-1 text-[11px] text-gray-400">
-              Recherche gratuite via OpenStreetMap — remplit automatiquement les informations disponibles.
+              Suggestions et recherche via OpenStreetMap — remplit automatiquement les informations disponibles.
             </p>
           </div>
 

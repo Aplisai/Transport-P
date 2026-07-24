@@ -1068,6 +1068,55 @@ async def admin_point_lookup(data: PointLookupIn, admin: dict = Depends(require_
     return {**_empty_lookup(), "source": ""}
 
 
+@api_router.get("/admin/points/suggest")
+def admin_point_suggest(q: str, admin: dict = Depends(require_admin)):
+    q = (q or "").strip()
+    if len(q) < 3:
+        return {"suggestions": []}
+    try:
+        r = requests.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"q": q, "format": "json", "countrycodes": "fr", "limit": 6,
+                    "addressdetails": 1, "extratags": 1, "namedetails": 1},
+            headers={"User-Agent": "RelayDip/1.0 (points relais France)"},
+            timeout=10,
+        )
+        items = r.json()
+    except Exception as e:
+        logger.warning("OSM suggest error: %s", e)
+        return {"suggestions": []}
+    out = []
+    for it in items if isinstance(items, list) else []:
+        addr = it.get("address", {}) or {}
+        extra = it.get("extratags", {}) or {}
+        names = it.get("namedetails", {}) or {}
+        road = addr.get("road") or addr.get("pedestrian") or addr.get("neighbourhood") or ""
+        house = addr.get("house_number") or ""
+        street = (f"{house} {road}".strip()) if road else ""
+        postal = addr.get("postcode") or ""
+        city = addr.get("city") or addr.get("town") or addr.get("village") or addr.get("municipality") or ""
+        dn = it.get("display_name") or ""
+        name = names.get("name") or it.get("name") or extra.get("brand") or (dn.split(",")[0].strip() if dn else "")
+        if not name:
+            continue
+        phone = extra.get("phone") or extra.get("contact:phone") or ""
+        hours = _parse_osm_hours(extra.get("opening_hours", ""))
+        label_parts = [name]
+        loc = ", ".join([p for p in [street, postal, city] if p])
+        if loc:
+            label_parts.append(loc)
+        out.append({
+            "label": " — ".join(label_parts),
+            "name": name,
+            "address": street,
+            "postal_code": postal,
+            "city": city,
+            "phone": phone,
+            "hours": hours,
+        })
+    return {"suggestions": out}
+
+
 @api_router.get("/geocode")
 def geocode(q: str):
     if not q or not q.strip():

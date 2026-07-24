@@ -129,6 +129,11 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 ## Données
 - `DEMO_POINTS_ENABLED=false` dans backend/.env → l'app démarre vide, l'admin ajoute ses propres points. Réversible.
 
+## Autocomplétion nom du point (2026-06-24)
+- Champ « Nom du point » : suggestions live pendant la saisie (≥3 car., debounce 400ms) via `GET /api/admin/points/suggest` (admin) → Nominatim (limit 6). Dropdown nom + adresse/ville.
+- Clic sur une suggestion → remplit tous les champs (adresse, CP, ville, tél, horaires OSM). Gratuit (OSM only). La loupe/voix gardent le mode hybride OSM+IA.
+- Testé : Monoprix/Carrefour/Intermarché → 6 suggestions ; clic → champs remplis. 401 sans auth.
+
 ## Ajustements recherche (2026-06-24)
 - Mode vocal : la transcription remplit uniquement le champ Nom (pas de recherche auto) ; l'utilisateur clique la loupe pour lancer.
 - Priorité horaires : OSM n'est « suffisant » que s'il fournit des horaires, sinon repli IA. Prompt IA assoupli → fournit les horaires HABITUELS des 7 jours (estimation, à vérifier) quand l'établissement/enseigne est connu.
