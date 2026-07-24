@@ -206,7 +206,7 @@ export default function ProposalModal({ onClose, carriersInfo = [] }) {
               )}
             </div>
             <div>
-              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Sélectionnez votre type de point</p>
+              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Sélectionnez le type de point</p>
               <div className="flex gap-2">
                 {[["relais", "Relais"], ["locker", "Locker"]].map(([val, label]) => (
                   <button
