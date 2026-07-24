@@ -95,6 +95,7 @@ export default function ImageCropModal({ src, onCancel, onConfirm }) {
             onZoomChange={setZoom}
             onRotationChange={setRotation}
             onCropComplete={onCropComplete}
+            restrictPosition={false}
             showGrid
           />
         </div>
