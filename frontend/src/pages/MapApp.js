@@ -323,7 +323,7 @@ export default function MapApp() {
   }, [tab, points, favorites, userLoc, radius]);
   const listPoints = useMemo(() => visiblePoints.slice(0, 300), [visiblePoints]);
 
-  const collapseCls = searchCollapsed ? "hidden lg:block" : "";
+  const collapseCls = searchCollapsed ? "hidden" : "";
 
   const Panel = (
     <div className="flex h-full flex-col bg-white">
@@ -788,20 +788,9 @@ export default function MapApp() {
       </div>
 
       {/* Desktop panel */}
-      <aside className={`absolute left-0 top-0 z-[1000] hidden h-full w-[400px] border-r border-black/10 bg-white shadow-[8px_0_32px_rgba(0,0,0,0.06)] ${searchCollapsed ? "" : "lg:block"}`}>
+      <aside className="absolute left-0 top-0 z-[1000] hidden h-full w-[400px] border-r border-black/10 bg-white shadow-[8px_0_32px_rgba(0,0,0,0.06)] lg:block">
         {Panel}
       </aside>
-
-      {/* Bouton flottant pour ré-afficher la recherche (ordinateur, quand masquée) */}
-      {searchCollapsed && (
-        <button
-          onClick={() => setSearchCollapsed(false)}
-          data-testid="desktop-show-search-btn"
-          className="absolute left-4 top-4 z-[1100] hidden items-center gap-2 rounded-full bg-[#14161C] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(0,0,0,0.25)] hover:bg-[#2a2d36] transition-[background-color] lg:flex"
-        >
-          <Search className="h-4 w-4" /> Afficher la recherche
-        </button>
-      )}
 
       {/* Mobile bottom sheet toggle */}
       <button

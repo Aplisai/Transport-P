@@ -129,10 +129,11 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 ## Données
 - `DEMO_POINTS_ENABLED=false` dans backend/.env → l'app démarre vide, l'admin ajoute ses propres points. Réversible.
 
-## Masquer la recherche sur ordinateur (2026-06-24)
-- Le toggle « Masquer/Afficher la recherche » (auparavant mobile) s'applique aussi sur desktop (retrait `lg:hidden` du `toggle-search-btn`).
-- Quand masqué sur desktop : l'`aside` (panneau 400px) est caché (`searchCollapsed ? "" : "lg:block"`) → carte plein écran. Bouton flottant `desktop-show-search-btn` (haut-gauche, lg:flex) pour ré-afficher.
-- Testé UI desktop : masquer → panneau caché + bouton flottant ; afficher → panneau revient.
+## Masquer la recherche sur ordinateur (2026-06-24, révisé)
+- Comportement identique au mobile : `collapseCls = searchCollapsed ? "hidden" : ""` masque UNIQUEMENT la zone recherche (Mon compte, barre de recherche, onglets, filtres type + transporteurs) sur mobile ET desktop.
+- La LISTE des points (relais/lockers) reste TOUJOURS visible (hors `collapseCls`). Le panneau desktop (`aside`) reste affiché en 400px (pas de masquage complet).
+- Toggle `toggle-search-btn` visible partout (mobile + desktop). Bouton flottant desktop retiré.
+- Testé desktop : masquer → recherche+filtres cachés, liste (6 points) visible ; « Afficher la recherche » restaure.
 
 ## Recherche orientée magasin/enseigne (2026-06-24)
 - Prompt IA (`_ai_lookup`) réécrit : recherche l'ENSEIGNE/MAGASIN (supérette, supermarché, commerce…) comme une recherche Google, JAMAIS un « point relais ». Ne renvoie plus les « Relay » de gare à la place du commerce.
