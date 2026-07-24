@@ -1004,10 +1004,12 @@ def _osm_lookup(q: str):
 
 async def _ai_lookup(q: str):
     system_message = (
-        "Tu es un assistant qui identifie les commerces et points relais en France et fournit leurs informations. "
+        "Tu es un assistant de recherche d'établissements en France (magasins, supermarchés, supérettes, "
+        "commerces, enseignes, boutiques, restaurants, etc.), comme une simple recherche Google. "
+        "Tu identifies le MAGASIN / l'ENSEIGNE recherché — jamais un « point relais ». "
         "Tu réponds UNIQUEMENT avec un objet JSON valide, sans texte autour, sans markdown. "
         "Clés exactes: name, address, postal_code, city, phone, lun, mar, mer, jeu, ven, sam, dim, found. "
-        "name = nom de l'établissement. address = numéro et rue. postal_code = code postal à 5 chiffres. "
+        "name = nom du magasin/enseigne. address = numéro et rue. postal_code = code postal à 5 chiffres. "
         "city = ville. phone = téléphone au format français. "
         "Chaque jour est au format « 09h00 – 19h00 » (tiret cadratin), « Fermé », ou « » (vide) si inconnu. "
         "found vaut true dès que tu identifies un établissement réel et précis. "
@@ -1015,7 +1017,7 @@ async def _ai_lookup(q: str):
         "Pour les HORAIRES : si tu connais l'établissement (ou son enseigne), fournis ses horaires d'ouverture HABITUELS des 7 jours (une estimation raisonnable est acceptée puisque l'utilisateur vérifiera et corrigera). Ne laisse les jours vides que si tu n'as vraiment aucune idée du type d'établissement."
     )
     prompt = (
-        f"Identifie ce point relais ou commerce en France et donne ses informations : « {q} ». "
+        f"Recherche ce magasin / cette enseigne en France et donne ses informations : « {q} ». "
         "Réponds seulement avec le JSON demandé."
     )
     try:

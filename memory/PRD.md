@@ -129,6 +129,11 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 ## Données
 - `DEMO_POINTS_ENABLED=false` dans backend/.env → l'app démarre vide, l'admin ajoute ses propres points. Réversible.
 
+## Recherche orientée magasin/enseigne (2026-06-24)
+- Prompt IA (`_ai_lookup`) réécrit : recherche l'ENSEIGNE/MAGASIN (supérette, supermarché, commerce…) comme une recherche Google, JAMAIS un « point relais ». Ne renvoie plus les « Relay » de gare à la place du commerce.
+- Le type relais/locker n'est jamais renseigné par la recherche (`fillFromLookup` ne touche pas `type`) → 100 % choix admin au moment de l'ajout.
+- Testé : « Tabac de la Gare Besançon » → « Tabac de la Gare » (et non « Relay - Gare Viotte ») ; « Franprix République » → Franprix.
+
 ## Autocomplétion nom du point (2026-06-24)
 - Champ « Nom du point » : suggestions live pendant la saisie (≥3 car., debounce 400ms) via `GET /api/admin/points/suggest` (admin) → Nominatim (limit 6). Dropdown nom + adresse/ville.
 - Clic sur une suggestion → remplit tous les champs (adresse, CP, ville, tél, horaires OSM). Gratuit (OSM only). La loupe/voix gardent le mode hybride OSM+IA.
