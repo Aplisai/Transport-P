@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { X, Save, Trash2, Loader2, Plus, Store, Box, MapPin, Camera, AlertTriangle, Mic, Square, Search } from "lucide-react";
+import { X, Save, Trash2, Loader2, Plus, Store, Box, MapPin, Camera, AlertTriangle, Mic, Square, Search, Check, ChevronRight, Phone, Clock } from "lucide-react";
 import { api, formatApiError } from "@/lib/api";
 import { toast } from "sonner";
 import MicButton from "@/components/MicButton";
@@ -82,6 +82,7 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
   const [nameSug, setNameSug] = useState([]);
   const [showNameSug, setShowNameSug] = useState(false);
   const [searchingName, setSearchingName] = useState(false);
+  const [selectedSugIdx, setSelectedSugIdx] = useState(null);
   const nameDebounce = useRef(null);
   const [dupWarning, setDupWarning] = useState(null);
   const [dupConfirmed, setDupConfirmed] = useState(false);
@@ -261,6 +262,7 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
 
   const onNameChange = (val) => {
     setName(val);
+    setSelectedSugIdx(null);
     if (nameDebounce.current) clearTimeout(nameDebounce.current);
     if (val.trim().length < 3) {
       setNameSug([]);
@@ -282,11 +284,16 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
     }, 400);
   };
 
-  const pickNameSuggestion = (s) => {
+  const pickNameSuggestion = (s, i) => {
     fillFromLookup(s);
+    setSelectedSugIdx(i);
+    toast.success("Détails remplis — vérifiez ci-dessous puis validez");
+  };
+
+  const clearSuggestions = () => {
     setShowNameSug(false);
     setNameSug([]);
-    toast.success("Point sélectionné — vérifiez puis validez");
+    setSelectedSugIdx(null);
   };
 
   const submit = async (e, force = false) => {
@@ -417,8 +424,6 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
                 data-testid="form-name"
                 value={name}
                 onChange={(e) => onNameChange(e.target.value)}
-                onFocus={() => nameSug.length && setShowNameSug(true)}
-                onBlur={() => setTimeout(() => setShowNameSug(false), 180)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
@@ -468,28 +473,83 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
             {showNameSug && nameSug.length > 0 && (
               <div
                 data-testid="name-suggestions"
-                className="absolute z-40 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-black/10 bg-white shadow-[0_12px_30px_rgba(0,0,0,0.15)] rp-scroll"
+                className="mt-2 overflow-hidden rounded-lg border border-black/10 bg-white shadow-[0_6px_20px_rgba(0,0,0,0.08)]"
               >
-                {nameSug.map((s, i) => (
+                <div className="flex items-center justify-between bg-black/[0.03] px-3 py-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                    Résultats trouvés ({nameSug.length})
+                  </span>
                   <button
-                    key={`${s.label}-${i}`}
                     type="button"
-                    data-testid={`name-sug-${i}`}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => pickNameSuggestion(s)}
-                    className="flex w-full items-start gap-2 border-b border-black/5 px-3 py-2 text-left text-xs last:border-0 hover:bg-black/5 transition-[background-color]"
+                    onClick={clearSuggestions}
+                    data-testid="clear-suggestions"
+                    aria-label="Fermer les résultats"
+                    className="rounded-full p-1 text-gray-400 hover:bg-black/5 hover:text-[#14161C] transition-[background-color]"
                   >
-                    <Store className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#3399FF]" />
-                    <span>
-                      <span className="font-semibold text-[#14161C]">{s.name}</span>
-                      {(s.address || s.city) && (
-                        <span className="block text-[11px] text-gray-500">
-                          {[s.address, s.postal_code, s.city].filter(Boolean).join(", ")}
-                        </span>
-                      )}
-                    </span>
+                    <X className="h-3.5 w-3.5" />
                   </button>
-                ))}
+                </div>
+                <div className="max-h-72 overflow-y-auto rp-scroll">
+                  {nameSug.map((s, i) => {
+                    const active = selectedSugIdx === i;
+                    const hoursList = DAY_FIELDS.filter((d) => s.hours?.[d.key]);
+                    return (
+                      <div key={`${s.label}-${i}`} className="border-b border-black/5 last:border-0">
+                        <button
+                          type="button"
+                          data-testid={`name-sug-${i}`}
+                          onClick={() => pickNameSuggestion(s, i)}
+                          className={`flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs transition-[background-color] ${
+                            active ? "bg-[#3399FF]/10" : "hover:bg-black/[0.03]"
+                          }`}
+                        >
+                          <Store className="h-4 w-4 shrink-0 text-[#3399FF]" />
+                          <span className="min-w-0 flex-1">
+                            <span className="block font-semibold text-[#14161C]">{s.name}</span>
+                            {(s.address || s.city) && (
+                              <span className="block truncate text-[11px] text-gray-500">
+                                {[s.address, s.postal_code, s.city].filter(Boolean).join(", ")}
+                              </span>
+                            )}
+                          </span>
+                          {active ? (
+                            <Check className="h-4 w-4 shrink-0 text-green-600" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
+                          )}
+                        </button>
+                        {active && (
+                          <div
+                            data-testid={`name-sug-detail-${i}`}
+                            className="space-y-1.5 border-t border-black/5 bg-[#3399FF]/[0.04] px-3 py-2.5 text-[11px] text-gray-600"
+                          >
+                            <div className="flex items-start gap-1.5">
+                              <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#3399FF]" />
+                              <span>{[s.address, s.postal_code, s.city].filter(Boolean).join(", ") || "Adresse non renseignée"}</span>
+                            </div>
+                            {s.phone && (
+                              <div className="flex items-center gap-1.5">
+                                <Phone className="h-3.5 w-3.5 shrink-0 text-[#3399FF]" />
+                                <span>{s.phone}</span>
+                              </div>
+                            )}
+                            <div className="flex items-start gap-1.5">
+                              <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#3399FF]" />
+                              <span>
+                                {hoursList.length
+                                  ? hoursList.map((d) => `${d.label} ${s.hours[d.key]}`).join(" · ")
+                                  : "Horaires non renseignés"}
+                              </span>
+                            </div>
+                            <p className="pt-1 font-medium text-[#1f6fd4]">
+                              ✓ Informations reportées dans le formulaire — vérifiez puis validez l'ajout.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
             <p className="mt-1 text-[11px] text-gray-400">

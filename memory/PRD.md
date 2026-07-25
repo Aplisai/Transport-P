@@ -129,6 +129,10 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 ## Données
 - `DEMO_POINTS_ENABLED=false` dans backend/.env → l'app démarre vide, l'admin ajoute ses propres points. Réversible.
 
+## Panneau de résultats façon Google (2026-06-24)
+- La liste de suggestions devient un panneau inline sous la barre « RÉSULTATS TROUVÉS (n) » (plus de dropdown éphémère ; bouton X pour fermer).
+- Clic sur un résultat → ligne active (coche verte) + détail déplié (adresse, téléphone, horaires 7 jours) + remplissage du formulaire. `selectedSugIdx` gère l'expansion. Testé UI : « Monoprix Paris » → 6 résultats, clic → détail + champs remplis.
+
 ## Libellé « Recherche d'enseignes » (2026-06-24)
 - Libellé du champ nom renommé « Recherche d'enseignes » ; placeholder « Ex : supérette, tabac, magasin, fleuriste… ».
 - Autocomplétion OSM couvre tous types d'enseignes (supérette, tabac, boulangerie, fleuriste, pharmacie…). Testé : fleuriste/tabac/boulangerie/pharmacie + UI (tabac Lyon → 2 suggestions).
