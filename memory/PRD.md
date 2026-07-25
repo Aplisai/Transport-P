@@ -129,6 +129,10 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 ## Données
 - `DEMO_POINTS_ENABLED=false` dans backend/.env → l'app démarre vide, l'admin ajoute ses propres points. Réversible.
 
+## Bouton Google dans la barre de recherche (2026-06-24)
+- Icône Globe (`google-search-btn`) dans la barre « Recherche d'enseignes », entre micro et loupe. Clic → ouvre `https://www.google.com/search?q=<nom>` dans un nouvel onglet (ou google.com si vide). 100% gratuit, aucune API.
+- Padding input augmenté (pr-28) pour 3 boutons. Testé UI : bouton présent, ouvre bien un onglet Google.
+
 ## Détail avant validation dans les suggestions (2026-06-24)
 - Clic sur une suggestion → affiche le DÉTAIL (adresse, tél, horaires) SANS remplir le formulaire. Bouton « Valider cette enseigne » (`name-sug-validate-{i}`) → remplit les champs + ferme le panneau.
 - `pickNameSuggestion` = toggle détail ; `validateSuggestion` = fillFromLookup + clear. Testé UI : clic résultat → détail + bouton (ville vide) ; clic valider → champs remplis + panneau fermé.
