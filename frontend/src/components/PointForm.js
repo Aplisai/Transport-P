@@ -285,9 +285,13 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
   };
 
   const pickNameSuggestion = (s, i) => {
+    setSelectedSugIdx((prev) => (prev === i ? null : i));
+  };
+
+  const validateSuggestion = (s) => {
     fillFromLookup(s);
-    setSelectedSugIdx(i);
-    toast.success("Détails remplis — vérifiez ci-dessous puis validez");
+    clearSuggestions();
+    toast.success("Enseigne ajoutée au formulaire — vérifiez puis validez l'ajout");
   };
 
   const clearSuggestions = () => {
@@ -513,7 +517,7 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
                             )}
                           </span>
                           {active ? (
-                            <Check className="h-4 w-4 shrink-0 text-green-600" />
+                            <ChevronRight className="h-4 w-4 shrink-0 rotate-90 text-[#3399FF]" />
                           ) : (
                             <ChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
                           )}
@@ -541,9 +545,14 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
                                   : "Horaires non renseignés"}
                               </span>
                             </div>
-                            <p className="pt-1 font-medium text-[#1f6fd4]">
-                              ✓ Informations reportées dans le formulaire — vérifiez puis validez l'ajout.
-                            </p>
+                            <button
+                              type="button"
+                              data-testid={`name-sug-validate-${i}`}
+                              onClick={() => validateSuggestion(s)}
+                              className="mt-1.5 flex w-full items-center justify-center gap-1.5 rounded-full bg-[#14161C] py-2 text-[11px] font-semibold text-white hover:bg-[#2a2d36] transition-[background-color]"
+                            >
+                              <Check className="h-3.5 w-3.5" /> Valider cette enseigne
+                            </button>
                           </div>
                         )}
                       </div>

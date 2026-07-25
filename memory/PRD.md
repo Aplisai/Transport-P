@@ -129,6 +129,10 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 ## Données
 - `DEMO_POINTS_ENABLED=false` dans backend/.env → l'app démarre vide, l'admin ajoute ses propres points. Réversible.
 
+## Détail avant validation dans les suggestions (2026-06-24)
+- Clic sur une suggestion → affiche le DÉTAIL (adresse, tél, horaires) SANS remplir le formulaire. Bouton « Valider cette enseigne » (`name-sug-validate-{i}`) → remplit les champs + ferme le panneau.
+- `pickNameSuggestion` = toggle détail ; `validateSuggestion` = fillFromLookup + clear. Testé UI : clic résultat → détail + bouton (ville vide) ; clic valider → champs remplis + panneau fermé.
+
 ## Panneau de résultats façon Google (2026-06-24)
 - La liste de suggestions devient un panneau inline sous la barre « RÉSULTATS TROUVÉS (n) » (plus de dropdown éphémère ; bouton X pour fermer).
 - Clic sur un résultat → ligne active (coche verte) + détail déplié (adresse, téléphone, horaires 7 jours) + remplissage du formulaire. `selectedSugIdx` gère l'expansion. Testé UI : « Monoprix Paris » → 6 résultats, clic → détail + champs remplis.
