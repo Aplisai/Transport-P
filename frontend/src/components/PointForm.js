@@ -185,28 +185,6 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
     }
   };
 
-  const lookupByQuery = async (query) => {
-    setVoiceState("processing");
-    try {
-      const { data } = await api.post("/admin/points/lookup", { query });
-      const hasInfo =
-        data.found || data.name || data.address || data.phone || Object.values(data.hours || {}).some(Boolean);
-      if (hasInfo) {
-        fillFromLookup({ ...data, name: data.name || query });
-        const src = data.source === "ia" ? "via IA" : "via OpenStreetMap";
-        toast.success(`Informations trouvées (${src}) — vérifiez puis validez`);
-      } else {
-        setName((prev) => prev || query);
-        toast.info("Point non identifié. Complétez les informations manuellement.");
-      }
-    } catch (err) {
-      if (err.response?.status !== 401)
-        toast.error(formatApiError(err.response?.data?.detail) || "Échec de la recherche automatique");
-    } finally {
-      setVoiceState("idle");
-    }
-  };
-
   const startVoiceSearch = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -251,13 +229,31 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
     }
   };
 
+  const runSuggest = async (query) => {
+    setSelectedSugIdx(null);
+    setSearchingName(true);
+    try {
+      const { data } = await api.get("/admin/points/suggest", { params: { q: query } });
+      const list = data.suggestions || [];
+      setNameSug(list);
+      setShowNameSug(true);
+      if (!list.length) toast.info("Aucune enseigne trouvée pour cette recherche.");
+    } catch (err) {
+      setNameSug([]);
+      setShowNameSug(false);
+      if (err.response?.status !== 401)
+        toast.error(formatApiError(err.response?.data?.detail) || "Échec de la recherche");
+    } finally {
+      setSearchingName(false);
+    }
+  };
+
   const searchByName = () => {
     if (!name.trim()) {
       toast.error("Saisissez ou dictez le nom du point");
       return;
     }
-    setShowNameSug(false);
-    lookupByQuery(name.trim());
+    runSuggest(name.trim());
   };
 
   const onNameChange = (val) => {
@@ -270,18 +266,7 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
       return;
     }
     setSearchingName(true);
-    nameDebounce.current = setTimeout(async () => {
-      try {
-        const { data } = await api.get("/admin/points/suggest", { params: { q: val.trim() } });
-        setNameSug(data.suggestions || []);
-        setShowNameSug((data.suggestions || []).length > 0);
-      } catch {
-        setNameSug([]);
-        setShowNameSug(false);
-      } finally {
-        setSearchingName(false);
-      }
-    }, 600);
+    nameDebounce.current = setTimeout(() => runSuggest(val.trim()), 600);
   };
 
   const pickNameSuggestion = (s, i) => {

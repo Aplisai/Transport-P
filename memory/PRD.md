@@ -129,6 +129,11 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 ## Données
 - `DEMO_POINTS_ENABLED=false` dans backend/.env → l'app démarre vide, l'admin ajoute ses propres points. Réversible.
 
+## Recherche affiche les résultats sans remplir (2026-06-24)
+- La loupe (`searchByName`) n'auto-remplit plus : elle affiche les résultats via `runSuggest` (suggestions IA+OSM) dans le panneau. `lookupByQuery` supprimé (endpoint /lookup non utilisé côté front).
+- Le remplissage des champs se fait UNIQUEMENT via « Valider cette enseigne » après avoir cliqué un résultat. Voix = remplit le champ nom puis l'utilisateur clique la loupe.
+- Testé UI : loupe → résultats affichés, champs vides ; clic résultat + valider → champs remplis (ville=Paris).
+
 ## Suggestions par IA — option B (2026-06-24)
 - Bouton Google retiré. Endpoint `GET /admin/points/suggest` devient hybride IA+OSM : `_ai_suggest_list` (Gemini) renvoie jusqu'à 6 enseignes réelles précises (nom, adresse, CP, ville, tél, horaires 7 jours) + `_osm_suggest_list` en complément, dédupliqué (name+city), cap 8.
 - Frontend : debounce porté à 600ms (IA plus lente), spinner de chargement, texte « Suggestions intelligentes par IA (enrichies OpenStreetMap) ». Chaque suggestion garde `source` (ia|openstreetmap).
