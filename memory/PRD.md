@@ -129,7 +129,12 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 ## Données
 - `DEMO_POINTS_ENABLED=false` dans backend/.env → l'app démarre vide, l'admin ajoute ses propres points. Réversible.
 
-## Bouton Google dans la barre de recherche (2026-06-24)
+## Suggestions par IA — option B (2026-06-24)
+- Bouton Google retiré. Endpoint `GET /admin/points/suggest` devient hybride IA+OSM : `_ai_suggest_list` (Gemini) renvoie jusqu'à 6 enseignes réelles précises (nom, adresse, CP, ville, tél, horaires 7 jours) + `_osm_suggest_list` en complément, dédupliqué (name+city), cap 8.
+- Frontend : debounce porté à 600ms (IA plus lente), spinner de chargement, texte « Suggestions intelligentes par IA (enrichies OpenStreetMap) ». Chaque suggestion garde `source` (ia|openstreetmap).
+- Coût : petit crédit universel par recherche (choix utilisateur option B). Testé curl : « Monoprix Paris » → 8 suggestions (6 IA + 2 OSM) avec horaires 7/7.
+
+## Bouton Google dans la barre de recherche (2026-06-24) [RETIRÉ]
 - Icône Globe (`google-search-btn`) dans la barre « Recherche d'enseignes », entre micro et loupe. Clic → ouvre `https://www.google.com/search?q=<nom>` dans un nouvel onglet (ou google.com si vide). 100% gratuit, aucune API.
 - Padding input augmenté (pr-28) pour 3 boutons. Testé UI : bouton présent, ouvre bien un onglet Google.
 

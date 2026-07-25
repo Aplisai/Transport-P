@@ -1070,15 +1070,11 @@ async def admin_point_lookup(data: PointLookupIn, admin: dict = Depends(require_
     return {**_empty_lookup(), "source": ""}
 
 
-@api_router.get("/admin/points/suggest")
-def admin_point_suggest(q: str, admin: dict = Depends(require_admin)):
-    q = (q or "").strip()
-    if len(q) < 3:
-        return {"suggestions": []}
+def _osm_suggest_list(q, limit=6):
     try:
         r = requests.get(
             "https://nominatim.openstreetmap.org/search",
-            params={"q": q, "format": "json", "countrycodes": "fr", "limit": 6,
+            params={"q": q, "format": "json", "countrycodes": "fr", "limit": limit,
                     "addressdetails": 1, "extratags": 1, "namedetails": 1},
             headers={"User-Agent": "RelayDip/1.0 (points relais France)"},
             timeout=10,
@@ -1086,7 +1082,7 @@ def admin_point_suggest(q: str, admin: dict = Depends(require_admin)):
         items = r.json()
     except Exception as e:
         logger.warning("OSM suggest error: %s", e)
-        return {"suggestions": []}
+        return []
     out = []
     for it in items if isinstance(items, list) else []:
         addr = it.get("address", {}) or {}
@@ -1103,19 +1099,83 @@ def admin_point_suggest(q: str, admin: dict = Depends(require_admin)):
             continue
         phone = extra.get("phone") or extra.get("contact:phone") or ""
         hours = _parse_osm_hours(extra.get("opening_hours", ""))
-        label_parts = [name]
-        loc = ", ".join([p for p in [street, postal, city] if p])
-        if loc:
-            label_parts.append(loc)
         out.append({
-            "label": " — ".join(label_parts),
-            "name": name,
-            "address": street,
-            "postal_code": postal,
-            "city": city,
-            "phone": phone,
-            "hours": hours,
+            "name": name, "address": street, "postal_code": postal,
+            "city": city, "phone": phone, "hours": hours, "source": "openstreetmap",
         })
+    return out
+
+
+async def _ai_suggest_list(q, limit=6):
+    system_message = (
+        "Tu es un assistant de recherche d'établissements et enseignes en France (magasins, supérettes, "
+        "tabacs, fleuristes, pharmacies, boulangeries, restaurants, etc.). À partir d'une requête, tu listes "
+        "les établissements RÉELS et connus qui correspondent le mieux. "
+        "Tu réponds UNIQUEMENT avec un JSON valide, sans texte ni markdown, de la forme "
+        '{"suggestions":[{"name":"","address":"","postal_code":"","city":"","phone":"",'
+        '"lun":"","mar":"","mer":"","jeu":"","ven":"","sam":"","dim":""}]}. '
+        f"Maximum {limit} résultats, triés du plus pertinent au moins pertinent. "
+        "name=nom de l'enseigne, address=numéro et rue, postal_code=5 chiffres, city=ville, phone=téléphone FR. "
+        "Horaires au format « 09h00 – 19h00 », « Fermé », ou « » (vide) si inconnu. "
+        "Ne renseigne adresse/code postal/téléphone que si tu es raisonnablement sûr ; sinon laisse vide. "
+        "Ne jamais inventer une adresse précise fausse. Si aucun établissement pertinent, renvoie une liste vide."
+    )
+    prompt = f"Requête de recherche : « {q} ». Liste les enseignes/établissements réels correspondants en France."
+    try:
+        chat = LlmChat(
+            api_key=os.environ["EMERGENT_LLM_KEY"],
+            session_id=f"suggest-{uuid.uuid4().hex[:12]}",
+            system_message=system_message,
+        ).with_model("gemini", "gemini-3.1-pro-preview")
+        raw = await chat.send_message(UserMessage(text=prompt))
+    except Exception as e:
+        logger.warning("AI suggest error: %s", e)
+        return []
+    m = re.search(r"\{.*\}", (raw or "").strip(), re.DOTALL)
+    if not m:
+        return []
+    try:
+        data = json.loads(m.group(0))
+    except Exception:
+        return []
+    out = []
+    for s in data.get("suggestions", []) if isinstance(data, dict) else []:
+        name = str(s.get("name", "") or "").strip()
+        if not name:
+            continue
+        hours = {k: (str(s.get(k, "") or "").strip()) for k in DAY_KEYS}
+        out.append({
+            "name": name,
+            "address": str(s.get("address", "") or "").strip(),
+            "postal_code": str(s.get("postal_code", "") or "").strip(),
+            "city": str(s.get("city", "") or "").strip(),
+            "phone": str(s.get("phone", "") or "").strip(),
+            "hours": hours,
+            "source": "ia",
+        })
+    return out
+
+
+@api_router.get("/admin/points/suggest")
+async def admin_point_suggest(q: str, admin: dict = Depends(require_admin)):
+    q = (q or "").strip()
+    if len(q) < 3:
+        return {"suggestions": []}
+    # Option B : suggestions par IA (plus précises), enrichies par OpenStreetMap
+    ai = await _ai_suggest_list(q)
+    osm = _osm_suggest_list(q)
+    seen = set()
+    out = []
+    for s in ai + osm:
+        key = (s["name"].lower().strip(), s["city"].lower().strip())
+        if key in seen:
+            continue
+        seen.add(key)
+        loc = ", ".join([p for p in [s["address"], s["postal_code"], s["city"]] if p])
+        s["label"] = f"{s['name']} — {loc}" if loc else s["name"]
+        out.append(s)
+        if len(out) >= 8:
+            break
     return {"suggestions": out}
 
 

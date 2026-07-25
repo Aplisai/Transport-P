@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { X, Save, Trash2, Loader2, Plus, Store, Box, MapPin, Camera, AlertTriangle, Mic, Square, Search, Check, ChevronRight, Phone, Clock, Globe } from "lucide-react";
+import { X, Save, Trash2, Loader2, Plus, Store, Box, MapPin, Camera, AlertTriangle, Mic, Square, Search, Check, ChevronRight, Phone, Clock } from "lucide-react";
 import { api, formatApiError } from "@/lib/api";
 import { toast } from "sonner";
 import MicButton from "@/components/MicButton";
@@ -251,14 +251,6 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
     }
   };
 
-  const openGoogleSearch = () => {
-    const q = name.trim();
-    const url = q
-      ? `https://www.google.com/search?q=${encodeURIComponent(q)}`
-      : "https://www.google.com";
-    window.open(url, "_blank", "noopener,noreferrer");
-  };
-
   const searchByName = () => {
     if (!name.trim()) {
       toast.error("Saisissez ou dictez le nom du point");
@@ -289,7 +281,7 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
       } finally {
         setSearchingName(false);
       }
-    }, 400);
+    }, 600);
   };
 
   const pickNameSuggestion = (s, i) => {
@@ -443,7 +435,7 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
                   }
                 }}
                 autoComplete="off"
-                className="w-full rounded-lg border border-black/10 bg-white px-3 py-2 pr-28 text-sm outline-none focus:border-black/40 transition-[border-color]"
+                className="w-full rounded-lg border border-black/10 bg-white px-3 py-2 pr-[4.5rem] text-sm outline-none focus:border-black/40 transition-[border-color]"
                 placeholder="Ex : supérette, tabac, magasin, fleuriste…"
               />
               <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
@@ -471,21 +463,11 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
                 </button>
                 <button
                   type="button"
-                  onClick={openGoogleSearch}
-                  data-testid="google-search-btn"
-                  aria-label="Rechercher sur Google"
-                  title="Rechercher sur Google (nouvel onglet)"
-                  className="flex h-6 w-6 items-center justify-center rounded-full bg-black/5 text-gray-500 hover:bg-black/10 hover:text-[#14161C] transition-[background-color,color]"
-                >
-                  <Globe className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
                   onClick={searchByName}
                   disabled={voiceState !== "idle"}
                   data-testid="name-search-btn"
                   aria-label="Rechercher ce nom"
-                  title="Rechercher ce nom (OpenStreetMap)"
+                  title="Rechercher ce nom"
                   className="flex h-6 w-6 items-center justify-center rounded-full bg-[#3399FF] text-white hover:bg-[#2b86e6] disabled:opacity-60 transition-[background-color]"
                 >
                   <Search className="h-3.5 w-3.5" />
@@ -580,7 +562,7 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
               </div>
             )}
             <p className="mt-1 text-[11px] text-gray-400">
-              Suggestions et recherche via OpenStreetMap — remplit automatiquement les informations disponibles.
+              Suggestions intelligentes par IA (enrichies OpenStreetMap) — cliquez un résultat pour voir le détail.
             </p>
           </div>
 
