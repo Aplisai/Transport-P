@@ -129,6 +129,11 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 ## Données
 - `DEMO_POINTS_ENABLED=false` dans backend/.env → l'app démarre vide, l'admin ajoute ses propres points. Réversible.
 
+## Suppression micro/dictée vocale — app 100% gratuite (2026-06-24)
+- Retrait complet de la dictée vocale : bouton micro de la barre de recherche + tous les MicButton des champs (adresse, CP, ville, téléphone, horaires). Import MicButton, états voiceState/refs, fonctions startVoiceSearch/stopVoiceSearch supprimés. `micInputCls` sans padding micro. Icônes Mic/Square retirées des imports.
+- Plus aucun appel à `/transcribe` (Whisper) ni à l'IA depuis le front → ZÉRO crédit consommé. Endpoint /transcribe conservé côté backend mais jamais appelé.
+- Fonctionnalités gratuites : OSM (suggestions+carte), BAN (adresses), stockage photos. Testé UI : formulaire sans micro, loupe présente.
+
 ## Retour à l'option C — OpenStreetMap gratuit (2026-06-24)
 - Suggestions repassées en OpenStreetMap uniquement (endpoint `admin_point_suggest` sync, `_osm_suggest_list` limit 8). Plus aucun appel IA → aucun crédit consommé.
 - `_ai_suggest_list`, `_ai_lookup` et endpoint `/admin/points/lookup` restent dans le code mais NE SONT PLUS appelés (aucun coût). Frontend : debounce 400ms, texte « Suggestions via OpenStreetMap (gratuit) ».

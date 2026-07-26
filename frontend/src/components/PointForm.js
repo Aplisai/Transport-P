@@ -1,8 +1,7 @@
 import { useState, useRef } from "react";
-import { X, Save, Trash2, Loader2, Plus, Store, Box, MapPin, Camera, AlertTriangle, Mic, Square, Search, Check, ChevronRight, Phone, Clock } from "lucide-react";
+import { X, Save, Trash2, Loader2, Plus, Store, Box, MapPin, Camera, AlertTriangle, Search, Check, ChevronRight, Phone, Clock } from "lucide-react";
 import { api, formatApiError } from "@/lib/api";
 import { toast } from "sonner";
-import MicButton from "@/components/MicButton";
 import ImageCropModal from "@/components/ImageCropModal";
 
 const CODES = {
@@ -76,9 +75,6 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [voiceState, setVoiceState] = useState("idle"); // idle | recording | processing
-  const voiceRecorderRef = useRef(null);
-  const voiceChunksRef = useRef([]);
   const [nameSug, setNameSug] = useState([]);
   const [showNameSug, setShowNameSug] = useState(false);
   const [searchingName, setSearchingName] = useState(false);
@@ -182,50 +178,6 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
         for (const { key } of DAY_FIELDS) if (d.hours[key]) next[key] = d.hours[key];
         return next;
       });
-    }
-  };
-
-  const startVoiceSearch = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
-      voiceChunksRef.current = [];
-      mr.ondataavailable = (ev) => ev.data.size && voiceChunksRef.current.push(ev.data);
-      mr.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(voiceChunksRef.current, { type: mr.mimeType || "audio/webm" });
-        setVoiceState("processing");
-        try {
-          const fd = new FormData();
-          fd.append("audio", blob, "audio.webm");
-          const { data } = await api.post("/transcribe", fd, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
-          const text = (data.text || "").trim();
-          if (text) {
-            setName(text);
-            toast.success("Nom dicté — cliquez sur la loupe pour lancer la recherche");
-          } else {
-            toast.info("Aucune parole détectée, réessayez.");
-          }
-          setVoiceState("idle");
-        } catch {
-          toast.error("Échec de la transcription vocale.");
-          setVoiceState("idle");
-        }
-      };
-      mr.start();
-      voiceRecorderRef.current = mr;
-      setVoiceState("recording");
-    } catch {
-      toast.error("Micro inaccessible. Autorisez l'accès au microphone.");
-      setVoiceState("idle");
-    }
-  };
-
-  const stopVoiceSearch = () => {
-    if (voiceRecorderRef.current && voiceRecorderRef.current.state !== "inactive") {
-      voiceRecorderRef.current.stop();
     }
   };
 
@@ -383,7 +335,7 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
   const inputCls =
     "w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm outline-none focus:border-black/40 transition-[border-color]";
   const micInputCls =
-    "w-full rounded-lg border border-black/10 bg-white px-3 py-2 pr-10 text-sm outline-none focus:border-black/40 transition-[border-color]";
+    "w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm outline-none focus:border-black/40 transition-[border-color]";
   const labelCls = "mb-1 block text-[11px] font-medium text-gray-500";
 
   return (
@@ -420,36 +372,14 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
                   }
                 }}
                 autoComplete="off"
-                className="w-full rounded-lg border border-black/10 bg-white px-3 py-2.5 pr-[5.5rem] text-sm outline-none focus:border-black/40 transition-[border-color]"
+                className="w-full rounded-lg border border-black/10 bg-white px-3 py-2.5 pr-12 text-sm outline-none focus:border-black/40 transition-[border-color]"
                 placeholder="Ex : supérette, tabac, magasin, fleuriste…"
               />
               <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1.5">
                 {searchingName && <Loader2 className="h-4 w-4 animate-spin text-gray-400" />}
                 <button
                   type="button"
-                  onClick={voiceState === "recording" ? stopVoiceSearch : startVoiceSearch}
-                  disabled={voiceState === "processing"}
-                  data-testid="voice-search-btn"
-                  aria-label={voiceState === "recording" ? "Arrêter la dictée" : "Rechercher à la voix"}
-                  title={voiceState === "recording" ? "Arrêter" : "Rechercher à la voix"}
-                  className={`flex h-9 w-9 items-center justify-center rounded-full transition-[background-color,color] disabled:opacity-60 ${
-                    voiceState === "recording"
-                      ? "animate-pulse bg-red-500 text-white"
-                      : "bg-black/5 text-gray-500 hover:bg-black/10 hover:text-[#14161C]"
-                  }`}
-                >
-                  {voiceState === "processing" ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : voiceState === "recording" ? (
-                    <Square className="h-4 w-4" fill="currentColor" />
-                  ) : (
-                    <Mic className="h-5 w-5" />
-                  )}
-                </button>
-                <button
-                  type="button"
                   onClick={searchByName}
-                  disabled={voiceState !== "idle"}
                   data-testid="name-search-btn"
                   aria-label="Rechercher ce nom"
                   title="Rechercher ce nom"
@@ -674,9 +604,8 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
                 placeholder="Commencez à taper, ex : 12 rue de la Paix…"
               />
               {searchingAddr ? (
-                <Loader2 className="absolute right-9 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-gray-400" />
+                <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-gray-400" />
               ) : null}
-              <MicButton testid="mic-address" onResult={(t) => onAddressChange(t)} />
             </div>
             {showAddrSug && addrSug.length > 0 && (
               <div
@@ -704,14 +633,12 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
               <label className={labelCls}>Code postal</label>
               <div className="relative">
                 <input data-testid="form-postal" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} className={micInputCls} placeholder="75001" />
-                <MicButton testid="mic-postal" onResult={(t) => setPostalCode(t.replace(/\D/g, ""))} />
               </div>
             </div>
             <div className="flex-1">
               <label className={labelCls}>Ville</label>
               <div className="relative">
                 <input data-testid="form-city" value={city} onChange={(e) => setCity(e.target.value)} className={micInputCls} placeholder="Paris" />
-                <MicButton testid="mic-city" onResult={(t) => setCity(t)} />
               </div>
             </div>
           </div>
@@ -721,7 +648,6 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
             <label className={labelCls}>Téléphone</label>
             <div className="relative">
               <input data-testid="form-phone" value={phone} onChange={(e) => setPhone(e.target.value)} className={micInputCls} placeholder="01 23 45 67 89" />
-              <MicButton testid="mic-phone" onResult={(t) => setPhone(t)} />
             </div>
           </div>
 
@@ -770,7 +696,6 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
                       className={micInputCls}
                       placeholder={d.key === "dim" ? "Fermé" : "09h00 – 19h00"}
                     />
-                    <MicButton testid={`mic-hours-${d.key}`} onResult={(t) => setHour(d.key, t)} />
                   </div>
                 </div>
               ))}
