@@ -22,13 +22,12 @@ import PointDetail from "@/components/PointDetail";
 import PointForm from "@/components/PointForm";
 import ChangePasswordModal from "@/components/ChangePasswordModal";
 import StatsModal from "@/components/StatsModal";
-import CsvImportModal from "@/components/CsvImportModal";
 import AuthModal from "@/components/AuthModal";
 import AccountModal from "@/components/AccountModal";
 import { NotificationBell } from "@/components/NotificationBell";
 import ProposalModal from "@/components/ProposalModal";
 import { toast } from "sonner";
-import { Plus, KeyRound, BarChart3, FileSpreadsheet } from "lucide-react";
+import { Plus, KeyRound, BarChart3 } from "lucide-react";
 
 const _norm = (s) =>
   (s || "")
@@ -63,7 +62,6 @@ export default function MapApp() {
   const [showAuth, setShowAuth] = useState(false);
   const [showChangePwd, setShowChangePwd] = useState(false);
   const [showStats, setShowStats] = useState(false);
-  const [showCsv, setShowCsv] = useState(false);
   const [tab, setTab] = useState("all"); // all | favorites | nearby
   const [sheetOpen, setSheetOpen] = useState(true);
   const [showAccount, setShowAccount] = useState(false);
@@ -389,18 +387,6 @@ export default function MapApp() {
                 >
                   <BarChart3 className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Stats</span>
-                </button>
-              )}
-              {isAdmin && (
-                <button
-                  onClick={() => setShowCsv(true)}
-                  aria-label="Import / Export CSV"
-                  title="Importer / Exporter des points (CSV)"
-                  data-testid="csv-btn"
-                  className="flex items-center gap-1.5 rounded-full bg-black/5 px-2.5 py-1.5 text-xs font-semibold text-[#14161C] hover:bg-black/10 transition-[background-color]"
-                >
-                  <FileSpreadsheet className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">CSV</span>
                 </button>
               )}
               <button
@@ -872,7 +858,6 @@ export default function MapApp() {
       )}
       {showChangePwd && <ChangePasswordModal onClose={() => setShowChangePwd(false)} />}
       {showStats && <StatsModal onClose={() => setShowStats(false)} />}
-      {showCsv && <CsvImportModal onClose={() => setShowCsv(false)} onImported={loadPoints} />}
       {showProposal && <ProposalModal onClose={() => setShowProposal(false)} carriersInfo={carriers} />}
       {selected && formPoint === undefined && (
         <PointDetail
