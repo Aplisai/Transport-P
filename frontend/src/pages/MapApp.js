@@ -471,7 +471,7 @@ export default function MapApp() {
         <button
           onClick={() => (user ? setShowAccount(true) : setShowAuth(true))}
           data-testid="mon-compte-btn"
-          className="mb-4 flex w-full items-center gap-2 rounded-full border border-black/10 bg-black/[0.03] px-4 py-2.5 text-sm font-semibold text-[#14161C] hover:bg-black/[0.06] transition-[background-color]"
+          className="mb-4 flex w-full items-center gap-2 rounded-full bg-[#17BEBB] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#14a8a5] transition-[background-color]"
         >
           <User className="h-4 w-4" />
           Mon compte
