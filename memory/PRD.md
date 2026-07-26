@@ -129,6 +129,11 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 ## Données
 - `DEMO_POINTS_ENABLED=false` dans backend/.env → l'app démarre vide, l'admin ajoute ses propres points. Réversible.
 
+## Retour à l'option C — OpenStreetMap gratuit (2026-06-24)
+- Suggestions repassées en OpenStreetMap uniquement (endpoint `admin_point_suggest` sync, `_osm_suggest_list` limit 8). Plus aucun appel IA → aucun crédit consommé.
+- `_ai_suggest_list`, `_ai_lookup` et endpoint `/admin/points/lookup` restent dans le code mais NE SONT PLUS appelés (aucun coût). Frontend : debounce 400ms, texte « Suggestions via OpenStreetMap (gratuit) ».
+- Testé curl : « Monoprix Paris » → 8 résultats, tous source=openstreetmap.
+
 ## Recherche affiche les résultats sans remplir (2026-06-24)
 - La loupe (`searchByName`) n'auto-remplit plus : elle affiche les résultats via `runSuggest` (suggestions IA+OSM) dans le panneau. `lookupByQuery` supprimé (endpoint /lookup non utilisé côté front).
 - Le remplissage des champs se fait UNIQUEMENT via « Valider cette enseigne » après avoir cliqué un résultat. Voix = remplit le champ nom puis l'utilisateur clique la loupe.

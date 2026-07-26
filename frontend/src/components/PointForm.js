@@ -266,7 +266,7 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
       return;
     }
     setSearchingName(true);
-    nameDebounce.current = setTimeout(() => runSuggest(val.trim()), 600);
+    nameDebounce.current = setTimeout(() => runSuggest(val.trim()), 400);
   };
 
   const pickNameSuggestion = (s, i) => {
@@ -547,7 +547,7 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
               </div>
             )}
             <p className="mt-1 text-[11px] text-gray-400">
-              Suggestions intelligentes par IA (enrichies OpenStreetMap) — cliquez un résultat pour voir le détail.
+              Suggestions via OpenStreetMap (gratuit) — cliquez un résultat pour voir le détail.
             </p>
           </div>
 

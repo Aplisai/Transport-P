@@ -1157,25 +1157,15 @@ async def _ai_suggest_list(q, limit=6):
 
 
 @api_router.get("/admin/points/suggest")
-async def admin_point_suggest(q: str, admin: dict = Depends(require_admin)):
+def admin_point_suggest(q: str, admin: dict = Depends(require_admin)):
     q = (q or "").strip()
     if len(q) < 3:
         return {"suggestions": []}
-    # Option B : suggestions par IA (plus précises), enrichies par OpenStreetMap
-    ai = await _ai_suggest_list(q)
-    osm = _osm_suggest_list(q)
-    seen = set()
-    out = []
-    for s in ai + osm:
-        key = (s["name"].lower().strip(), s["city"].lower().strip())
-        if key in seen:
-            continue
-        seen.add(key)
+    # Option C : suggestions via OpenStreetMap uniquement (100% gratuit)
+    out = _osm_suggest_list(q, limit=8)
+    for s in out:
         loc = ", ".join([p for p in [s["address"], s["postal_code"], s["city"]] if p])
         s["label"] = f"{s['name']} — {loc}" if loc else s["name"]
-        out.append(s)
-        if len(out) >= 8:
-            break
     return {"suggestions": out}
 
 
