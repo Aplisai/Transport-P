@@ -699,7 +699,7 @@ async def create_announcement(data: AnnouncementIn, admin: dict = Depends(requir
     return {"ok": True}
 
 
-_DEFAULT_NOTICE = "Cher utilisateurs, c'est pour vous informer que d'autres points sont en cours d'ajout. Merci pour votre visite."
+_DEFAULT_NOTICE = "Cher utilisateurs, c'est pour vous informer que d'autres points sont en cours d'ajout. Merci de votre visite."
 
 
 class NoticeIn(BaseModel):
