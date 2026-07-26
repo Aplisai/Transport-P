@@ -168,7 +168,7 @@ export default function ProposalModal({ onClose, carriersInfo = [] }) {
           </div>
         ) : (
           <div className="max-h-[75vh] space-y-2.5 overflow-y-auto rp-scroll p-4" data-testid="proposal-form">
-            <p className="text-[12px] leading-relaxed text-gray-500">
+            <p className="text-[12px] font-medium leading-relaxed text-red-600">
               Ici, proposez votre point relais ou locker. Une fois vérifié et validé, il fera partie des points relais et lockers disponibles dans un délai de vingt-quatre heures maximum.
             </p>
             <input value={pName} onChange={(e) => setPName(e.target.value)} maxLength={120} placeholder="Nom du point *" data-testid="proposal-name-input" className={inputCls} />
