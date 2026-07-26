@@ -13,7 +13,7 @@ function timeAgo(iso) {
   return `il y a ${Math.floor(diff / 86400)} j`;
 }
 
-export const NotificationBell = () => {
+export const NotificationBell = ({ onOpenPoint }) => {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const [open, setOpen] = useState(false);
@@ -282,7 +282,16 @@ export const NotificationBell = () => {
                   items.map((n) => (
                     <button
                       key={n.id}
-                      onClick={() => (n.link ? window.open(n.link, "_blank", "noopener,noreferrer") : setSelectedNotif(n))}
+                      onClick={() => {
+                        if (n.type === "point" && n.ref_id && onOpenPoint) {
+                          setOpen(false);
+                          onOpenPoint(n.ref_id);
+                        } else if (n.link) {
+                          window.open(n.link, "_blank", "noopener,noreferrer");
+                        } else {
+                          setSelectedNotif(n);
+                        }
+                      }}
                       data-testid="notification-item"
                       className="flex w-full gap-3 border-b border-black/5 px-4 py-3 text-left last:border-0 hover:bg-black/[0.03] transition-[background-color]"
                     >
@@ -292,7 +301,11 @@ export const NotificationBell = () => {
                       <div className="min-w-0 flex-1">
                         <p className="text-[13px] font-semibold text-[#14161C]">{n.title}</p>
                         {n.body && <p className="truncate text-[12px] leading-relaxed text-gray-600">{n.body}</p>}
-                        {n.link ? (
+                        {n.type === "point" && n.ref_id ? (
+                          <p className="mt-0.5 flex items-center gap-0.5 text-[10px] font-semibold text-[#8a7400]">
+                            <Package className="h-3 w-3" /> Ouvrir le point
+                          </p>
+                        ) : n.link ? (
                           <p className="mt-0.5 flex items-center gap-0.5 text-[10px] font-semibold text-[#3399FF]">
                             <ExternalLink className="h-3 w-3" /> Ouvrir l'offre
                           </p>

@@ -129,6 +129,11 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 ## Données
 - `DEMO_POINTS_ENABLED=false` dans backend/.env → l'app démarre vide, l'admin ajoute ses propres points. Réversible.
 
+## Notification point → ouverture fiche détail (2026-06-24)
+- Backend : `_add_notification` accepte `ref_id` ; la notif "point" stocke le `point_id` (`ref_id`), renvoyé par `/notifications`.
+- Frontend : `NotificationBell` reçoit `onOpenPoint` (MapApp `openPointById`). Clic sur une notif point → ferme le panneau + ouvre `PointDetail` (fetch `/points/{id}` si absent de allPoints). Affiche adresse, horaires 7j, tél, itinéraire + bouton favori. Libellé « Ouvrir le point ».
+- Anciennes notifs sans ref_id → « Voir le détail » (annonce). Testé UI : clic notif point → fiche détail + favori OK.
+
 ## Suppression micro/dictée vocale — app 100% gratuite (2026-06-24)
 - Retrait complet de la dictée vocale : bouton micro de la barre de recherche + tous les MicButton des champs (adresse, CP, ville, téléphone, horaires). Import MicButton, états voiceState/refs, fonctions startVoiceSearch/stopVoiceSearch supprimés. `micInputCls` sans padding micro. Icônes Mic/Square retirées des imports.
 - Plus aucun appel à `/transcribe` (Whisper) ni à l'IA depuis le front → ZÉRO crédit consommé. Endpoint /transcribe conservé côté backend mais jamais appelé.

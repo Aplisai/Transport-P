@@ -639,12 +639,13 @@ class AnnouncementIn(BaseModel):
     link: str = Field(default="", max_length=500)
 
 
-async def _add_notification(ntype: str, title: str, body: str = "", link: str = ""):
+async def _add_notification(ntype: str, title: str, body: str = "", link: str = "", ref_id: str = ""):
     await db.notifications.insert_one({
         "type": ntype,
         "title": title,
         "body": body,
         "link": link,
+        "ref_id": ref_id,
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
 
@@ -660,6 +661,7 @@ async def list_notifications(user: dict = Depends(get_current_user)):
         "title": d.get("title", ""),
         "body": d.get("body", ""),
         "link": d.get("link", ""),
+        "ref_id": d.get("ref_id", ""),
         "created_at": d.get("created_at", ""),
     } for d in docs]
     unread = 0 if not enabled else sum(1 for d in items if d["created_at"] > read_at)
@@ -775,7 +777,7 @@ async def admin_create_point(data: PointFullIn, admin: dict = Depends(require_ad
     }
     await db.custom_points.update_one({"id": pid}, {"$set": point}, upsert=True)
     _CUSTOM[pid] = point
-    await _add_notification("point", "Nouveau point ajouté", point["name"])
+    await _add_notification("point", "Nouveau point ajouté", point["name"], ref_id=pid)
     return point
 
 

@@ -223,6 +223,24 @@ export default function MapApp() {
     setSheetOpen(true);
   }, []);
 
+  const openPointById = useCallback(async (pointId) => {
+    if (!pointId) return;
+    const local = allPoints.find((p) => p.id === pointId);
+    if (local) {
+      selectPoint(local);
+      return;
+    }
+    try {
+      const { data } = await api.get(`/points/${pointId}`);
+      if (data && data.id) {
+        setAllPoints((prev) => (prev.some((p) => p.id === data.id) ? prev : [...prev, data]));
+        selectPoint(data);
+      }
+    } catch {
+      /* point introuvable (supprimé) */
+    }
+  }, [allPoints, selectPoint]);
+
   const onNearbyAddressChange = (val) => {
     setAddress(val);
     if (nearbyDebounce.current) clearTimeout(nearbyDebounce.current);
@@ -419,7 +437,7 @@ export default function MapApp() {
         {/* Notifications (connectés uniquement) */}
         {user && (
           <div className="mb-4 flex items-center justify-between gap-2">
-            <NotificationBell />
+            <NotificationBell onOpenPoint={openPointById} />
             <button
               onClick={() => setShowProposal(true)}
               data-testid="propose-point-btn"
