@@ -280,8 +280,8 @@ export const NotificationBell = ({ onOpenPoint }) => {
           {tab === "info" && !selectedNotif && (
             <div>
               {notice && (
-                <div className="border-b border-black/10 bg-red-50 px-4 py-3" data-testid="permanent-notice">
-                  <p className="whitespace-pre-wrap text-[12px] font-medium leading-relaxed text-red-600">{notice}</p>
+                <div className="mx-4 my-3 rounded-lg bg-[#17BEBB] px-4 py-3 shadow-sm" data-testid="permanent-notice">
+                  <p className="whitespace-pre-wrap text-[12px] font-medium leading-relaxed text-white">{notice}</p>
                 </div>
               )}
               <div className="flex items-center justify-between border-b border-black/10 px-4 py-3" data-testid="notif-toggle-row">
