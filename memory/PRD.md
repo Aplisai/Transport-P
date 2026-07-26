@@ -129,6 +129,11 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 ## Données
 - `DEMO_POINTS_ENABLED=false` dans backend/.env → l'app démarre vide, l'admin ajoute ses propres points. Réversible.
 
+## Import / Export CSV avec validation (2026-06-24)
+- Backend : `GET /admin/points/export` (CSV, sép. `;`, carriers sép. `|`, 16 colonnes dont hours_lun…dim). `POST /admin/points/import-preview` (parse CSV → lignes + valid/errors, aucun enregistrement). `POST /admin/points/import-commit` (crée seulement les points envoyés). Helpers `_parse_csv_row`, `_CSV_COLUMNS`. `import csv, io` ajoutés.
+- Frontend : `CsvImportModal.js` (bouton `csv-btn` admin). Export blob download ; import → aperçu avec cases à cocher (valides cochées par défaut, invalides désactivées en rouge avec erreur) → « Ajouter les N point(s) sélectionné(s) » → commit + reload. 100% gratuit.
+- Testé : export, preview (1 valide/1 refusé coords), commit (created:1), UI complète.
+
 ## Message permanent visiteurs (2026-06-24)
 - Backend : `db.settings` clé "banner". `GET /notice` (public, seed défaut au 1er appel), `POST /admin/notice` (admin) pour modifier/effacer. Texte par défaut « Cher utilisateurs… ».
 - Frontend `NotificationBell` : card rouge (`permanent-notice`) affiché en haut de l'onglet Information Client pour tous les utilisateurs connectés. Éditeur admin `notice-editor` (textarea + Enregistrer + Effacer) visible admin uniquement.

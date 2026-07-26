@@ -10,6 +10,8 @@ import logging
 import unicodedata
 import secrets
 import tempfile
+import csv
+import io
 import uuid
 import requests
 from datetime import datetime, timezone, timedelta
@@ -802,6 +804,134 @@ async def admin_create_point(data: PointFullIn, admin: dict = Depends(require_ad
     _CUSTOM[pid] = point
     await _add_notification("point", "Nouveau point ajouté", point["name"], ref_id=pid)
     return point
+
+
+_CSV_COLUMNS = ["name", "type", "carriers", "address", "postal_code", "city", "lat", "lng",
+                "phone", "hours_lun", "hours_mar", "hours_mer", "hours_jeu", "hours_ven",
+                "hours_sam", "hours_dim"]
+
+
+@api_router.get("/admin/points/export")
+async def admin_export_points(admin: dict = Depends(require_admin)):
+    buf = io.StringIO()
+    writer = csv.writer(buf, delimiter=";")
+    writer.writerow(_CSV_COLUMNS)
+    for p in _CUSTOM.values():
+        h = p.get("hours", {}) or {}
+        writer.writerow([
+            p.get("name", ""), p.get("type", "relais"),
+            "|".join(p.get("carriers", []) or []),
+            p.get("address", ""), p.get("postal_code", ""), p.get("city", ""),
+            p.get("lat", ""), p.get("lng", ""), p.get("phone", ""),
+            h.get("lun", ""), h.get("mar", ""), h.get("mer", ""), h.get("jeu", ""),
+            h.get("ven", ""), h.get("sam", ""), h.get("dim", ""),
+        ])
+    content = buf.getvalue()
+    return Response(
+        content=content,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=points_relais.csv"},
+    )
+
+
+def _parse_csv_row(row):
+    """Transforme une ligne CSV (dict) en objet point de prévisualisation + erreurs."""
+    errors = []
+
+    def g(k):
+        return (row.get(k, "") or "").strip()
+
+    name = g("name")
+    if not name:
+        errors.append("nom manquant")
+    ptype = g("type").lower() or "relais"
+    if ptype not in ("relais", "locker"):
+        ptype = "relais"
+    carriers = [c.strip() for c in re.split(r"[|,]", g("carriers")) if c.strip()]
+    carriers = [c for c in carriers if c in CARRIERS]
+    if not carriers:
+        carriers = ["mondial_relay"]
+    lat_s, lng_s = g("lat"), g("lng")
+    lat = lng = None
+    try:
+        if lat_s:
+            lat = float(lat_s.replace(",", "."))
+        if lng_s:
+            lng = float(lng_s.replace(",", "."))
+    except ValueError:
+        errors.append("coordonnées invalides")
+    if lat is None or lng is None:
+        errors.append("latitude/longitude requises")
+    elif not (41.0 <= lat <= 51.5) or not (-5.8 <= lng <= 9.8):
+        errors.append("coordonnées hors de France")
+    hours = {
+        "lun": g("hours_lun"), "mar": g("hours_mar"), "mer": g("hours_mer"),
+        "jeu": g("hours_jeu"), "ven": g("hours_ven"), "sam": g("hours_sam"), "dim": g("hours_dim"),
+    }
+    return {
+        "name": name, "type": ptype, "carriers": carriers,
+        "address": g("address"), "postal_code": g("postal_code"), "city": g("city"),
+        "lat": lat, "lng": lng, "phone": g("phone"), "hours": hours,
+        "valid": len(errors) == 0, "errors": errors,
+    }
+
+
+@api_router.post("/admin/points/import-preview")
+async def admin_import_preview(file: UploadFile = File(...), admin: dict = Depends(require_admin)):
+    raw = await file.read()
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text = raw.decode("latin-1", errors="replace")
+    # Détection du séparateur (; ou ,)
+    sample = text[:2000]
+    delim = ";" if sample.count(";") >= sample.count(",") else ","
+    reader = csv.DictReader(io.StringIO(text), delimiter=delim)
+    rows = [_parse_csv_row(r) for r in reader]
+    rows = rows[:500]
+    return {"rows": rows, "count": len(rows), "valid_count": sum(1 for r in rows if r["valid"])}
+
+
+class ImportCommitIn(BaseModel):
+    points: List[PointFullIn]
+
+
+@api_router.post("/admin/points/import-commit")
+async def admin_import_commit(data: ImportCommitIn, admin: dict = Depends(require_admin)):
+    created = 0
+    for d in data.points:
+        if d.lat is None or d.lng is None:
+            continue
+        if not (41.0 <= d.lat <= 51.5) or not (-5.8 <= d.lng <= 9.8):
+            continue
+        pid = f"cust-{secrets.token_hex(6)}"
+        carriers = [c for c in (d.carriers or []) if c in CARRIERS] or ["mondial_relay"]
+        carrier = carriers[0]
+        cname, color = _carrier_fields(carrier)
+        point = {
+            "id": pid,
+            "type": d.type or "relais",
+            "carrier": carrier,
+            "carrier_name": cname,
+            "color": color,
+            "carriers": carriers,
+            "name": (d.name or "").strip() or "Nouveau point",
+            "address": d.address or "",
+            "postal_code": d.postal_code or "",
+            "city": d.city or "",
+            "lat": round(d.lat, 6),
+            "lng": round(d.lng, 6),
+            "phone": d.phone or "",
+            "hours": _normalize_hours(d.hours),
+            "photo": d.photo or "",
+            "custom": True,
+        }
+        await db.custom_points.update_one({"id": pid}, {"$set": point}, upsert=True)
+        _CUSTOM[pid] = point
+        created += 1
+    if created:
+        await _add_notification("point", "Points importés", f"{created} point(s) ajouté(s) par import CSV")
+    return {"ok": True, "created": created}
 
 
 @api_router.put("/admin/points/{point_id}")
