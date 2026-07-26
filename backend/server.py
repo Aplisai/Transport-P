@@ -699,6 +699,29 @@ async def create_announcement(data: AnnouncementIn, admin: dict = Depends(requir
     return {"ok": True}
 
 
+_DEFAULT_NOTICE = "Cher utilisateurs, c'est pour vous informer que d'autres points sont en cours d'ajout. Merci pour votre visite."
+
+
+class NoticeIn(BaseModel):
+    text: str = Field(default="", max_length=1000)
+
+
+@api_router.get("/notice")
+async def get_notice():
+    doc = await db.settings.find_one({"key": "banner"})
+    if not doc:
+        await db.settings.insert_one({"key": "banner", "text": _DEFAULT_NOTICE})
+        return {"text": _DEFAULT_NOTICE}
+    return {"text": doc.get("text", "")}
+
+
+@api_router.post("/admin/notice")
+async def set_notice(data: NoticeIn, admin: dict = Depends(require_admin)):
+    text = data.text.strip()
+    await db.settings.update_one({"key": "banner"}, {"$set": {"text": text}}, upsert=True)
+    return {"ok": True, "text": text}
+
+
 class ProposalIn(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     address: str = Field(default="", max_length=250)

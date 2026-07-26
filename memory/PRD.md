@@ -129,6 +129,11 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 ## Données
 - `DEMO_POINTS_ENABLED=false` dans backend/.env → l'app démarre vide, l'admin ajoute ses propres points. Réversible.
 
+## Message permanent visiteurs (2026-06-24)
+- Backend : `db.settings` clé "banner". `GET /notice` (public, seed défaut au 1er appel), `POST /admin/notice` (admin) pour modifier/effacer. Texte par défaut « Cher utilisateurs… ».
+- Frontend `NotificationBell` : card rouge (`permanent-notice`) affiché en haut de l'onglet Information Client pour tous les utilisateurs connectés. Éditeur admin `notice-editor` (textarea + Enregistrer + Effacer) visible admin uniquement.
+- Testé : GET défaut, update admin, affichage card rouge + éditeur (UI).
+
 ## Notification point → ouverture fiche détail (2026-06-24)
 - Backend : `_add_notification` accepte `ref_id` ; la notif "point" stocke le `point_id` (`ref_id`), renvoyé par `/notifications`.
 - Frontend : `NotificationBell` reçoit `onOpenPoint` (MapApp `openPointById`). Clic sur une notif point → ferme le panneau + ouvre `PointDetail` (fetch `/points/{id}` si absent de allPoints). Affiche adresse, horaires 7j, tél, itinéraire + bouton favori. Libellé « Ouvrir le point ».

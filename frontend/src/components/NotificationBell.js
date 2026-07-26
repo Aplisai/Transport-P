@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Bell, X, Package, Megaphone, Send, Loader2, Star, ArrowLeft, ExternalLink } from "lucide-react";
+import { Bell, X, Package, Megaphone, Send, Loader2, Star, ArrowLeft, ExternalLink, MessageSquare, Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
@@ -29,6 +29,46 @@ export const NotificationBell = ({ onOpenPoint }) => {
   const [link, setLink] = useState("");
   const [publishing, setPublishing] = useState(false);
   const [reviews, setReviews] = useState(null);
+  const [notice, setNotice] = useState("");
+  const [noticeInput, setNoticeInput] = useState("");
+  const [savingNotice, setSavingNotice] = useState(false);
+
+  const fetchNotice = useCallback(() => {
+    api
+      .get("/notice")
+      .then(({ data }) => {
+        setNotice(data.text || "");
+        setNoticeInput(data.text || "");
+      })
+      .catch(() => {});
+  }, []);
+
+  const saveNotice = async () => {
+    setSavingNotice(true);
+    try {
+      const { data } = await api.post("/admin/notice", { text: noticeInput });
+      setNotice(data.text || "");
+      toast.success("Message permanent mis à jour");
+    } catch {
+      toast.error("Échec de la mise à jour");
+    } finally {
+      setSavingNotice(false);
+    }
+  };
+
+  const clearNotice = async () => {
+    setSavingNotice(true);
+    try {
+      await api.post("/admin/notice", { text: "" });
+      setNotice("");
+      setNoticeInput("");
+      toast.success("Message effacé");
+    } catch {
+      toast.error("Échec de la suppression");
+    } finally {
+      setSavingNotice(false);
+    }
+  };
 
   const fetchNotifs = useCallback(() => {
     api
@@ -58,9 +98,10 @@ export const NotificationBell = ({ onOpenPoint }) => {
   useEffect(() => {
     if (!user) return;
     fetchNotifs();
+    fetchNotice();
     const t = setInterval(fetchNotifs, 60000);
     return () => clearInterval(t);
-  }, [user, fetchNotifs]);
+  }, [user, fetchNotifs, fetchNotice]);
 
   useEffect(() => {
     const onClick = (e) => {
@@ -238,6 +279,11 @@ export const NotificationBell = ({ onOpenPoint }) => {
 
           {tab === "info" && !selectedNotif && (
             <div>
+              {notice && (
+                <div className="border-b border-black/10 bg-red-50 px-4 py-3" data-testid="permanent-notice">
+                  <p className="whitespace-pre-wrap text-[12px] font-medium leading-relaxed text-red-600">{notice}</p>
+                </div>
+              )}
               <div className="flex items-center justify-between border-b border-black/10 px-4 py-3" data-testid="notif-toggle-row">
                 <div>
                   <p className="text-[13px] font-semibold text-[#14161C]">Recevoir les notifications</p>
@@ -267,6 +313,41 @@ export const NotificationBell = ({ onOpenPoint }) => {
                     {publishing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                     Publier
                   </button>
+                </div>
+              )}
+              {isAdmin && (
+                <div className="border-b border-black/10 bg-[#F4F4F5] p-3" data-testid="notice-editor">
+                  <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                    <MessageSquare className="h-3.5 w-3.5" /> Message permanent (visiteurs)
+                  </p>
+                  <textarea
+                    value={noticeInput}
+                    onChange={(e) => setNoticeInput(e.target.value)}
+                    rows={3}
+                    maxLength={1000}
+                    placeholder="Texte affiché en permanence aux visiteurs (en rouge)"
+                    data-testid="notice-input"
+                    className={`${inputCls} mb-2 resize-none`}
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={saveNotice}
+                      disabled={savingNotice}
+                      data-testid="notice-save-btn"
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-[#14161C] py-2 text-xs font-semibold text-white hover:bg-[#2a2d36] disabled:opacity-60 transition-[background-color]"
+                    >
+                      {savingNotice ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                      Enregistrer
+                    </button>
+                    <button
+                      onClick={clearNotice}
+                      disabled={savingNotice || !notice}
+                      data-testid="notice-clear-btn"
+                      className="flex items-center justify-center gap-1.5 rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-black/5 disabled:opacity-50 transition-[background-color]"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> Effacer
+                    </button>
+                  </div>
                 </div>
               )}
               <div className="max-h-80 overflow-y-auto rp-scroll">
