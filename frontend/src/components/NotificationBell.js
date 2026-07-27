@@ -384,7 +384,7 @@ export const NotificationBell = ({ onOpenPoint }) => {
                         {n.body && <p className="truncate text-[12px] leading-relaxed text-gray-600">{n.body}</p>}
                         {n.type === "point" && n.ref_id ? (
                           <p className="mt-0.5 flex items-center gap-0.5 text-[10px] font-semibold text-[#8a7400]">
-                            <Package className="h-3 w-3" /> Ouvrir le point
+                            <Package className="h-3 w-3" /> Afficher en détail
                           </p>
                         ) : n.link ? (
                           <p className="mt-0.5 flex items-center gap-0.5 text-[10px] font-semibold text-[#3399FF]">
@@ -393,6 +393,7 @@ export const NotificationBell = ({ onOpenPoint }) => {
                         ) : (
                           <p className="mt-0.5 text-[10px] text-[#3399FF]">Voir le détail →</p>
                         )}
+                        <p className="mt-0.5 text-[10px] text-gray-400">{timeAgo(n.created_at)}</p>
                       </div>
                     </button>
                   ))
