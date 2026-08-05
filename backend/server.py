@@ -1475,8 +1475,16 @@ async def startup():
             "name": "Admin", "role": "admin", "favorites": [],
             "created_at": datetime.now(timezone.utc).isoformat()})
         logger.info("Admin créé: %s", admin_email)
-    elif existing.get("role") != "admin":
-        await db.users.update_one({"email": admin_email}, {"$set": {"role": "admin"}})
+    else:
+        updates = {}
+        if existing.get("role") != "admin":
+            updates["role"] = "admin"
+        stored_hash = existing.get("password_hash") or ""
+        if not stored_hash or not verify_password(admin_pw, stored_hash):
+            updates["password_hash"] = hash_password(admin_pw)
+            logger.info("Mot de passe admin réaligné sur ADMIN_PASSWORD: %s", admin_email)
+        if updates:
+            await db.users.update_one({"email": admin_email}, {"$set": updates})
     # Charger les modifications admin en mémoire
     async for ov in db.point_overrides.find().limit(50000):
         _OVERRIDES[ov["point_id"]] = {
