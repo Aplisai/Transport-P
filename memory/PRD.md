@@ -3,6 +3,13 @@
 ## Problem Statement (original, FR)
 Application web + mobile responsive « Relay Dip » pour localiser les points relais et lockers en France (Mondial Relay, Chronopost, La Poste, DPD, UPS, Relais Colis, Colis Privé, Vinted Go, Amazon). Code couleur par transporteur, géolocalisation automatique, UI simple et claire. Langue : FRANÇAIS.
 
+## Correctifs production (2026-08-05)
+- **Login admin prod** : le seed de démarrage (`server.py` startup) réaligne désormais le `password_hash` de l'admin sur `ADMIN_PASSWORD` si le hash existant ne correspond pas (avant : jamais réinitialisé → 401 en prod). Résolu.
+- **Page blanche PWA après redéploiement** : `public/service-worker.js` réécrit (cache `relaydip-v2`, réseau d'abord pour navigations HTML, les assets ne renvoient JAMAIS de HTML en secours, purge des anciens caches à l'activate). `src/index.js` : rechargement auto sur `controllerchange` → auto-réparation à chaque déploiement.
+- **Page blanche à l'ajout d'un point avec photo** : `ImageCropModal.js` — le canvas intermédiaire passait de `max(w,h)*2` (≈260 Mo pour une photo 12 Mpx → crash mémoire mobile) à la vraie boîte englobante, sortie plafonnée à 1600 px, `toBlob` null géré (toast au lieu de crash). Vérifié E2E en preview (ajout point + photo 4032×3024 OK).
+- **Filet de sécurité global** : `components/ErrorBoundary.js` ajouté et branché dans `App.js` — toute erreur de rendu affiche un écran « Recharger » (turquoise) + purge le cache, au lieu d'une page blanche.
+
+
 ## Architecture
 - Backend: FastAPI + MongoDB (motor). Routes préfixées `/api`. Auth JWT (cookie httpOnly samesite=none + Bearer fallback), bcrypt.
 - Frontend: React 18 + Tailwind + React-Leaflet (clustering) + shadcn/ui + sonner. Thème clair.

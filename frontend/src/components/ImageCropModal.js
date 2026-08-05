@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import Cropper from "react-easy-crop";
 import { X, Check, Loader2, ZoomIn, RotateCw } from "lucide-react";
+import { toast } from "sonner";
 
 function loadImage(src) {
   return new Promise((resolve, reject) => {
@@ -15,33 +16,43 @@ function loadImage(src) {
 async function getCroppedBlob(src, area, rotation = 0) {
   const image = await loadImage(src);
   const rad = (rotation * Math.PI) / 180;
+  const cos = Math.abs(Math.cos(rad));
+  const sin = Math.abs(Math.sin(rad));
 
-  // Canvas intermédiaire à la taille de l'image (avec rotation éventuelle)
-  const safe = Math.max(image.width, image.height) * 2;
+  // Canvas intermédiaire à la taille de la boîte englobante réelle (pas max*2 → évite les crashs mémoire mobile)
+  const bW = Math.ceil(image.width * cos + image.height * sin);
+  const bH = Math.ceil(image.width * sin + image.height * cos);
   const tmp = document.createElement("canvas");
-  tmp.width = safe;
-  tmp.height = safe;
+  tmp.width = bW;
+  tmp.height = bH;
   const tctx = tmp.getContext("2d");
-  tctx.translate(safe / 2, safe / 2);
+  tctx.translate(bW / 2, bH / 2);
   tctx.rotate(rad);
   tctx.drawImage(image, -image.width / 2, -image.height / 2);
 
+  // Rognage, avec plafonnement de la taille de sortie (max 1600 px sur le plus grand côté)
+  const MAX = 1600;
+  const scale = Math.min(1, MAX / Math.max(area.width, area.height));
+  const outW = Math.max(1, Math.round(area.width * scale));
+  const outH = Math.max(1, Math.round(area.height * scale));
   const canvas = document.createElement("canvas");
-  canvas.width = Math.round(area.width);
-  canvas.height = Math.round(area.height);
+  canvas.width = outW;
+  canvas.height = outH;
   const ctx = canvas.getContext("2d");
   ctx.drawImage(
     tmp,
-    safe / 2 - image.width / 2 + area.x,
-    safe / 2 - image.height / 2 + area.y,
+    bW / 2 - image.width / 2 + area.x,
+    bH / 2 - image.height / 2 + area.y,
     area.width,
     area.height,
     0,
     0,
-    area.width,
-    area.height
+    outW,
+    outH
   );
-  return new Promise((resolve) => canvas.toBlob((b) => resolve(b), "image/jpeg", 0.9));
+  return new Promise((resolve, reject) =>
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("crop failed"))), "image/jpeg", 0.9)
+  );
 }
 
 export default function ImageCropModal({ src, onCancel, onConfirm }) {
@@ -60,6 +71,7 @@ export default function ImageCropModal({ src, onCancel, onConfirm }) {
       const blob = await getCroppedBlob(src, areaPixels, rotation);
       onConfirm(blob);
     } catch {
+      toast.error("Impossible de traiter cette image. Essayez une photo plus légère.");
       setProcessing(false);
     }
   };
