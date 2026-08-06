@@ -1,4 +1,4 @@
-/* Relay Dip — service worker robuste (réseau d'abord, auto-réparation après redéploiement) */
+/* Transport P — service worker robuste (réseau d'abord, auto-réparation après redéploiement) */
 const CACHE = "relaydip-v2";
 const APP_SHELL = ["/index.html", "/manifest.json", "/icon-192.png", "/icon-512.png"];
 

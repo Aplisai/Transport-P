@@ -350,12 +350,12 @@ export default function MapApp() {
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <div className="flex h-7 items-center justify-center gap-0.5 rounded-lg bg-[#FFCC00] px-1.5">
-              <span className="font-head text-base font-bold leading-none text-[#3399FF]">R</span>
+              <span className="font-head text-base font-bold leading-none text-[#3399FF]">T</span>
               <Package className="h-3.5 w-3.5 text-black" strokeWidth={2.5} />
             </div>
             <div className="flex flex-col gap-0.5">
               <h1 className="whitespace-nowrap font-head text-lg font-semibold leading-none tracking-tight text-[#14161C]">
-                Relay Dip
+                Transport P
               </h1>
               <span
                 data-testid="header-tagline"
