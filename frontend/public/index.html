@@ -15,6 +15,15 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600&display=swap" rel="stylesheet" />
+        <style>
+          #app-splash{position:fixed;inset:0;z-index:2147483000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#ffffff;transition:opacity .5s ease;}
+          #app-splash.app-splash--hide{opacity:0;pointer-events:none;}
+          #app-splash img{width:112px;height:112px;border-radius:26px;box-shadow:0 14px 44px rgba(23,190,187,.38);animation:appSplashPop .55s cubic-bezier(.2,.8,.2,1) both;}
+          #app-splash .app-splash-name{font-family:'Inter',system-ui,sans-serif;font-weight:600;font-size:20px;letter-spacing:-.01em;color:#14161C;opacity:0;animation:appSplashFade .5s ease .15s both;}
+          #app-splash .app-splash-tag{font-family:'Inter',system-ui,sans-serif;font-size:12px;color:#8b8f98;margin-top:-8px;opacity:0;animation:appSplashFade .5s ease .28s both;}
+          @keyframes appSplashPop{0%{transform:scale(.82);opacity:0}100%{transform:scale(1);opacity:1}}
+          @keyframes appSplashFade{to{opacity:1}}
+        </style>
         <!--
         manifest.json provides metadata used when your web app is installed on a
         user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
@@ -34,7 +43,27 @@
     </head>
     <body>
         <noscript>You need to enable JavaScript to run this app.</noscript>
+        <div id="app-splash">
+            <img src="%PUBLIC_URL%/icon-512.png" alt="Transport P" />
+            <div class="app-splash-name">Transport P</div>
+            <div class="app-splash-tag">Points relais &amp; lockers de France</div>
+        </div>
         <div id="root"></div>
+        <script>
+            (function () {
+                function hide() {
+                    var s = document.getElementById("app-splash");
+                    if (!s) return;
+                    s.classList.add("app-splash--hide");
+                    setTimeout(function () {
+                        if (s && s.parentNode) s.parentNode.removeChild(s);
+                    }, 600);
+                }
+                window.__hideSplash = hide;
+                // Filet de sécurité : masquer après 3,5s même si l'app ne le signale pas
+                setTimeout(hide, 3500);
+            })();
+        </script>
         <!--
       This HTML file is a template.
       If you open it directly in the browser, you will see an empty page.
