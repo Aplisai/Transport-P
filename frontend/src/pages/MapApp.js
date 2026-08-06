@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import {
-  Package,
   Search,
   Crosshair,
   User,
@@ -28,6 +27,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import ProposalModal from "@/components/ProposalModal";
 import { toast } from "sonner";
 import { Plus, KeyRound, BarChart3 } from "lucide-react";
+import { PersonParcel } from "@/components/icons/PersonParcel";
 
 const _norm = (s) =>
   (s || "")
@@ -351,7 +351,7 @@ export default function MapApp() {
           <div className="flex items-center gap-2">
             <div className="flex h-7 items-center justify-center gap-0.5 rounded-lg bg-[#FFCC00] px-1.5">
               <span className="font-head text-base font-bold leading-none text-[#3399FF]">T</span>
-              <Package className="h-3.5 w-3.5 text-black" strokeWidth={2.5} />
+              <PersonParcel className="h-4 w-4 text-black" strokeWidth={1.9} />
             </div>
             <div className="flex flex-col gap-0.5">
               <h1 className="whitespace-nowrap font-head text-lg font-semibold leading-none tracking-tight text-[#14161C]">
