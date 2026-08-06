@@ -351,7 +351,7 @@ export default function MapApp() {
           <div className="flex items-center gap-2">
             <div className="flex h-7 items-center justify-center gap-0.5 rounded-lg bg-[#FFCC00] px-1.5">
               <span className="font-head text-base font-bold leading-none text-[#3399FF]">T</span>
-              <PersonParcel className="h-4 w-4 text-black" strokeWidth={1.9} />
+              <PersonParcel className="h-[18px] w-[18px] text-black" />
             </div>
             <div className="flex flex-col gap-0.5">
               <h1 className="whitespace-nowrap font-head text-lg font-semibold leading-none tracking-tight text-[#14161C]">
