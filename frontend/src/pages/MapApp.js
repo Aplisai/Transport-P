@@ -349,7 +349,7 @@ export default function MapApp() {
       <div className="border-b border-black/10 p-4">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <div className="flex h-7 items-center justify-center gap-0.5 rounded-lg bg-[#FFCC00] px-1.5">
+            <div className="flex h-7 items-center justify-center gap-0.5 rounded-lg bg-[#17BEBB] px-1.5">
               <span className="font-head text-xl font-bold leading-none text-[#3399FF]">T</span>
               <PersonParcel className="h-[18px] w-[18px] text-black" />
             </div>
