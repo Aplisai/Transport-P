@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect x="0" y="0" width="512" height="512" rx="115" fill="#17BEBB"/>
+  <!-- Lettre T (blanche) -->
+  <g fill="#ffffff">
+    <rect x="79" y="151" width="150" height="42" rx="8"/>
+    <rect x="133" y="151" width="42" height="210" rx="8"/>
+  </g>
+  <!-- Porteur de colis (noir) -->
+  <g fill="#14161C" transform="translate(193.81,115.30) scale(12.08)">
+    
+  <circle cx="6.7" cy="4" r="2.7" />
+  <rect x="4.9" y="6" width="3.5" height="9" rx="1.7" />
+  <rect x="6" y="8.4" width="8.6" height="2.5" rx="1.25" />
+  <rect x="12.4" y="5" width="7.4" height="7.4" rx="1.4" />
+  <rect x="4.9" y="13.6" width="1.9" height="8.2" rx="0.95" />
+  <rect x="7.1" y="13.6" width="1.9" height="8.2" rx="0.95" />
+  <rect x="4.9" y="20.1" width="3.4" height="1.9" rx="0.95" />
+  <rect x="7.1" y="20.1" width="3.6" height="1.9" rx="0.95" />
+
+  </g>
+</svg>

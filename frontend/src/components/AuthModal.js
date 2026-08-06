@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { X, Package, Loader2, Eye, EyeOff } from "lucide-react";
+import { X, Loader2, Eye, EyeOff } from "lucide-react";
 import { api, formatApiError } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
+import { Logo } from "@/components/Logo";
 
 export default function AuthModal({ onClose }) {
   const { onAuthed } = useAuth();
@@ -111,9 +112,7 @@ export default function AuthModal({ onClose }) {
         </button>
 
         <div className="mb-6 flex items-center gap-3">
-          <div className="rounded-xl bg-[#14161C] p-2 text-white">
-            <Package className="h-5 w-5" />
-          </div>
+          <Logo />
           <div>
             <h2 className="font-head text-xl font-semibold tracking-tight text-[#14161C]">
               {titles[mode]}
