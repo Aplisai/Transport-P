@@ -3,6 +3,13 @@
 ## Problem Statement (original, FR)
 Application web + mobile responsive « Relay Dip » pour localiser les points relais et lockers en France (Mondial Relay, Chronopost, La Poste, DPD, UPS, Relais Colis, Colis Privé, Vinted Go, Amazon). Code couleur par transporteur, géolocalisation automatique, UI simple et claire. Langue : FRANÇAIS.
 
+## Rebranding « Transport P » + logo officiel (2026-08-06)
+- Nom de l'app renommé « Relay Dip » → **« Transport P »** partout (en-tête `MapApp.js`, `index.html` title/description/apple-title, `manifest.json` short_name+name).
+- **Logo officiel** : badge turquoise `#17BEBB` + « T » blanc + silhouette « porteur de colis » (SVG sur mesure `components/icons/PersonParcel.js`, debout, profil vers la droite, colis dans les bras). Composant réutilisable `components/Logo.js` utilisé dans l'en-tête ET `AuthModal`.
+- Icônes PWA/favicon régénérées depuis le logo (cairosvg) : `favicon-32.png`, `icon-192.png`, `icon-512.png`, `apple-touch-icon.png`, `icon-src.png` + `logo.svg`. Script : `/tmp/gen_icons.py` (nécessite `pip install cairosvg`).
+- Déployé en prod le 2026-08-06.
+
+
 ## Correctifs production (2026-08-05)
 - **Login admin prod** : le seed de démarrage (`server.py` startup) réaligne désormais le `password_hash` de l'admin sur `ADMIN_PASSWORD` si le hash existant ne correspond pas (avant : jamais réinitialisé → 401 en prod). Résolu.
 - **Page blanche PWA après redéploiement** : `public/service-worker.js` réécrit (cache `relaydip-v2`, réseau d'abord pour navigations HTML, les assets ne renvoient JAMAIS de HTML en secours, purge des anciens caches à l'activate). `src/index.js` : rechargement auto sur `controllerchange` → auto-réparation à chaque déploiement.
