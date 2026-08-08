@@ -753,6 +753,7 @@ async def create_proposal(data: ProposalIn, user: dict = Depends(get_current_use
         "type": ptype,
         "carriers": valid_carriers,
         "comment": data.comment.strip(),
+        "read": False,
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
     return {"ok": True}
@@ -770,9 +771,20 @@ async def list_proposals(admin: dict = Depends(require_admin)):
         "type": d.get("type", "relais"),
         "carriers": d.get("carriers", []),
         "comment": d.get("comment", ""),
+        "read": bool(d.get("read", False)),
         "created_at": d.get("created_at", ""),
     } for d in docs]
-    return {"proposals": items, "count": len(items)}
+    unread = sum(1 for it in items if not it["read"])
+    return {"proposals": items, "count": len(items), "unread": unread}
+
+
+@api_router.post("/admin/proposals/{proposal_id}/read")
+async def mark_proposal_read(proposal_id: str, admin: dict = Depends(require_admin)):
+    try:
+        await db.proposals.update_one({"_id": ObjectId(proposal_id)}, {"$set": {"read": True}})
+    except Exception:
+        raise HTTPException(status_code=400, detail="Identifiant invalide")
+    return {"ok": True}
 
 
 @api_router.delete("/admin/proposals/{proposal_id}")

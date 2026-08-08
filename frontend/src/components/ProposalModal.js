@@ -37,9 +37,9 @@ export default function ProposalModal({ onClose, carriersInfo = [], onCountChang
       .get("/admin/proposals")
       .then(({ data }) => {
         setProposals(data);
-        onCountChange && onCountChange(data?.count || 0);
+        onCountChange && onCountChange(data?.unread ?? 0);
       })
-      .catch(() => setProposals({ proposals: [], count: 0 }));
+      .catch(() => setProposals({ proposals: [], count: 0, unread: 0 }));
   }, [onCountChange]);
 
   useEffect(() => {
@@ -91,12 +91,29 @@ export default function ProposalModal({ onClose, carriersInfo = [], onCountChang
   const removeProposal = async (id) => {
     try {
       await api.delete(`/admin/proposals/${id}`);
-      const newCount = Math.max(0, (proposals?.count || 1) - 1);
-      setProposals((p) => ({ ...p, proposals: p.proposals.filter((x) => x.id !== id), count: newCount }));
-      onCountChange && onCountChange(newCount);
+      const nextList = (proposals?.proposals || []).filter((x) => x.id !== id);
+      const unread = nextList.filter((x) => !x.read).length;
+      setProposals((p) => ({ ...p, proposals: nextList, count: Math.max(0, (p?.count || 1) - 1), unread }));
+      onCountChange && onCountChange(unread);
     } catch {
       toast.error("Échec de la suppression");
     }
+  };
+
+  // Ouvrir une proposition = la consulter -> marquée comme lue (disparaît du compteur "non lues")
+  const openProposal = async (p) => {
+    if (p && !p.read && proposals) {
+      try {
+        await api.post(`/admin/proposals/${p.id}/read`);
+      } catch {
+        /* on ouvre quand même */
+      }
+      const nextList = proposals.proposals.map((x) => (x.id === p.id ? { ...x, read: true } : x));
+      const unread = nextList.filter((x) => !x.read).length;
+      setProposals({ ...proposals, proposals: nextList, unread });
+      onCountChange && onCountChange(unread);
+    }
+    onAccept && onAccept(p);
   };
 
   const inputCls = "w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm outline-none focus:border-black/30 transition-[border-color]";
@@ -123,6 +140,11 @@ export default function ProposalModal({ onClose, carriersInfo = [], onCountChang
           <div className="max-h-[70vh] overflow-y-auto rp-scroll p-4" data-testid="proposals-admin-list">
             <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
               <Inbox className="h-3.5 w-3.5" /> Propositions reçues {proposals ? `(${proposals.count})` : ""}
+              {proposals && proposals.unread > 0 && (
+                <span className="rounded-full bg-[#17BEBB] px-1.5 py-0.5 text-[9px] font-bold text-white" data-testid="proposals-unread-count">
+                  {proposals.unread} non lue{proposals.unread > 1 ? "s" : ""}
+                </span>
+              )}
             </p>
             {!proposals ? (
               <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-gray-400" /></div>
@@ -135,16 +157,29 @@ export default function ProposalModal({ onClose, carriersInfo = [], onCountChang
                     key={p.id}
                     role="button"
                     tabIndex={0}
-                    onClick={() => onAccept && onAccept(p)}
+                    onClick={() => openProposal(p)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") onAccept && onAccept(p);
+                      if (e.key === "Enter" || e.key === " ") openProposal(p);
                     }}
-                    className="cursor-pointer rounded-xl border border-black/10 bg-[#F4F4F5] p-3 hover:border-[#17BEBB] hover:bg-[#17BEBB]/5 transition-[background-color,border-color]"
+                    className={`cursor-pointer rounded-xl border p-3 transition-[background-color,border-color] ${
+                      p.read
+                        ? "border-black/10 bg-white hover:border-[#17BEBB] hover:bg-[#17BEBB]/5"
+                        : "border-[#17BEBB]/50 bg-[#17BEBB]/[0.06] hover:bg-[#17BEBB]/10"
+                    }`}
                     data-testid="proposal-item"
+                    data-read={p.read ? "true" : "false"}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
+                          {!p.read && (
+                            <span
+                              data-testid="proposal-unread-dot"
+                              className="flex shrink-0 items-center gap-1 rounded-full bg-[#17BEBB] px-1.5 py-0.5 text-[9px] font-bold uppercase text-white"
+                            >
+                              <span className="h-1.5 w-1.5 rounded-full bg-white" /> Nouveau
+                            </span>
+                          )}
                           <span className="truncate text-[13px] font-semibold text-[#14161C]">{p.name}</span>
                           <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase ${p.type === "locker" ? "bg-[#3399FF]/15 text-[#3399FF]" : "bg-[#FFCC00]/25 text-[#8a7400]"}`}>
                             {p.type === "locker" ? "Locker" : "Relais"}

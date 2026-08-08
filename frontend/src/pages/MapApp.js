@@ -149,7 +149,7 @@ export default function MapApp() {
     if (user?.role !== "admin") return;
     api
       .get("/admin/proposals")
-      .then(({ data }) => setProposalCount(data?.count || 0))
+      .then(({ data }) => setProposalCount(data?.unread || 0))
       .catch(() => {});
   }, [user]);
 
@@ -961,12 +961,14 @@ export default function MapApp() {
               // Validation d'une proposition : on recentre la carte sans ouvrir la fiche
               setFlyTarget({ lat: saved.lat, lng: saved.lng, zoom: 15 });
             }
-            // Si on validait une proposition, on la retire et on notifie l'auteur
+            // Validation d'une proposition : notifier l'auteur + retirer la proposition
+            // (le compteur "non lus" a déjà été mis à jour au clic sur la proposition)
             if (isAccepting) {
               const pid = acceptingProposalId.current;
               acceptingProposalId.current = null;
-              api.post(`/admin/proposals/${pid}/accept`, { point_id: saved.id }).catch(() => {});
-              setProposalCount((c) => Math.max(0, c - 1));
+              api.post(`/admin/proposals/${pid}/accept`, { point_id: saved.id })
+                .then(() => refreshProposalCount())
+                .catch(() => {});
             }
           }}
           onDeleted={(id) => {
