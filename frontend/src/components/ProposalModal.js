@@ -91,11 +91,9 @@ export default function ProposalModal({ onClose, carriersInfo = [], onCountChang
   const removeProposal = async (id) => {
     try {
       await api.delete(`/admin/proposals/${id}`);
-      setProposals((p) => {
-        const next = { ...p, proposals: p.proposals.filter((x) => x.id !== id), count: Math.max(0, p.count - 1) };
-        onCountChange && onCountChange(next.count);
-        return next;
-      });
+      const newCount = Math.max(0, (proposals?.count || 1) - 1);
+      setProposals((p) => ({ ...p, proposals: p.proposals.filter((x) => x.id !== id), count: newCount }));
+      onCountChange && onCountChange(newCount);
     } catch {
       toast.error("Échec de la suppression");
     }

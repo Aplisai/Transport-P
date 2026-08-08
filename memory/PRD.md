@@ -3,6 +3,15 @@
 ## Problem Statement (original, FR)
 Application web + mobile responsive « Relay Dip » pour localiser les points relais et lockers en France (Mondial Relay, Chronopost, La Poste, DPD, UPS, Relais Colis, Colis Privé, Vinted Go, Amazon). Code couleur par transporteur, géolocalisation automatique, UI simple et claire. Langue : FRANÇAIS.
 
+## Gestion admin des propositions (2026-08-08)
+- **Badge de comptage** sur le bouton « Proposer un point relais ou locker » (admin) : nombre de propositions reçues (`proposal-count-badge`), synchronisé après validation/déclin.
+- Chaque proposition affiche son **ancienneté** (timeAgo) + « Cliquez pour compléter et valider ».
+- **Proposition cliquable** → ouvre le MÊME `PointForm` **pré-rempli** (nouvelle prop `prefill` : nom, adresse, type, transporteurs + note utilisateur). Titre « Valider la proposition ». À l'enregistrement : le point est créé (POST /admin/points) ET la proposition est supprimée + badge décrémenté. La fiche détail ne s'ouvre plus automatiquement (permet d'enchaîner les validations).
+- **Décliner** : bouton corbeille (`stopPropagation`) supprime la proposition et décrémente le compte.
+- Fichiers : `pages/MapApp.js` (proposalCount, formPrefill, acceptingProposalId, handleAcceptProposal), `components/ProposalModal.js` (props onCountChange/onAccept, cartes cliquables), `components/PointForm.js` (prop prefill).
+- Testé : testing agent 100% (6/6 critères), iteration_17.json. Corrigé : anti-pattern React setState-in-updater + ouverture auto de la fiche après validation.
+
+
 ## Rebranding « Transport P » + logo officiel (2026-08-06)
 - Nom de l'app renommé « Relay Dip » → **« Transport P »** partout (en-tête `MapApp.js`, `index.html` title/description/apple-title, `manifest.json` short_name+name).
 - **Logo officiel** : badge turquoise `#17BEBB` + « T » blanc + silhouette « porteur de colis » (SVG sur mesure `components/icons/PersonParcel.js`, debout, profil vers la droite, colis dans les bras). Composant réutilisable `components/Logo.js` utilisé dans l'en-tête ET `AuthModal`.

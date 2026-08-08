@@ -948,17 +948,21 @@ export default function MapApp() {
           carriersInfo={carriers}
           existingPoints={allPoints}
           onSaved={(saved) => {
+            const isAccepting = !!acceptingProposalId.current;
             setAllPoints((prev) => {
               const exists = prev.some((p) => p.id === saved.id);
               return exists ? prev.map((p) => (p.id === saved.id ? saved : p)) : [saved, ...prev];
             });
             if (selected && selected.id === saved.id) setSelected(saved);
-            if (formPoint === null) {
+            if (formPoint === null && !isAccepting) {
               setSelected(saved);
+              setFlyTarget({ lat: saved.lat, lng: saved.lng, zoom: 15 });
+            } else if (isAccepting) {
+              // Validation d'une proposition : on recentre la carte sans ouvrir la fiche
               setFlyTarget({ lat: saved.lat, lng: saved.lng, zoom: 15 });
             }
             // Si on validait une proposition, on la retire de la liste
-            if (acceptingProposalId.current) {
+            if (isAccepting) {
               const pid = acceptingProposalId.current;
               acceptingProposalId.current = null;
               api.delete(`/admin/proposals/${pid}`).catch(() => {});
