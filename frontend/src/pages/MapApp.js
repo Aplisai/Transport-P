@@ -81,7 +81,20 @@ export default function MapApp() {
   const suggestRef = useRef(null);
 
   useEffect(() => {
-    api.get("/carriers").then(({ data }) => setCarriers(data));
+    let cancelled = false;
+    const loadCarriers = async (attempt = 0) => {
+      try {
+        const { data } = await api.get("/carriers");
+        if (!cancelled && Array.isArray(data)) setCarriers(data);
+        else if (!cancelled && attempt < 8) setTimeout(() => loadCarriers(attempt + 1), 2500);
+      } catch {
+        if (!cancelled && attempt < 8) setTimeout(() => loadCarriers(attempt + 1), 2500);
+      }
+    };
+    loadCarriers();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Suivi d'audience: 1 visite par session + installations PWA
@@ -104,15 +117,26 @@ export default function MapApp() {
     }
   }, [expiredTick]);
 
-  const loadPoints = useCallback(async () => {
+  const loadPointsRef = useRef();
+  const loadPoints = useCallback(async (attempt = 0) => {
     setLoading(true);
     try {
       const { data } = await api.get("/points");
-      setAllPoints(data);
+      if (Array.isArray(data)) {
+        setAllPoints(data);
+      } else if (attempt < 8) {
+        // Réponse inattendue (backend en cours de démarrage) — nouvelle tentative
+        setTimeout(() => loadPointsRef.current && loadPointsRef.current(attempt + 1), 2500);
+      }
+    } catch {
+      if (attempt < 8) {
+        setTimeout(() => loadPointsRef.current && loadPointsRef.current(attempt + 1), 2500);
+      }
     } finally {
       setLoading(false);
     }
   }, []);
+  loadPointsRef.current = loadPoints;
 
   useEffect(() => {
     loadPoints();
@@ -122,7 +146,8 @@ export default function MapApp() {
   const points = useMemo(() => {
     const qRaw = query.trim();
     const q = qRaw ? _norm(qRaw) : null;
-    let res = allPoints.filter((p) => {
+    const source = Array.isArray(allPoints) ? allPoints : [];
+    let res = source.filter((p) => {
       if (active.size) {
         const cs = p.carriers && p.carriers.length ? p.carriers : [p.carrier];
         if (!cs.some((c) => active.has(c))) return false;
@@ -623,7 +648,7 @@ export default function MapApp() {
           Sélectionnez vos ou votre transporteur
         </p>
         <div className="flex flex-wrap gap-2">
-          {carriers.map((c) => {
+          {(Array.isArray(carriers) ? carriers : []).map((c) => {
             const on = active.has(c.id);
             return (
               <button
