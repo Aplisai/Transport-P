@@ -66,6 +66,9 @@ export default function MapApp() {
   const [sheetOpen, setSheetOpen] = useState(true);
   const [showAccount, setShowAccount] = useState(false);
   const [showProposal, setShowProposal] = useState(false);
+  const [proposalCount, setProposalCount] = useState(0);
+  const [formPrefill, setFormPrefill] = useState(null);
+  const acceptingProposalId = useRef(null);
   const [searchCollapsed, setSearchCollapsed] = useState(false);
   const [locating, setLocating] = useState(false);
   const [ptype, setPtype] = useState("all"); // all | relais | locker
@@ -141,6 +144,34 @@ export default function MapApp() {
   useEffect(() => {
     loadPoints();
   }, [loadPoints]);
+
+  const refreshProposalCount = useCallback(() => {
+    if (user?.role !== "admin") return;
+    api
+      .get("/admin/proposals")
+      .then(({ data }) => setProposalCount(data?.count || 0))
+      .catch(() => {});
+  }, [user]);
+
+  useEffect(() => {
+    if (isAdmin) refreshProposalCount();
+    else setProposalCount(0);
+  }, [isAdmin, refreshProposalCount]);
+
+  const handleAcceptProposal = useCallback((proposal) => {
+    acceptingProposalId.current = proposal.id;
+    setShowProposal(false);
+    setFormPrefill({
+      name: proposal.name,
+      address: proposal.address,
+      type: proposal.type,
+      carriers: proposal.carriers || [],
+      comment: proposal.comment,
+      user_name: proposal.user_name,
+      user_email: proposal.user_email,
+    });
+    setFormPoint(null);
+  }, []);
 
   // Filtrage 100% côté client -> instantané, aucun appel réseau au changement de filtre
   const points = useMemo(() => {
@@ -463,10 +494,18 @@ export default function MapApp() {
             <button
               onClick={() => setShowProposal(true)}
               data-testid="propose-point-btn"
-              className="flex w-[150px] items-center justify-center gap-1.5 rounded-full bg-[#FFCC00] px-3 py-1.5 text-[11px] font-semibold leading-tight text-[#14161C] hover:bg-[#f5c400] transition-[background-color]"
+              className="relative flex w-[150px] items-center justify-center gap-1.5 rounded-full bg-[#FFCC00] px-3 py-1.5 text-[11px] font-semibold leading-tight text-[#14161C] hover:bg-[#f5c400] transition-[background-color]"
             >
               <MapPin className="h-3.5 w-3.5 shrink-0" />
               Proposer un point relais ou locker
+              {isAdmin && proposalCount > 0 && (
+                <span
+                  data-testid="proposal-count-badge"
+                  className="absolute -right-1.5 -top-1.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#FF3366] px-1 text-[10px] font-bold text-white ring-2 ring-white"
+                >
+                  {proposalCount > 99 ? "99+" : proposalCount}
+                </span>
+              )}
             </button>
           </div>
         )}
@@ -880,7 +919,14 @@ export default function MapApp() {
       )}
       {showChangePwd && <ChangePasswordModal onClose={() => setShowChangePwd(false)} />}
       {showStats && <StatsModal onClose={() => setShowStats(false)} />}
-      {showProposal && <ProposalModal onClose={() => setShowProposal(false)} carriersInfo={carriers} />}
+      {showProposal && (
+        <ProposalModal
+          onClose={() => setShowProposal(false)}
+          carriersInfo={carriers}
+          onCountChange={setProposalCount}
+          onAccept={handleAcceptProposal}
+        />
+      )}
       {selected && formPoint === undefined && (
         <PointDetail
           point={selected}
@@ -898,6 +944,7 @@ export default function MapApp() {
       {formPoint !== undefined && (
         <PointForm
           point={formPoint}
+          prefill={formPrefill}
           carriersInfo={carriers}
           existingPoints={allPoints}
           onSaved={(saved) => {
@@ -910,12 +957,23 @@ export default function MapApp() {
               setSelected(saved);
               setFlyTarget({ lat: saved.lat, lng: saved.lng, zoom: 15 });
             }
+            // Si on validait une proposition, on la retire de la liste
+            if (acceptingProposalId.current) {
+              const pid = acceptingProposalId.current;
+              acceptingProposalId.current = null;
+              api.delete(`/admin/proposals/${pid}`).catch(() => {});
+              setProposalCount((c) => Math.max(0, c - 1));
+            }
           }}
           onDeleted={(id) => {
             setAllPoints((prev) => prev.filter((p) => p.id !== id));
             if (selected && selected.id === id) setSelected(null);
           }}
-          onClose={() => setFormPoint(undefined)}
+          onClose={() => {
+            setFormPoint(undefined);
+            setFormPrefill(null);
+            acceptingProposalId.current = null;
+          }}
         />
       )}
     </div>

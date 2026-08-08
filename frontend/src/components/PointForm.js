@@ -49,19 +49,22 @@ const _normStr = (s) =>
     .replace(/\s+/g, " ")
     .trim();
 
-export default function PointForm({ point, carriersInfo = [], existingPoints = [], onSaved, onDeleted, onClose }) {
+export default function PointForm({ point, prefill = null, carriersInfo = [], existingPoints = [], onSaved, onDeleted, onClose }) {
   const isEdit = !!point;
-  const [name, setName] = useState(point?.name || "");
-  const [type, setType] = useState(point?.type || "relais");
+  const [name, setName] = useState(point?.name || prefill?.name || "");
+  const [type, setType] = useState(point?.type || prefill?.type || "relais");
+  const prefillCarriers = prefill?.carriers?.filter((c) => carriersInfo.some((x) => x.id === c)) || [];
   const initialCarriers =
     point?.carriers && point.carriers.length
       ? point.carriers
       : point?.carrier
       ? [point.carrier]
+      : prefillCarriers.length
+      ? prefillCarriers
       : [carriersInfo[0]?.id].filter(Boolean);
   const [carrier, setCarrier] = useState(point?.carrier || initialCarriers[0] || "mondial_relay");
   const [carriers, setCarriers] = useState(initialCarriers);
-  const [address, setAddress] = useState(point?.address || "");
+  const [address, setAddress] = useState(point?.address || prefill?.address || "");
   const [postalCode, setPostalCode] = useState(point?.postal_code || "");
   const [city, setCity] = useState(point?.city || "");
   const [phone, setPhone] = useState(point?.phone || "");
@@ -344,7 +347,7 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
       <div className="relative w-full max-w-lg rounded-t-2xl sm:rounded-2xl bg-white border border-black/10 shadow-[0_20px_60px_rgba(0,0,0,0.3)] rp-fade-up max-h-[92vh] overflow-y-auto rp-scroll">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-black/10 bg-white/95 px-6 py-4 backdrop-blur">
           <h2 className="font-head text-lg font-semibold tracking-tight text-[#14161C]" data-testid="point-form-title">
-            {isEdit ? "Éditer le point" : "Ajouter un point relais"}
+            {isEdit ? "Éditer le point" : prefill ? "Valider la proposition" : "Ajouter un point relais"}
           </h2>
           <button
             onClick={onClose}
@@ -357,6 +360,22 @@ export default function PointForm({ point, carriersInfo = [], existingPoints = [
         </div>
 
         <form onSubmit={submit} className="space-y-4 p-6">
+          {prefill && (
+            <div className="rounded-lg bg-[#17BEBB]/10 border border-[#17BEBB]/30 px-4 py-3" data-testid="point-form-proposal-note">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-[#0e8583]">Proposition d'un utilisateur</p>
+              <p className="mt-0.5 text-[12px] text-[#14161C]">
+                Complétez les informations manquantes (adresse exacte, horaires, coordonnées…) puis validez pour l'ajouter aux points disponibles.
+              </p>
+              {(prefill.user_name || prefill.user_email) && (
+                <p className="mt-1 text-[11px] text-gray-500">
+                  Proposé par {prefill.user_name || "—"}{prefill.user_email ? ` · ${prefill.user_email}` : ""}
+                </p>
+              )}
+              {prefill.comment && (
+                <p className="mt-1 text-[12px] italic text-gray-600">« {prefill.comment} »</p>
+              )}
+            </div>
+          )}
           {/* Name + combined search (voice or manual) via OpenStreetMap */}
           <div className="relative">
             <label className={labelCls}>Recherche d'enseignes</label>

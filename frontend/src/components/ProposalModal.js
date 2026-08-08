@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { X, MapPin, Inbox, Trash2, Search, Send, Loader2 } from "lucide-react";
+import { X, MapPin, Inbox, Trash2, Search, Send, Loader2, ChevronRight } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
@@ -13,7 +13,7 @@ function timeAgo(iso) {
   return `il y a ${Math.floor(diff / 86400)} j`;
 }
 
-export default function ProposalModal({ onClose, carriersInfo = [] }) {
+export default function ProposalModal({ onClose, carriersInfo = [], onCountChange, onAccept }) {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
 
@@ -34,9 +34,12 @@ export default function ProposalModal({ onClose, carriersInfo = [] }) {
   const fetchProposals = useCallback(() => {
     api
       .get("/admin/proposals")
-      .then(({ data }) => setProposals(data))
+      .then(({ data }) => {
+        setProposals(data);
+        onCountChange && onCountChange(data?.count || 0);
+      })
       .catch(() => setProposals({ proposals: [], count: 0 }));
-  }, []);
+  }, [onCountChange]);
 
   useEffect(() => {
     if (isAdmin) fetchProposals();
@@ -88,7 +91,11 @@ export default function ProposalModal({ onClose, carriersInfo = [] }) {
   const removeProposal = async (id) => {
     try {
       await api.delete(`/admin/proposals/${id}`);
-      setProposals((p) => ({ ...p, proposals: p.proposals.filter((x) => x.id !== id), count: p.count - 1 }));
+      setProposals((p) => {
+        const next = { ...p, proposals: p.proposals.filter((x) => x.id !== id), count: Math.max(0, p.count - 1) };
+        onCountChange && onCountChange(next.count);
+        return next;
+      });
     } catch {
       toast.error("Échec de la suppression");
     }
@@ -126,7 +133,17 @@ export default function ProposalModal({ onClose, carriersInfo = [] }) {
             ) : (
               <div className="space-y-2">
                 {proposals.proposals.map((p) => (
-                  <div key={p.id} className="rounded-xl border border-black/10 bg-[#F4F4F5] p-3" data-testid="proposal-item">
+                  <div
+                    key={p.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => onAccept && onAccept(p)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") onAccept && onAccept(p);
+                    }}
+                    className="cursor-pointer rounded-xl border border-black/10 bg-[#F4F4F5] p-3 hover:border-[#17BEBB] hover:bg-[#17BEBB]/5 transition-[background-color,border-color]"
+                    data-testid="proposal-item"
+                  >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
@@ -151,11 +168,18 @@ export default function ProposalModal({ onClose, carriersInfo = [] }) {
                         )}
                         {p.comment && <p className="mt-0.5 text-[12px] italic text-gray-500">« {p.comment} »</p>}
                         <p className="mt-1 text-[10px] text-gray-400">{p.user_name} · {p.user_email} · {timeAgo(p.created_at)}</p>
+                        <p className="mt-1 flex items-center gap-0.5 text-[10px] font-semibold text-[#0e8583]">
+                          <ChevronRight className="h-3 w-3" /> Cliquez pour compléter et valider
+                        </p>
                       </div>
                       <button
-                        onClick={() => removeProposal(p.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeProposal(p.id);
+                        }}
                         data-testid="proposal-delete-btn"
-                        aria-label="Supprimer"
+                        aria-label="Décliner la proposition"
+                        title="Décliner la proposition"
                         className="shrink-0 rounded-full p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500 transition-[background-color,color]"
                       >
                         <Trash2 className="h-3.5 w-3.5" />

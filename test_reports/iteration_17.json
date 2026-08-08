@@ -1,0 +1,29 @@
+{
+  "summary": "Tested new admin proposal features on 'Transport P' (frontend only). All 6 acceptance criteria verified successfully on the live preview URL: (1) red badge appears on 'propose-point-btn' with correct count after admin login; (2) proposal modal lists items with name, type Relais/Locker, address, carriers, time-ago (e.g. 'il y a 10 min') and 'Cliquez pour compléter et valider'; (3) clicking a proposal-item closes the modal and opens PointForm with title 'Valider la proposition', shows point-form-proposal-note, and prefills form-name/type/carriers; (4) accepting (fill lat=45.75/lng=4.85 then form-save-btn) closes the form, adds the point to the list, deletes the proposal server-side, and decrements the badge by 1; (5) declining via proposal-delete-btn removes item, decrements the section title 'Propositions reçues (N)' and the badge, and does NOT open PointForm (stopPropagation OK); (6) no error-boundary observed during normal flows. Verified against 3 successive proposals (Boulangerie, Consigne, Tabac, Locker Gare Part-Dieu).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "MapApp after accepting a proposal", "issues": ["Once the new point is saved, MapApp automatically opens PointDetail (selected=saved) which overlays the panel and blocks the propose-point-btn until the user closes it. Consider not auto-opening the detail after validating a proposition, or auto-closing/z-index adjust so admin can chain validations."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix React warning: in ProposalModal.removeProposal, onCountChange is called INSIDE the setProposals updater function which triggers 'Cannot update a component (MapApp) while rendering a different component (ProposalModal)'. Move onCountChange call outside the updater (e.g. compute new count first, call setProposals, then onCountChange in a separate line or useEffect).",
+    "Consider not auto-opening PointDetail after validating a proposal (currently selected=saved in MapApp onSaved when formPoint===null); improves admin batch-validation UX."
+  ],
+  "critical_code_review_comments": [
+    "ProposalModal.js line ~94-98: onCountChange invoked inside setProposals updater function - React anti-pattern, causes 'setState during render' warning.",
+    "MapApp.js onSaved: after validating a proposition (acceptingProposalId set), the code still calls setSelected(saved) & flyTarget, so PointDetail overlays the sidebar. For proposal validation, skip the auto-selection.",
+    "The DELETE /api/admin/proposals/{id} is fired without awaiting; if it fails silently the count in the UI decrements optimistically without server sync - acceptable but consider handling errors."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped per request)", "frontend": "100% (6/6 acceptance criteria)"},
+  "test_credentials": "admin@relaispoint.fr / admin123 (from problem statement)",
+  "seed_data_creation": "None; used pre-existing 4 proposals (Tabac de la Gare, Consigne Carrefour City, Boulangerie du Centre, Locker Gare Part-Dieu). During testing 3 were consumed (2 accepted via test, 1 declined). 1 remains at end.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 4 seed proposals were partially consumed by this run (2 accepted → new points added at lat/lng ~45.75/4.85 and a random location; 1 declined). Only 1 proposal remains. If re-running full flow, main agent should re-seed proposals. Backend has occasional cold start (~10-20s) — wait long timeouts on first /api/auth/login. Service worker triggers a 'controllerchange' reload once at first navigation; wait ~10s before interacting.",
+  "rca of the issue": "N/A - all acceptance criteria passed. Only a non-blocking React dev warning found: onCountChange is invoked inside setProposals updater in removeProposal, which causes React to warn about updating a parent while rendering a child. It does not break functionality but should be refactored."
+}
