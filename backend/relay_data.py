@@ -4,7 +4,7 @@ import random
 CARRIERS = {
     "mondial_relay": {"name": "Mondial Relay", "color": "#FF3366"},
     "chronopost": {"name": "Chronopost", "color": "#3399FF"},
-    "la_poste": {"name": "La Poste", "color": "#FFCC00"},
+    "la_poste": {"name": "Colissimo", "color": "#FFCC00"},
     "dpd": {"name": "DPD", "color": "#FF3333"},
     "ups": {"name": "UPS", "color": "#FF9900"},
     "relais_colis": {"name": "Relais Colis", "color": "#00E676"},

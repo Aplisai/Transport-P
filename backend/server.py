@@ -1495,6 +1495,12 @@ async def startup():
         _CUSTOM[c["id"]] = c
     async for d in db.deleted_points.find().limit(50000):
         _DELETED.add(d["point_id"])
+    # Migration: aligner le carrier_name stocké sur le nom courant des transporteurs
+    for pid, p in list(_CUSTOM.items()):
+        info = CARRIERS.get(p.get("carrier"))
+        if info and p.get("carrier_name") != info["name"]:
+            p["carrier_name"] = info["name"]
+            await db.custom_points.update_one({"id": pid}, {"$set": {"carrier_name": info["name"]}})
     logger.info("Overrides: %d | Custom: %d | Deleted: %d",
                 len(_OVERRIDES), len(_CUSTOM), len(_DELETED))
 
