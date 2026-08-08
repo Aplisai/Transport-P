@@ -639,20 +639,30 @@ class AnnouncementIn(BaseModel):
     link: str = Field(default="", max_length=500)
 
 
-async def _add_notification(ntype: str, title: str, body: str = "", link: str = "", ref_id: str = ""):
-    await db.notifications.insert_one({
+async def _add_notification(ntype: str, title: str, body: str = "", link: str = "", ref_id: str = "", user_id: str = None):
+    doc = {
         "type": ntype,
         "title": title,
         "body": body,
         "link": link,
         "ref_id": ref_id,
         "created_at": datetime.now(timezone.utc).isoformat(),
-    })
+    }
+    if user_id:
+        doc["user_id"] = user_id
+    await db.notifications.insert_one(doc)
 
 
 @api_router.get("/notifications")
 async def list_notifications(user: dict = Depends(get_current_user)):
-    docs = await db.notifications.find().sort("created_at", -1).to_list(50)
+    uid = str(user["_id"])
+    query = {"$or": [
+        {"user_id": {"$exists": False}},
+        {"user_id": None},
+        {"user_id": ""},
+        {"user_id": uid},
+    ]}
+    docs = await db.notifications.find(query).sort("created_at", -1).to_list(50)
     read_at = user.get("notifications_read_at") or ""
     enabled = user.get("notifications_enabled", True)
     items = [{
@@ -771,6 +781,31 @@ async def delete_proposal(proposal_id: str, admin: dict = Depends(require_admin)
         await db.proposals.delete_one({"_id": ObjectId(proposal_id)})
     except Exception:
         raise HTTPException(status_code=400, detail="Identifiant invalide")
+    return {"ok": True}
+
+
+class AcceptProposalIn(BaseModel):
+    point_id: str = Field(default="", max_length=100)
+
+
+@api_router.post("/admin/proposals/{proposal_id}/accept")
+async def accept_proposal(proposal_id: str, data: AcceptProposalIn, admin: dict = Depends(require_admin)):
+    try:
+        prop = await db.proposals.find_one({"_id": ObjectId(proposal_id)})
+    except Exception:
+        raise HTTPException(status_code=400, detail="Identifiant invalide")
+    if prop:
+        uid = prop.get("user_id")
+        pname = prop.get("name", "votre point")
+        if uid:
+            await _add_notification(
+                "point",
+                "Votre proposition a été validée 🎉",
+                f"« {pname} » est maintenant disponible parmi tous les points relais et lockers.",
+                ref_id=data.point_id or "",
+                user_id=uid,
+            )
+        await db.proposals.delete_one({"_id": ObjectId(proposal_id)})
     return {"ok": True}
 
 

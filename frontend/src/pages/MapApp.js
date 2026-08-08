@@ -961,11 +961,11 @@ export default function MapApp() {
               // Validation d'une proposition : on recentre la carte sans ouvrir la fiche
               setFlyTarget({ lat: saved.lat, lng: saved.lng, zoom: 15 });
             }
-            // Si on validait une proposition, on la retire de la liste
+            // Si on validait une proposition, on la retire et on notifie l'auteur
             if (isAccepting) {
               const pid = acceptingProposalId.current;
               acceptingProposalId.current = null;
-              api.delete(`/admin/proposals/${pid}`).catch(() => {});
+              api.post(`/admin/proposals/${pid}/accept`, { point_id: saved.id }).catch(() => {});
               setProposalCount((c) => Math.max(0, c - 1));
             }
           }}

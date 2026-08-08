@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { X, MapPin, Inbox, Trash2, Search, Send, Loader2, ChevronRight } from "lucide-react";
+import { X, MapPin, Inbox, Trash2, Search, Send, Loader2, ChevronRight, CheckCircle2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
@@ -23,6 +23,7 @@ export default function ProposalModal({ onClose, carriersInfo = [], onCountChang
   const [pCarriers, setPCarriers] = useState([]);
   const [pComment, setPComment] = useState("");
   const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
   const [proposals, setProposals] = useState(null);
   const [addrSuggest, setAddrSuggest] = useState([]);
   const [showAddrSuggest, setShowAddrSuggest] = useState(false);
@@ -74,13 +75,12 @@ export default function ProposalModal({ onClose, carriersInfo = [], onCountChang
     setSending(true);
     try {
       await api.post("/proposals", { name: pName, address: pAddress, type: pType, carriers: pCarriers, comment: pComment });
-      toast.success("Merci ! Votre proposition a bien été envoyée.");
       setPName("");
       setPAddress("");
       setPType("relais");
       setPCarriers([]);
       setPComment("");
-      onClose();
+      setSent(true);
     } catch {
       toast.error("Échec de l'envoi");
     } finally {
@@ -187,6 +187,27 @@ export default function ProposalModal({ onClose, carriersInfo = [], onCountChang
                 ))}
               </div>
             )}
+          </div>
+        ) : sent ? (
+          <div className="flex flex-col items-center gap-3 p-6 text-center" data-testid="proposal-success">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#17BEBB]/15">
+              <CheckCircle2 className="h-8 w-8 text-[#17BEBB]" />
+            </div>
+            <h3 className="font-head text-base font-semibold text-[#14161C]">
+              Merci ! Votre proposition a bien été prise en compte.
+            </h3>
+            <p className="text-[13px] leading-relaxed text-gray-600">
+              Dès qu'elle sera vérifiée et validée par notre équipe, vous recevrez une
+              notification vous informant que le point relais est désormais disponible parmi
+              tous les points relais et lockers.
+            </p>
+            <button
+              onClick={onClose}
+              data-testid="proposal-success-close"
+              className="mt-1 rounded-full bg-[#14161C] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[#2a2d36] transition-[background-color]"
+            >
+              Fermer
+            </button>
           </div>
         ) : (
           <div className="max-h-[75vh] space-y-2.5 overflow-y-auto rp-scroll p-4" data-testid="proposal-form">

@@ -3,6 +3,13 @@
 ## Problem Statement (original, FR)
 Application web + mobile responsive « Relay Dip » pour localiser les points relais et lockers en France (Mondial Relay, Chronopost, La Poste, DPD, UPS, Relais Colis, Colis Privé, Vinted Go, Amazon). Code couleur par transporteur, géolocalisation automatique, UI simple et claire. Langue : FRANÇAIS.
 
+## Confirmation + notification de proposition (2026-08-08)
+- **Message de confirmation** : après clic sur « Envoyer ma proposition » (utilisateur), la modale affiche un écran de succès (`proposal-success`, icône verte) : « Merci ! Votre proposition a bien été prise en compte. Dès qu'elle sera validée…, vous recevrez une notification… ».
+- **Notifications ciblées par utilisateur** : `_add_notification` accepte désormais `user_id` ; `GET /notifications` renvoie les notifs globales (sans user_id) + celles ciblées sur l'utilisateur courant. Rétro-compatible (anciennes notifs = globales).
+- **Endpoint `POST /admin/proposals/{id}/accept`** (body `{point_id}`) : crée une notification ciblée pour l'auteur (« Votre proposition a été validée 🎉 », clic → ouvre le point via `ref_id`) puis supprime la proposition. Le frontend appelle cet endpoint à la validation (au lieu du DELETE).
+- Testé : backend (curl — l'auteur voit la notif, l'admin non) + frontend (écran de succès affiché). Fichiers : `backend/server.py`, `frontend/src/components/ProposalModal.js`, `frontend/src/pages/MapApp.js`.
+
+
 ## Gestion admin des propositions (2026-08-08)
 - **Badge de comptage** sur le bouton « Proposer un point relais ou locker » (admin) : nombre de propositions reçues (`proposal-count-badge`), synchronisé après validation/déclin.
 - Chaque proposition affiche son **ancienneté** (timeAgo) + « Cliquez pour compléter et valider ».
