@@ -778,9 +778,20 @@ async def list_proposals(admin: dict = Depends(require_admin)):
 @api_router.delete("/admin/proposals/{proposal_id}")
 async def delete_proposal(proposal_id: str, admin: dict = Depends(require_admin)):
     try:
-        await db.proposals.delete_one({"_id": ObjectId(proposal_id)})
+        prop = await db.proposals.find_one({"_id": ObjectId(proposal_id)})
     except Exception:
         raise HTTPException(status_code=400, detail="Identifiant invalide")
+    if prop:
+        uid = prop.get("user_id")
+        pname = prop.get("name", "votre point")
+        if uid:
+            await _add_notification(
+                "announcement",
+                "À propos de votre proposition",
+                f"Merci pour votre proposition « {pname} ». Après vérification, elle n'a pas pu être retenue cette fois-ci. N'hésitez pas à nous en proposer d'autres, on compte sur vous ! 🙂",
+                user_id=uid,
+            )
+        await db.proposals.delete_one({"_id": ObjectId(proposal_id)})
     return {"ok": True}
 
 

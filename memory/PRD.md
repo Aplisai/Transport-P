@@ -7,6 +7,7 @@ Application web + mobile responsive « Relay Dip » pour localiser les points re
 - **Message de confirmation** : après clic sur « Envoyer ma proposition » (utilisateur), la modale affiche un écran de succès (`proposal-success`, icône verte) : « Merci ! Votre proposition a bien été prise en compte. Dès qu'elle sera validée…, vous recevrez une notification… ».
 - **Notifications ciblées par utilisateur** : `_add_notification` accepte désormais `user_id` ; `GET /notifications` renvoie les notifs globales (sans user_id) + celles ciblées sur l'utilisateur courant. Rétro-compatible (anciennes notifs = globales).
 - **Endpoint `POST /admin/proposals/{id}/accept`** (body `{point_id}`) : crée une notification ciblée pour l'auteur (« Votre proposition a été validée 🎉 », clic → ouvre le point via `ref_id`) puis supprime la proposition. Le frontend appelle cet endpoint à la validation (au lieu du DELETE).
+- **Refus (DELETE `/admin/proposals/{id}`)** : envoie désormais une notification bienveillante à l'auteur (« À propos de votre proposition » — « …elle n'a pas pu être retenue cette fois-ci. N'hésitez pas à nous en proposer d'autres 🙂 ») avant suppression. Testé en curl (l'auteur la reçoit, l'admin non).
 - Testé : backend (curl — l'auteur voit la notif, l'admin non) + frontend (écran de succès affiché). Fichiers : `backend/server.py`, `frontend/src/components/ProposalModal.js`, `frontend/src/pages/MapApp.js`.
 
 
