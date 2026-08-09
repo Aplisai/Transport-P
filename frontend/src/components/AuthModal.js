@@ -392,7 +392,9 @@ export default function AuthModal({ onClose }) {
           <form onSubmit={submitVerify} className="space-y-4" data-testid="verify-form">
             <div className="rounded-xl border border-[#17BEBB]/40 bg-[#17BEBB]/10 px-3 py-2.5 text-xs text-[#14161C]">
               Un code de confirmation à 6 chiffres a été envoyé à{" "}
-              <strong>{email}</strong>. Il est valable 15 minutes.
+              <strong>{email}</strong>. Il est valable 15 minutes. Il est possible
+              aussi que vous ayez reçu le mail sur vos spams ou courriers
+              indésirables. N'hésitez pas à les consulter.
               <span className="mt-1 block font-medium text-[#0e8583]">
                 La validation de ce code est obligatoire pour finaliser votre inscription.
               </span>
@@ -424,7 +426,7 @@ export default function AuthModal({ onClose }) {
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               Valider mon compte
             </button>
-            <div className="flex items-center justify-center text-xs">
+            <div className="flex items-center justify-between text-xs">
               <button
                 type="button"
                 onClick={handleResend}
@@ -436,7 +438,19 @@ export default function AuthModal({ onClose }) {
                   ? "Envoi…"
                   : cooldown > 0
                   ? `Renvoyer le code (${cooldown}s)`
-                  : "Vous n'avez rien reçu ? Renvoyer le code"}
+                  : "Renvoyer le code"}
+              </button>
+              <button
+                type="button"
+                data-testid="verify-back-btn"
+                onClick={() => {
+                  setMode("login");
+                  setError("");
+                  setCode("");
+                }}
+                className="font-medium text-gray-500 hover:text-[#14161C]"
+              >
+                Retour
               </button>
             </div>
           </form>
