@@ -12,6 +12,8 @@ import secrets
 import tempfile
 import uuid
 import requests
+import aiosmtplib
+from email.message import EmailMessage
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Annotated
 
@@ -24,7 +26,7 @@ def _norm(s: str) -> str:
 import jwt
 import bcrypt
 from bson import ObjectId
-from fastapi import FastAPI, APIRouter, Request, Response, HTTPException, Depends, UploadFile, File
+from fastapi import FastAPI, APIRouter, Request, Response, HTTPException, Depends, UploadFile, File, BackgroundTasks
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -150,6 +152,69 @@ async def require_admin(user: dict = Depends(get_current_user)) -> dict:
     return user
 
 
+# ---------------------------------------------------------------- E-mail (IONOS SMTP)
+SMTP_HOST = os.environ.get("SMTP_HOST")
+SMTP_PORT = int(os.environ.get("SMTP_PORT") or 587)
+SMTP_USER = os.environ.get("SMTP_USER")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD")
+SMTP_FROM = os.environ.get("SMTP_FROM") or SMTP_USER
+
+CODE_TTL_MINUTES = 15
+MAX_CODE_ATTEMPTS = 5
+
+
+def _generate_code() -> str:
+    return f"{secrets.randbelow(1_000_000):06d}"
+
+
+async def send_verification_email(to_email: str, code: str, name: str = "") -> None:
+    if not (SMTP_HOST and SMTP_USER and SMTP_PASSWORD):
+        logger.error("SMTP non configuré — code non envoyé à %s", to_email)
+        raise RuntimeError("SMTP non configuré")
+    greeting = f"Bonjour {name}," if name else "Bonjour,"
+    msg = EmailMessage()
+    msg["From"] = f"Transport P <{SMTP_FROM}>"
+    msg["To"] = to_email
+    msg["Subject"] = "Votre code de confirmation Transport P"
+    msg.set_content(
+        f"{greeting}\n\n"
+        f"Voici votre code de confirmation Transport P : {code}\n\n"
+        f"Ce code est valable {CODE_TTL_MINUTES} minutes. Saisissez-le dans l'application "
+        "pour activer votre compte.\n\n"
+        "Si vous n'êtes pas à l'origine de cette inscription, ignorez cet e-mail.\n\n"
+        "— L'équipe Transport P"
+    )
+    html = f"""\
+    <div style="font-family:Arial,Helvetica,sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#14161C">
+      <div style="text-align:center;margin-bottom:20px">
+        <span style="display:inline-block;background:#17BEBB;color:#fff;font-weight:700;font-size:20px;padding:8px 14px;border-radius:10px">Transport&nbsp;P</span>
+      </div>
+      <p>{greeting}</p>
+      <p>Voici votre code de confirmation pour activer votre compte :</p>
+      <div style="text-align:center;margin:24px 0">
+        <span style="display:inline-block;background:#F4F4F5;border:1px dashed #17BEBB;border-radius:12px;padding:14px 26px;font-size:30px;letter-spacing:8px;font-weight:700;color:#0e8583">{code}</span>
+      </div>
+      <p style="color:#6b7280;font-size:13px">Ce code est valable <strong>{CODE_TTL_MINUTES} minutes</strong>.</p>
+      <p style="color:#9ca3af;font-size:12px;margin-top:24px">Si vous n'êtes pas à l'origine de cette inscription, vous pouvez ignorer cet e-mail.</p>
+    </div>"""
+    msg.add_alternative(html, subtype="html")
+    opts = {"hostname": SMTP_HOST, "port": SMTP_PORT, "username": SMTP_USER,
+            "password": SMTP_PASSWORD, "timeout": 20}
+    if SMTP_PORT == 465:
+        opts["use_tls"] = True
+    else:
+        opts["start_tls"] = True
+    await aiosmtplib.send(msg, **opts)
+
+
+async def _safe_send_verification(to_email: str, code: str, name: str = ""):
+    try:
+        await send_verification_email(to_email, code, name)
+        logger.info("Code de confirmation envoyé à %s", to_email)
+    except Exception as e:
+        logger.error("Échec envoi code à %s : %s", to_email, e)
+
+
 def user_public(user: dict) -> dict:
     return {"id": str(user["_id"]), "email": user["email"],
             "name": user.get("name", ""), "role": user.get("role", "user")}
@@ -163,19 +228,79 @@ def haversine(lat1, lng1, lat2, lng2) -> float:
     return round(R * 2 * math.atan2(math.sqrt(a), math.sqrt(1-a)), 2)
 
 # ---------------------------------------------------------------- Auth routes
+class VerifyIn(BaseModel):
+    email: EmailStr
+    code: str = Field(min_length=6, max_length=6)
+
+class ResendIn(BaseModel):
+    email: EmailStr
+
+
 @api_router.post("/auth/register")
-async def register(data: RegisterIn, response: Response):
+async def register(data: RegisterIn, background: BackgroundTasks):
     email = data.email.lower()
     if await db.users.find_one({"email": email}):
         raise HTTPException(status_code=400, detail="Cet email est déjà utilisé")
+    code = _generate_code()
     doc = {"email": email, "password_hash": hash_password(data.password),
            "name": data.name, "role": "user", "favorites": [],
+           "is_verified": False,
+           "verification_code_hash": hash_password(code),
+           "verification_expires_at": (datetime.now(timezone.utc) + timedelta(minutes=CODE_TTL_MINUTES)).isoformat(),
+           "verification_attempts": 0,
            "created_at": datetime.now(timezone.utc).isoformat()}
-    res = await db.users.insert_one(doc)
-    token = create_access_token(str(res.inserted_id), email)
+    await db.users.insert_one(doc)
+    background.add_task(_safe_send_verification, email, code, data.name)
+    return {"verification_required": True, "email": email}
+
+
+@api_router.post("/auth/verify")
+async def verify_email(data: VerifyIn, response: Response):
+    email = data.email.lower()
+    user = await db.users.find_one({"email": email})
+    if not user:
+        raise HTTPException(status_code=404, detail="Compte introuvable")
+    if user.get("is_verified"):
+        token = create_access_token(str(user["_id"]), email)
+        set_auth_cookie(response, token)
+        return {**user_public(user), "token": token}
+    if user.get("verification_attempts", 0) >= MAX_CODE_ATTEMPTS:
+        raise HTTPException(status_code=429, detail="Trop de tentatives. Demandez un nouveau code.")
+    exp = user.get("verification_expires_at")
+    try:
+        exp_dt = datetime.fromisoformat(exp) if exp else None
+    except Exception:
+        exp_dt = None
+    if not exp_dt or exp_dt < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Code expiré. Demandez un nouveau code.")
+    if not verify_password(data.code, user.get("verification_code_hash", "") or ""):
+        await db.users.update_one({"_id": user["_id"]}, {"$inc": {"verification_attempts": 1}})
+        raise HTTPException(status_code=400, detail="Code incorrect.")
+    await db.users.update_one(
+        {"_id": user["_id"]},
+        {"$set": {"is_verified": True, "verified_at": datetime.now(timezone.utc).isoformat()},
+         "$unset": {"verification_code_hash": "", "verification_expires_at": "", "verification_attempts": ""}})
+    user = await db.users.find_one({"_id": user["_id"]})
+    token = create_access_token(str(user["_id"]), email)
     set_auth_cookie(response, token)
-    doc["_id"] = res.inserted_id
-    return {**user_public(doc), "token": token}
+    return {**user_public(user), "token": token}
+
+
+@api_router.post("/auth/resend")
+async def resend_code(data: ResendIn, background: BackgroundTasks):
+    email = data.email.lower()
+    user = await db.users.find_one({"email": email})
+    if user and not user.get("is_verified"):
+        code = _generate_code()
+        await db.users.update_one(
+            {"_id": user["_id"]},
+            {"$set": {"verification_code_hash": hash_password(code),
+                      "verification_expires_at": (datetime.now(timezone.utc) + timedelta(minutes=CODE_TTL_MINUTES)).isoformat(),
+                      "verification_attempts": 0}})
+        background.add_task(_safe_send_verification, email, code, user.get("name", ""))
+    # Réponse volontairement neutre (ne révèle pas si le compte existe)
+    return {"ok": True}
+
 
 @api_router.post("/auth/login")
 async def login(data: LoginIn, response: Response):
@@ -183,6 +308,8 @@ async def login(data: LoginIn, response: Response):
     user = await db.users.find_one({"email": email})
     if not user or not verify_password(data.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
+    if user.get("is_verified") is False:
+        raise HTTPException(status_code=403, detail="Compte non vérifié. Veuillez saisir le code reçu par e-mail.")
     token = create_access_token(str(user["_id"]), email)
     set_auth_cookie(response, token)
     return {**user_public(user), "token": token}
@@ -1530,13 +1657,15 @@ async def startup():
     if existing is None:
         await db.users.insert_one({
             "email": admin_email, "password_hash": hash_password(admin_pw),
-            "name": "Admin", "role": "admin", "favorites": [],
+            "name": "Admin", "role": "admin", "favorites": [], "is_verified": True,
             "created_at": datetime.now(timezone.utc).isoformat()})
         logger.info("Admin créé: %s", admin_email)
     else:
         updates = {}
         if existing.get("role") != "admin":
             updates["role"] = "admin"
+        if existing.get("is_verified") is not True:
+            updates["is_verified"] = True
         stored_hash = existing.get("password_hash") or ""
         if not stored_hash or not verify_password(admin_pw, stored_hash):
             updates["password_hash"] = hash_password(admin_pw)

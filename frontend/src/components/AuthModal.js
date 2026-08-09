@@ -19,22 +19,76 @@ export default function AuthModal({ onClose }) {
   const [newPwd, setNewPwd] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [code, setCode] = useState("");
+  const [resending, setResending] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
 
   const submitAuth = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
     try {
-      const payload =
-        mode === "login" ? { email, password } : { email, password, name };
-      const { data } = await api.post(`/auth/${mode}`, payload);
+      if (mode === "register") {
+        await api.post("/auth/register", { email, password, name });
+        setCode("");
+        setMode("verify");
+        setCooldown(30);
+        toast.success("Code de confirmation envoyé par e-mail");
+      } else {
+        const { data } = await api.post("/auth/login", { email, password });
+        await onAuthed(data);
+        toast.success("Connexion réussie");
+        onClose();
+      }
+    } catch (err) {
+      const status = err.response?.status;
+      if (mode === "login" && status === 403) {
+        // Compte non vérifié -> on bascule vers l'étape de vérification (sans renvoyer de code)
+        setCode("");
+        setMode("verify");
+        toast.info("Compte non vérifié. Saisissez le code reçu par e-mail (ou renvoyez-en un).");
+      } else {
+        setError(formatApiError(err.response?.data?.detail) || err.message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const submitVerify = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      const { data } = await api.post("/auth/verify", { email, code: code.trim() });
       await onAuthed(data);
-      toast.success(mode === "login" ? "Connexion réussie" : "Compte créé");
+      toast.success("Compte vérifié 🎉");
       onClose();
     } catch (err) {
       setError(formatApiError(err.response?.data?.detail) || err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (cooldown > 0 || resending) return;
+    setResending(true);
+    setError("");
+    try {
+      await api.post("/auth/resend", { email });
+      setCooldown(30);
+      toast.success("Nouveau code envoyé");
+    } catch (err) {
+      setError(formatApiError(err.response?.data?.detail) || err.message);
+    } finally {
+      setResending(false);
     }
   };
 
@@ -82,6 +136,7 @@ export default function AuthModal({ onClose }) {
   const titles = {
     login: "En route",
     register: "Créer un compte",
+    verify: "Vérifiez votre e-mail",
     forgot: "Mot de passe oublié",
     reset: "Nouveau mot de passe",
   };
@@ -120,6 +175,8 @@ export default function AuthModal({ onClose }) {
             <p className="text-xs text-gray-500">
               {mode === "reset"
                 ? "Choisissez un nouveau mot de passe"
+                : mode === "verify"
+                ? "Saisissez le code reçu par e-mail"
                 : mode === "forgot"
                 ? "Recevez un code pour réinitialiser"
                 : "Enregistrez vos points relais favoris"}
@@ -329,6 +386,68 @@ export default function AuthModal({ onClose }) {
             </button>
           </form>
         )}
+        {mode === "verify" && (
+          <form onSubmit={submitVerify} className="space-y-4" data-testid="verify-form">
+            <div className="rounded-xl border border-[#17BEBB]/40 bg-[#17BEBB]/10 px-3 py-2.5 text-xs text-[#14161C]">
+              Un code de confirmation à 6 chiffres a été envoyé à{" "}
+              <strong>{email}</strong>. Il est valable 15 minutes.
+            </div>
+            <div>
+              <label className={labelCls}>Code de confirmation</label>
+              <input
+                data-testid="verify-code-input"
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                required
+                placeholder="123456"
+                className={inputCls + " text-center text-lg tracking-[10px] font-semibold"}
+              />
+            </div>
+            {error && (
+              <p className="text-sm text-red-500" data-testid="auth-error">
+                {error}
+              </p>
+            )}
+            <button
+              type="submit"
+              disabled={loading || code.length !== 6}
+              data-testid="verify-submit-btn"
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-[#14161C] py-3 text-sm font-semibold text-white hover:bg-[#2a2d36] disabled:opacity-60 transition-[background-color]"
+            >
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              Valider mon compte
+            </button>
+            <div className="flex items-center justify-between text-xs">
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={cooldown > 0 || resending}
+                data-testid="verify-resend-btn"
+                className="font-medium text-[#0e8583] underline underline-offset-2 hover:text-[#0b6b69] disabled:text-gray-400 disabled:no-underline"
+              >
+                {resending
+                  ? "Envoi…"
+                  : cooldown > 0
+                  ? `Renvoyer le code (${cooldown}s)`
+                  : "Renvoyer le code"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("login");
+                  setError("");
+                  setCode("");
+                }}
+                className="font-medium text-gray-500 hover:text-[#14161C]"
+              >
+                Retour à la connexion
+              </button>
+            </div>
+          </form>
+        )}
+
       </div>
     </div>
   );
