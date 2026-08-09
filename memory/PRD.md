@@ -3,6 +3,14 @@
 ## Problem Statement (original, FR)
 Application web + mobile responsive « Relay Dip » pour localiser les points relais et lockers en France (Mondial Relay, Chronopost, La Poste, DPD, UPS, Relais Colis, Colis Privé, Vinted Go, Amazon). Code couleur par transporteur, géolocalisation automatique, UI simple et claire. Langue : FRANÇAIS.
 
+## Vérification e-mail obligatoire — écran verrouillé (2026-06-09)
+- Demande FR : « Je veux que le renvoie de code soit obligatoire pour valider l'inscription » → option (a) confirmée par l'utilisateur : bloquer l'écran de vérification pour que l'inscription ne puisse pas être abandonnée.
+- `AuthModal.js` mode `verify` : croix de fermeture masquée (`auth-close-btn` absent), clic sur le fond (backdrop) désactivé, bouton « Retour à la connexion » retiré. Seules actions possibles : saisir le code (« Valider mon compte ») ou « Renvoyer le code ».
+- Note ajoutée : « La validation de ce code est obligatoire pour finaliser votre inscription ».
+- Note : un rafraîchissement de page ferme la modale (le compte reste `is_verified=false` et la connexion est déjà bloquée 403 tant que non vérifié — backend inchangé).
+- Vérifié via screenshot preview (croix absente, resend présent, pas de retour connexion). Fichier : `frontend/src/components/AuthModal.js`.
+
+
 ## Confirmation + notification de proposition (2026-08-08)
 - **Message de confirmation** : après clic sur « Envoyer ma proposition » (utilisateur), la modale affiche un écran de succès (`proposal-success`, icône verte) : « Merci ! Votre proposition a bien été prise en compte. Dès qu'elle sera validée…, vous recevrez une notification… ».
 - **Notifications ciblées par utilisateur** : `_add_notification` accepte désormais `user_id` ; `GET /notifications` renvoie les notifs globales (sans user_id) + celles ciblées sur l'utilisateur courant. Rétro-compatible (anciennes notifs = globales).

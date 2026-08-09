@@ -148,7 +148,7 @@ export default function AuthModal({ onClose }) {
     >
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-        onClick={onClose}
+        onClick={mode === "verify" ? undefined : onClose}
         style={{
           backgroundImage:
             "linear-gradient(rgba(238,241,245,0.6),rgba(238,241,245,0.75)), url(https://images.pexels.com/photos/31032753/pexels-photo-31032753.jpeg)",
@@ -157,14 +157,16 @@ export default function AuthModal({ onClose }) {
         }}
       />
       <div className="relative w-full max-w-md rounded-2xl bg-white border border-black/10 p-8 shadow-[0_20px_60px_rgba(0,0,0,0.18)] rp-fade-up">
-        <button
-          onClick={onClose}
-          aria-label="Fermer"
-          data-testid="auth-close-btn"
-          className="absolute right-4 top-4 rounded-full bg-black/5 p-2 hover:bg-black/10 transition-[background-color]"
-        >
-          <X className="h-4 w-4" />
-        </button>
+        {mode !== "verify" && (
+          <button
+            onClick={onClose}
+            aria-label="Fermer"
+            data-testid="auth-close-btn"
+            className="absolute right-4 top-4 rounded-full bg-black/5 p-2 hover:bg-black/10 transition-[background-color]"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
 
         <div className="mb-6 flex items-center gap-3">
           <Logo />
@@ -391,6 +393,9 @@ export default function AuthModal({ onClose }) {
             <div className="rounded-xl border border-[#17BEBB]/40 bg-[#17BEBB]/10 px-3 py-2.5 text-xs text-[#14161C]">
               Un code de confirmation à 6 chiffres a été envoyé à{" "}
               <strong>{email}</strong>. Il est valable 15 minutes.
+              <span className="mt-1 block font-medium text-[#0e8583]">
+                La validation de ce code est obligatoire pour finaliser votre inscription.
+              </span>
             </div>
             <div>
               <label className={labelCls}>Code de confirmation</label>
@@ -419,7 +424,7 @@ export default function AuthModal({ onClose }) {
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               Valider mon compte
             </button>
-            <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center justify-center text-xs">
               <button
                 type="button"
                 onClick={handleResend}
@@ -431,18 +436,7 @@ export default function AuthModal({ onClose }) {
                   ? "Envoi…"
                   : cooldown > 0
                   ? `Renvoyer le code (${cooldown}s)`
-                  : "Renvoyer le code"}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMode("login");
-                  setError("");
-                  setCode("");
-                }}
-                className="font-medium text-gray-500 hover:text-[#14161C]"
-              >
-                Retour à la connexion
+                  : "Vous n'avez rien reçu ? Renvoyer le code"}
               </button>
             </div>
           </form>
